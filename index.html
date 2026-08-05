@@ -1,0 +1,383 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ApkProjects — Descarga juegos y apps</title>
+<meta name="description" content="Catálogo de juegos y aplicaciones para descargar.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Sora:wght@600;700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#F6F8F9;
+    --surface:#FFFFFF;
+    --border:#E6E9EC;
+    --ink:#161A1D;
+    --ink-soft:#5B6570;
+    --accent:#0E8F76;
+    --accent-dark:#0B6E5B;
+    --accent-soft:#E4F5F1;
+    --star:#F5A623;
+    --radius:16px;
+    --radius-sm:10px;
+    --shadow: 0 1px 2px rgba(16,24,32,0.04), 0 8px 24px -12px rgba(16,24,32,0.08);
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    background:var(--bg);
+    color:var(--ink);
+    font-family:'Inter',system-ui,sans-serif;
+    -webkit-font-smoothing:antialiased;
+  }
+  h1,h2,h3,.brand{font-family:'Sora',system-ui,sans-serif;}
+  a{color:inherit;text-decoration:none;}
+  img{max-width:100%;display:block;}
+
+  /* ---------- Top bar ---------- */
+  .topbar{
+    position:sticky; top:0; z-index:50;
+    background:var(--surface);
+    border-bottom:1px solid var(--border);
+  }
+  .topbar-inner{
+    max-width:1180px; margin:0 auto;
+    display:flex; align-items:center; gap:20px;
+    padding:14px 20px;
+  }
+  .brand{
+    display:flex; align-items:center; gap:10px;
+    font-weight:800; font-size:19px; letter-spacing:-0.01em;
+    white-space:nowrap;
+  }
+  .brand-mark{
+    width:34px; height:34px; border-radius:9px;
+    background:linear-gradient(155deg, var(--accent), var(--accent-dark));
+    display:flex; align-items:center; justify-content:center;
+    color:#fff; font-weight:800; font-size:16px;
+    flex-shrink:0;
+  }
+  .search{
+    flex:1; max-width:520px;
+    display:flex; align-items:center; gap:10px;
+    background:var(--bg);
+    border:1px solid var(--border);
+    border-radius:999px;
+    padding:9px 16px;
+    color:var(--ink-soft);
+    font-size:14px;
+  }
+  .search svg{flex-shrink:0; opacity:.6;}
+  .search input{
+    border:none; background:transparent; outline:none;
+    font-family:inherit; font-size:14px; color:var(--ink); width:100%;
+  }
+  .search input::placeholder{color:var(--ink-soft);}
+
+  /* ---------- Category nav ---------- */
+  .categories{
+    max-width:1180px; margin:0 auto;
+    display:flex; gap:8px;
+    padding:0 20px 14px;
+    overflow-x:auto;
+    scrollbar-width:none;
+  }
+  .categories::-webkit-scrollbar{display:none;}
+  .chip{
+    flex-shrink:0;
+    padding:7px 16px;
+    border-radius:999px;
+    font-size:13px; font-weight:600;
+    border:1px solid var(--border);
+    background:var(--surface);
+    color:var(--ink-soft);
+    cursor:pointer;
+    transition:background .15s, color .15s, border-color .15s;
+  }
+  .chip.active{
+    background:var(--ink); color:#fff; border-color:var(--ink);
+  }
+  .chip:hover:not(.active){border-color:var(--accent); color:var(--accent-dark);}
+
+  /* ---------- Ad slots ---------- */
+  .ad-slot{
+    max-width:1180px; margin:20px auto 0; padding:0 20px;
+  }
+  .ad-slot .ad-box{
+    border:1px dashed var(--border);
+    border-radius:var(--radius-sm);
+    background:var(--surface);
+    color:var(--ink-soft);
+    font-size:12px;
+    text-align:center;
+    padding:18px 12px;
+    letter-spacing:.03em;
+    text-transform:uppercase;
+  }
+
+  /* ---------- Hero ---------- */
+  .hero{
+    max-width:1180px; margin:0 auto; padding:36px 20px 8px;
+  }
+  .hero h1{
+    font-size:28px; font-weight:800; margin:0 0 6px; letter-spacing:-0.02em;
+  }
+  .hero p{
+    margin:0; color:var(--ink-soft); font-size:15px;
+  }
+
+  /* ---------- Section ---------- */
+  .section{
+    max-width:1180px; margin:0 auto; padding:28px 20px 4px;
+  }
+  .section-head{
+    display:flex; align-items:baseline; justify-content:space-between;
+    margin-bottom:14px;
+  }
+  .section-head h2{
+    font-size:18px; font-weight:700; margin:0;
+  }
+  .section-head .see-all{
+    font-size:13px; font-weight:600; color:var(--accent-dark);
+  }
+
+  /* ---------- Grid ---------- */
+  .grid{
+    display:grid;
+    grid-template-columns:repeat(auto-fill, minmax(160px,1fr));
+    gap:16px;
+  }
+  .card{
+    background:var(--surface);
+    border:1px solid var(--border);
+    border-radius:var(--radius);
+    padding:14px;
+    display:flex; flex-direction:column; gap:10px;
+    box-shadow:var(--shadow);
+    transition:transform .15s ease, box-shadow .15s ease;
+  }
+  .card:hover{
+    transform:translateY(-2px);
+    box-shadow:0 4px 8px rgba(16,24,32,0.06), 0 14px 28px -14px rgba(16,24,32,0.16);
+  }
+  .icon{
+    width:100%; aspect-ratio:1/1;
+    border-radius:14px;
+    display:flex; align-items:center; justify-content:center;
+    font-family:'Sora',sans-serif; font-weight:800; font-size:28px;
+    color:#fff;
+  }
+  .card h3{
+    font-size:14px; font-weight:700; margin:0;
+    overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
+  }
+  .meta{
+    display:flex; align-items:center; gap:6px;
+    font-size:12px; color:var(--ink-soft);
+  }
+  .meta .stars{color:var(--star); font-size:12px;}
+  .tag{
+    font-size:11px; font-weight:600; color:var(--accent-dark);
+    background:var(--accent-soft);
+    display:inline-block; padding:2px 8px; border-radius:6px;
+    width:fit-content;
+  }
+  .dl-btn{
+    margin-top:auto;
+    background:var(--accent);
+    color:#fff;
+    border:none;
+    border-radius:999px;
+    padding:9px 0;
+    font-family:inherit; font-weight:700; font-size:13px;
+    cursor:pointer;
+    transition:background .15s;
+    text-align:center;
+  }
+  .dl-btn:hover{background:var(--accent-dark);}
+
+  /* ---------- Empty state ---------- */
+  .empty{
+    grid-column:1/-1;
+    border:1.5px dashed var(--border);
+    border-radius:var(--radius);
+    background:var(--surface);
+    padding:44px 24px;
+    text-align:center;
+    color:var(--ink-soft);
+  }
+  .empty .empty-mark{
+    width:52px; height:52px; margin:0 auto 14px;
+    border-radius:14px;
+    background:var(--accent-soft);
+    color:var(--accent-dark);
+    display:flex; align-items:center; justify-content:center;
+    font-size:22px; font-weight:800; font-family:'Sora',sans-serif;
+  }
+  .empty h3{
+    color:var(--ink); font-size:15px; margin:0 0 4px;
+  }
+  .empty p{margin:0; font-size:13px; max-width:360px; margin:0 auto;}
+  .empty code{
+    background:var(--bg); border:1px solid var(--border);
+    padding:1px 6px; border-radius:5px; font-size:12px;
+  }
+
+  /* ---------- Footer ---------- */
+  footer{
+    margin-top:52px;
+    border-top:1px solid var(--border);
+    padding:28px 20px 40px;
+  }
+  footer .inner{
+    max-width:1180px; margin:0 auto;
+    display:flex; justify-content:space-between; align-items:center;
+    flex-wrap:wrap; gap:12px;
+    font-size:13px; color:var(--ink-soft);
+  }
+
+  @media (max-width:640px){
+    .hero h1{font-size:22px;}
+    .search{display:none;}
+    .grid{grid-template-columns:repeat(auto-fill, minmax(128px,1fr)); gap:12px;}
+    .icon{font-size:22px;}
+  }
+</style>
+</head>
+<body>
+
+  <div class="topbar">
+    <div class="topbar-inner">
+      <div class="brand">
+        <div class="brand-mark">AP</div>
+        ApkProjects
+      </div>
+      <div class="search">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>
+        <input type="text" placeholder="Buscar juegos y apps…" id="searchInput">
+      </div>
+    </div>
+    <div class="categories" id="categoryBar">
+      <div class="chip active" data-cat="all">Todos</div>
+      <div class="chip" data-cat="accion">Acción</div>
+      <div class="chip" data-cat="aventura">Aventura</div>
+      <div class="chip" data-cat="arcade">Arcade</div>
+      <div class="chip" data-cat="deportes">Deportes</div>
+      <div class="chip" data-cat="apps">Apps</div>
+    </div>
+  </div>
+
+  <!-- AD SLOT: banner superior. Pega aquí tu código de AdSense u otro anuncio. -->
+  <div class="ad-slot">
+    <div class="ad-box">Espacio de anuncio — banner superior (728×90 o responsive)</div>
+  </div>
+
+  <div class="hero">
+    <h1>Descarga tus juegos favoritos</h1>
+    <p>Catálogo de juegos y apps, actualizado constantemente. Descarga directa, sin registros.</p>
+  </div>
+
+  <div class="section">
+    <div class="section-head">
+      <h2>Destacados</h2>
+      <span class="see-all">Ver todos</span>
+    </div>
+    <div class="grid" id="gameGrid">
+      <!-- ==========================================================
+           EMPTY STATE — se muestra automáticamente si games[] está vacío.
+           Para agregar juegos, edita el array "games" al final del
+           archivo, dentro de la etiqueta <script>. Cada juego es un
+           objeto así:
+
+           {
+             title: "Nombre del juego",
+             category: "accion",       // debe coincidir con data-cat de arriba
+             rating: 4.5,               // 0 a 5
+             size: "85 MB",
+             color: "#2563EB",          // color del ícono (hex)
+             initials: "NJ",            // 1-2 letras que aparecen en el ícono
+             link: "https://www.mediafire.com/..."
+           }
+
+           El grid se genera solo con JavaScript, no hace falta tocar HTML.
+         =========================================================== -->
+    </div>
+  </div>
+
+  <!-- AD SLOT: entre secciones. Pega aquí otro bloque de anuncio si quieres. -->
+  <div class="ad-slot">
+    <div class="ad-box">Espacio de anuncio — entre secciones</div>
+  </div>
+
+  <footer>
+    <div class="inner">
+      <span>© 2026 ApkProjects. Todos los enlaces de descarga son externos.</span>
+      <span>apkprojects.xyz</span>
+    </div>
+  </footer>
+
+<script>
+  // ======================================================
+  // AGREGA TUS JUEGOS AQUÍ. Copia el formato del ejemplo comentado
+  // arriba y añade tantos objetos como quieras dentro de este array.
+  // Deja el array vacío ( [] ) para mostrar el estado vacío.
+  // ======================================================
+  const games = [
+    // { title: "Ejemplo", category: "accion", rating: 4.6, size: "120 MB",
+    //   color: "#2563EB", initials: "EJ", link: "https://www.mediafire.com/file/xxxx" },
+  ];
+
+  const grid = document.getElementById('gameGrid');
+  const categoryBar = document.getElementById('categoryBar');
+  const searchInput = document.getElementById('searchInput');
+  let activeCat = 'all';
+
+  function starString(rating){
+    const full = Math.round(rating);
+    return '★'.repeat(full) + '☆'.repeat(5-full);
+  }
+
+  function render(){
+    const term = searchInput.value.trim().toLowerCase();
+    const filtered = games.filter(g =>
+      (activeCat === 'all' || g.category === activeCat) &&
+      g.title.toLowerCase().includes(term)
+    );
+
+    if(filtered.length === 0){
+      grid.innerHTML = `
+        <div class="empty">
+          <div class="empty-mark">AP</div>
+          <h3>Todavía no hay juegos aquí</h3>
+          <p>Agrega tu primer juego editando el array <code>games</code> al final del archivo HTML.</p>
+        </div>`;
+      return;
+    }
+
+    grid.innerHTML = filtered.map(g => `
+      <div class="card">
+        <div class="icon" style="background:${g.color}">${g.initials}</div>
+        <h3>${g.title}</h3>
+        <div class="meta"><span class="stars">${starString(g.rating)}</span>&nbsp;${g.rating.toFixed(1)} · ${g.size}</div>
+        <span class="tag">${g.category}</span>
+        <a class="dl-btn" href="${g.link}" target="_blank" rel="noopener">Descargar</a>
+      </div>
+    `).join('');
+  }
+
+  categoryBar.addEventListener('click', (e) => {
+    const chip = e.target.closest('.chip');
+    if(!chip) return;
+    categoryBar.querySelectorAll('.chip').forEach(c => c.classList.remove('active'));
+    chip.classList.add('active');
+    activeCat = chip.dataset.cat;
+    render();
+  });
+
+  searchInput.addEventListener('input', render);
+
+  render();
+</script>
+</body>
+</html>
