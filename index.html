@@ -37,6 +37,7 @@
   h1,h2,h3,.brand{font-family:'Sora',system-ui,sans-serif;}
   a{color:inherit;text-decoration:none;}
   img{max-width:100%;display:block;}
+  body.modal-open{overflow:hidden;}
 
   /* ---------- Top bar ---------- */
   .topbar{
@@ -200,12 +201,6 @@
     font-size:18px; font-weight:700; margin:0;
     display:flex; align-items:center; gap:8px;
   }
-  .section-head-right{ display:flex; align-items:center; gap:10px; }
-  .sort-select{
-    font-family:inherit; font-size:13px; font-weight:600; color:var(--ink-soft);
-    border:1px solid var(--border); border-radius:999px;
-    padding:7px 12px; background:var(--surface); cursor:pointer;
-  }
   .see-all{
     font-size:13px; font-weight:600; color:var(--accent-dark);
     background:none; border:none; font-family:inherit;
@@ -216,22 +211,25 @@
     font-size:12px; color:var(--ink-soft); margin:-6px 0 14px;
   }
 
-  /* ---------- Grid ---------- */
+  /* ---------- Grid (cover + name only) ---------- */
   .grid{
     display:grid;
-    grid-template-columns:repeat(auto-fill, minmax(160px,1fr));
+    grid-template-columns:repeat(auto-fill, minmax(140px,1fr));
     gap:16px;
   }
   .card{
-    position:relative;
     background:var(--surface);
     border:1px solid var(--border);
     border-radius:var(--radius);
-    padding:14px;
-    display:flex; flex-direction:column; gap:10px;
+    padding:10px;
+    display:flex; flex-direction:column; gap:8px;
     box-shadow:var(--shadow);
     transition:transform .18s ease, box-shadow .18s ease;
     animation:cardIn .35s ease both;
+    cursor:pointer;
+    text-align:left;
+    font-family:inherit;
+    width:100%;
   }
   @keyframes cardIn{
     from{ opacity:0; transform:translateY(8px); }
@@ -242,19 +240,12 @@
     box-shadow:0 6px 14px rgba(16,24,32,0.07), 0 18px 32px -16px rgba(16,24,32,0.2);
   }
   .card:hover .icon{ transform:scale(1.03); }
-  .ribbon{
-    position:absolute; top:10px; left:10px; z-index:2;
-    background:linear-gradient(120deg, var(--coral), #FF9457);
-    color:#fff; font-size:10.5px; font-weight:800;
-    padding:3px 9px; border-radius:999px;
-    letter-spacing:.02em;
-    box-shadow:0 4px 10px rgba(255,107,87,.35);
-  }
+  .card:focus-visible{ outline:2px solid var(--accent); outline-offset:2px; }
   .icon{
     width:100%; aspect-ratio:1/1;
     border-radius:14px;
     display:flex; align-items:center; justify-content:center;
-    font-family:'Sora',sans-serif; font-weight:800; font-size:28px;
+    font-family:'Sora',sans-serif; font-weight:800; font-size:26px;
     color:#fff;
     overflow:hidden;
     transition:transform .18s ease;
@@ -263,34 +254,9 @@
     width:100%; height:100%; object-fit:cover;
   }
   .card h3{
-    font-size:14px; font-weight:700; margin:0;
+    font-size:13.5px; font-weight:700; margin:0;
     overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
   }
-  .meta{
-    display:flex; align-items:center; gap:6px;
-    font-size:12px; color:var(--ink-soft);
-  }
-  .meta .stars{color:var(--star); font-size:12px;}
-  .tag{
-    font-size:11px; font-weight:600; color:var(--accent-dark);
-    background:var(--accent-soft);
-    display:inline-block; padding:2px 8px; border-radius:6px;
-    width:fit-content;
-  }
-  .dl-btn{
-    margin-top:auto;
-    background:linear-gradient(120deg, var(--accent), var(--accent-dark));
-    color:#fff;
-    border:none;
-    border-radius:999px;
-    padding:9px 0;
-    font-family:inherit; font-weight:700; font-size:13px;
-    cursor:pointer;
-    transition:filter .15s, transform .1s;
-    text-align:center;
-  }
-  .dl-btn:hover{filter:brightness(1.08);}
-  .dl-btn:active{transform:scale(.97);}
 
   /* ---------- Empty state ---------- */
   .empty{
@@ -318,6 +284,83 @@
     background:var(--bg); border:1px solid var(--border);
     padding:1px 6px; border-radius:5px; font-size:12px;
   }
+
+  /* ---------- Detail modal ---------- */
+  .overlay{
+    position:fixed; inset:0; z-index:100;
+    background:rgba(15,18,20,.55);
+    display:flex; align-items:flex-end; justify-content:center;
+    opacity:0; pointer-events:none;
+    transition:opacity .2s ease;
+  }
+  .overlay.show{ opacity:1; pointer-events:auto; }
+  .modal{
+    background:var(--surface);
+    width:100%; max-width:480px;
+    border-radius:22px 22px 0 0;
+    padding:24px 22px 28px;
+    max-height:88vh; overflow-y:auto;
+    transform:translateY(24px);
+    transition:transform .22s ease;
+  }
+  .overlay.show .modal{ transform:translateY(0); }
+  @media (min-width:640px){
+    .overlay{ align-items:center; }
+    .modal{ border-radius:22px; max-width:420px; }
+  }
+  .modal-close{
+    float:right;
+    width:32px; height:32px; border-radius:50%;
+    border:1px solid var(--border); background:var(--bg);
+    cursor:pointer; display:flex; align-items:center; justify-content:center;
+    color:var(--ink-soft);
+  }
+  .modal-close:hover{ color:var(--ink); }
+  .modal-top{
+    display:flex; gap:14px; align-items:center; margin-bottom:16px;
+  }
+  .modal-icon{
+    width:76px; height:76px; border-radius:18px; flex-shrink:0;
+    display:flex; align-items:center; justify-content:center;
+    font-family:'Sora',sans-serif; font-weight:800; font-size:26px; color:#fff;
+    overflow:hidden;
+  }
+  .modal-icon img{ width:100%; height:100%; object-fit:cover; }
+  .modal-title h3{ font-size:18px; margin:0 0 4px; }
+  .modal-meta{ font-size:12.5px; color:var(--ink-soft); display:flex; align-items:center; gap:6px; flex-wrap:wrap; }
+  .modal-meta .stars{ color:var(--star); }
+  .modal-tag{
+    font-size:11px; font-weight:600; color:var(--accent-dark);
+    background:var(--accent-soft); padding:2px 8px; border-radius:6px;
+    display:inline-block; margin-top:6px;
+  }
+  .modal-desc{
+    font-size:13.5px; color:var(--ink-soft); line-height:1.55; margin:0 0 20px;
+  }
+  .dl-label{
+    font-size:12px; font-weight:700; color:var(--ink-soft);
+    text-transform:uppercase; letter-spacing:.04em; margin:0 0 10px;
+  }
+  .dl-list{ display:flex; flex-direction:column; gap:10px; }
+  .dl-option{
+    display:flex; align-items:center; justify-content:space-between; gap:10px;
+    border:1px solid var(--border); border-radius:12px;
+    padding:12px 14px;
+    background:var(--surface);
+    transition:border-color .15s, background .15s;
+  }
+  .dl-option:hover{ border-color:var(--accent); background:var(--accent-soft); }
+  .dl-option-left{ display:flex; align-items:center; gap:10px; font-weight:700; font-size:14px; }
+  .dl-option-left .dot{
+    width:8px; height:8px; border-radius:50%; background:var(--accent); flex-shrink:0;
+  }
+  .dl-option-note{ font-size:11.5px; color:var(--ink-soft); font-weight:500; }
+  .dl-go{
+    background:var(--accent); color:#fff; border:none; border-radius:999px;
+    padding:8px 16px; font-family:inherit; font-weight:700; font-size:12.5px;
+    cursor:pointer; flex-shrink:0; transition:background .15s;
+  }
+  .dl-go:hover{ background:var(--accent-dark); }
 
   /* ---------- Back to top ---------- */
   .top-btn{
@@ -349,8 +392,8 @@
     .hero h1{font-size:23px;}
     .hero-glyph{font-size:100px;}
     .search-form{display:flex; max-width:none;}
-    .grid{grid-template-columns:repeat(auto-fill, minmax(128px,1fr)); gap:12px;}
-    .icon{font-size:22px;}
+    .grid{grid-template-columns:repeat(auto-fill, minmax(110px,1fr)); gap:10px;}
+    .icon{font-size:20px;}
   }
 </style>
 </head>
@@ -400,46 +443,41 @@
 
   <div class="section">
     <div class="section-head">
-      <h2>🔥 Destacados</h2>
-      <div class="section-head-right">
-        <select class="sort-select" id="sortSelect" aria-label="Ordenar">
-          <option value="default">Ordenar: Populares</option>
-          <option value="rating">Mejor calificados</option>
-          <option value="az">Nombre A-Z</option>
-        </select>
-        <button class="see-all" id="seeAllBtn" type="button">Ver todos</button>
-      </div>
+      <h2>🔥 Catálogo</h2>
+      <button class="see-all" id="seeAllBtn" type="button">Ver todos</button>
     </div>
     <p class="result-count" id="resultCount"></p>
     <div class="grid" id="gameGrid">
       <!-- ==========================================================
            EMPTY STATE — se muestra automáticamente si games[] está vacío.
-           Para agregar juegos, edita el array "games" al final del
-           archivo, dentro de la etiqueta <script>. Cada juego es un
-           objeto así:
+
+           CÓMO AGREGAR UN JUEGO
+           Edita el array "games" al final del archivo (dentro de la
+           etiqueta <script>) y agrega un objeto con este formato:
 
            {
              title: "Nombre del juego",
-             category: "accion",       // debe coincidir con data-cat de arriba
-             rating: 4.5,               // 0 a 5
+             category: "accion",        // accion, aventura, arcade, deportes o apps
+             rating: 4.5,                // 0 a 5 (aparece dentro del detalle)
              size: "85 MB",
-             color: "#2563EB",          // color de fondo del ícono (hex) — se usa si NO hay portada
-             initials: "NJ",            // 1-2 letras que aparecen si no hay portada
-             cover: "",                 // URL de imagen de portada (opcional). Déjalo como ""
-                                         // para usar el ícono con color + iniciales en su lugar.
-                                         // Recomendado: imagen cuadrada, mínimo 256x256px.
-                                         // ¿Dónde subir la imagen? Puedes usar:
-                                         //   - Una carpeta "img/" dentro de este mismo repositorio
-                                         //     de GitHub y poner solo el nombre, ej: "img/juego1.jpg"
-                                         //   - O un link directo a una imagen ya subida a internet
-                                         //     (debe terminar en .jpg, .png, .webp, etc.)
-             link: "https://www.mediafire.com/..."
+             color: "#2563EB",           // color de fondo del ícono — solo se usa si NO hay portada
+             initials: "NJ",             // 1-2 letras — solo se usan si NO hay portada
+             cover: "",                  // URL o ruta de la imagen de portada (ver instrucciones abajo)
+             description: "Breve descripción del juego (1-2 frases).",
+             downloads: [
+               { label: "Mediafire", note: "Servidor directo", url: "https://www.mediafire.com/..." },
+               { label: "Mega",      note: "Alternativa",      url: "https://mega.nz/..." }
+             ]
            }
 
-           Si rating es 4.7 o más, la tarjeta muestra automáticamente
-           una cinta "🔥 Popular" en la esquina.
+           NO hace falta ordenarlos tú mismo: el catálogo se ordena
+           SOLO alfabéticamente sin importar en qué orden los escribas
+           en el array.
 
-           El grid se genera solo con JavaScript, no hace falta tocar HTML.
+           En la tarjeta principal solo se ve la portada y el nombre.
+           Al hacer click se abre una ventana con la descripción,
+           calificación y todos los métodos de descarga que agregues
+           dentro de "downloads" (puedes poner uno o varios).
          =========================================================== -->
     </div>
   </div>
@@ -460,22 +498,53 @@
     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="m18 15-6-6-6 6"/></svg>
   </button>
 
+  <!-- Detail modal -->
+  <div class="overlay" id="overlay">
+    <div class="modal" id="modal" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
+      <button class="modal-close" id="modalClose" aria-label="Cerrar" type="button">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M18 6 6 18M6 6l12 12"/></svg>
+      </button>
+      <div class="modal-top">
+        <div class="modal-icon" id="modalIcon"></div>
+        <div class="modal-title">
+          <h3 id="modalTitle"></h3>
+          <div class="modal-meta" id="modalMeta"></div>
+          <span class="modal-tag" id="modalTag"></span>
+        </div>
+      </div>
+      <p class="modal-desc" id="modalDesc"></p>
+      <p class="dl-label">Métodos de descarga</p>
+      <div class="dl-list" id="modalDownloads"></div>
+    </div>
+  </div>
+
 <script>
   // ======================================================
-  // AGREGA TUS JUEGOS AQUÍ. Copia el formato del ejemplo comentado
-  // arriba y añade tantos objetos como quieras dentro de este array.
-  // Deja el array vacío ( [] ) para mostrar el estado vacío.
+  // AGREGA TUS JUEGOS AQUÍ. Ver instrucciones completas en el
+  // comentario dentro del <div class="grid" id="gameGrid"> arriba.
+  // No hace falta ordenarlos: se ordenan solos alfabéticamente.
   // ======================================================
   const games = [
-    // { title: "Ejemplo", category: "accion", rating: 4.6, size: "120 MB",
-    //   color: "#2563EB", initials: "EJ", cover: "", link: "https://www.mediafire.com/file/xxxx" },
+    {
+      title: "Subway Dash",
+      category: "arcade",
+      rating: 4.8,
+      size: "94 MB",
+      color: "#2563EB",
+      initials: "SD",
+      cover: "",
+      description: "Corre, esquiva obstáculos y junta monedas en este arcade infinito. Fácil de jugar, difícil de soltar.",
+      downloads: [
+        { label: "Mediafire", note: "Servidor directo", url: "https://www.mediafire.com/" },
+        { label: "Mega",      note: "Alternativa",      url: "https://mega.nz/" }
+      ]
+    },
   ];
 
   const grid = document.getElementById('gameGrid');
   const categoryBar = document.getElementById('categoryBar');
   const searchInput = document.getElementById('searchInput');
   const searchForm = document.getElementById('searchForm');
-  const sortSelect = document.getElementById('sortSelect');
   const resultCount = document.getElementById('resultCount');
   let activeCat = 'all';
 
@@ -484,18 +553,19 @@
     return '★'.repeat(full) + '☆'.repeat(5-full);
   }
 
+  function iconMarkup(g, size){
+    return g.cover
+      ? `<img src="${g.cover}" alt="${g.title}" loading="lazy">`
+      : g.initials;
+  }
+
   function render(){
     const term = searchInput.value.trim().toLowerCase();
-    let filtered = games.filter(g =>
-      (activeCat === 'all' || g.category === activeCat) &&
-      g.title.toLowerCase().includes(term)
-    );
-
-    if(sortSelect.value === 'rating'){
-      filtered = filtered.slice().sort((a,b) => b.rating - a.rating);
-    } else if(sortSelect.value === 'az'){
-      filtered = filtered.slice().sort((a,b) => a.title.localeCompare(b.title));
-    }
+    // Siempre orden alfabético, sin importar el orden en el array.
+    let filtered = games
+      .filter(g => (activeCat === 'all' || g.category === activeCat) && g.title.toLowerCase().includes(term))
+      .slice()
+      .sort((a,b) => a.title.localeCompare(b.title, 'es', {sensitivity:'base'}));
 
     resultCount.textContent = games.length
       ? `${filtered.length} resultado${filtered.length===1?'':'s'}${term ? ` para "${term}"` : ''}`
@@ -512,19 +582,63 @@
     }
 
     grid.innerHTML = filtered.map((g, i) => `
-      <div class="card" style="animation-delay:${Math.min(i,10)*30}ms">
-        ${g.rating >= 4.7 ? '<span class="ribbon">🔥 Popular</span>' : ''}
-        <div class="icon" ${g.cover ? '' : `style="background:${g.color}"`}>
-          ${g.cover ? `<img src="${g.cover}" alt="${g.title}" loading="lazy">` : g.initials}
-        </div>
+      <button class="card" style="animation-delay:${Math.min(i,12)*25}ms" data-title="${g.title.replace(/"/g,'&quot;')}" type="button">
+        <div class="icon" ${g.cover ? '' : `style="background:${g.color}"`}>${iconMarkup(g)}</div>
         <h3>${g.title}</h3>
-        <div class="meta"><span class="stars">${starString(g.rating)}</span>&nbsp;${g.rating.toFixed(1)} · ${g.size}</div>
-        <span class="tag">${g.category}</span>
-        <a class="dl-btn" href="${g.link}" target="_blank" rel="noopener">Descargar</a>
-      </div>
+      </button>
     `).join('');
   }
 
+  // ---------- Modal ----------
+  const overlay = document.getElementById('overlay');
+  const modalIcon = document.getElementById('modalIcon');
+  const modalTitle = document.getElementById('modalTitle');
+  const modalMeta = document.getElementById('modalMeta');
+  const modalTag = document.getElementById('modalTag');
+  const modalDesc = document.getElementById('modalDesc');
+  const modalDownloads = document.getElementById('modalDownloads');
+
+  function openModal(game){
+    modalIcon.innerHTML = iconMarkup(game);
+    modalIcon.style.background = game.cover ? 'transparent' : game.color;
+    modalTitle.textContent = game.title;
+    modalMeta.innerHTML = `<span class="stars">${starString(game.rating||0)}</span> ${ (game.rating||0).toFixed(1) } · ${game.size||''}`;
+    modalTag.textContent = game.category;
+    modalDesc.textContent = game.description || 'Sin descripción todavía.';
+
+    const options = (game.downloads && game.downloads.length)
+      ? game.downloads
+      : (game.link ? [{label:'Descargar', note:'Enlace directo', url:game.link}] : []);
+
+    modalDownloads.innerHTML = options.length
+      ? options.map(d => `
+        <div class="dl-option">
+          <div class="dl-option-left"><span class="dot"></span>${d.label}${d.note ? `<span class="dl-option-note">&nbsp;· ${d.note}</span>` : ''}</div>
+          <a class="dl-go" href="${d.url}" target="_blank" rel="noopener">Ir</a>
+        </div>`).join('')
+      : `<p class="dl-option-note">Todavía no hay enlaces de descarga para este juego.</p>`;
+
+    overlay.classList.add('show');
+    document.body.classList.add('modal-open');
+  }
+
+  function closeModal(){
+    overlay.classList.remove('show');
+    document.body.classList.remove('modal-open');
+  }
+
+  grid.addEventListener('click', (e) => {
+    const card = e.target.closest('.card');
+    if(!card) return;
+    const game = games.find(g => g.title === card.dataset.title);
+    if(game) openModal(game);
+  });
+
+  document.getElementById('modalClose').addEventListener('click', closeModal);
+  overlay.addEventListener('click', (e) => { if(e.target === overlay) closeModal(); });
+  document.addEventListener('keydown', (e) => { if(e.key === 'Escape') closeModal(); });
+
+  // ---------- Filters / search ----------
   categoryBar.addEventListener('click', (e) => {
     const chip = e.target.closest('.chip');
     if(!chip) return;
@@ -540,12 +654,10 @@
     document.getElementById('gameGrid').scrollIntoView({behavior:'smooth', block:'start'});
   });
   searchInput.addEventListener('input', render);
-  sortSelect.addEventListener('change', render);
 
   document.getElementById('seeAllBtn').addEventListener('click', () => {
     searchInput.value = '';
     activeCat = 'all';
-    sortSelect.value = 'default';
     categoryBar.querySelectorAll('.chip').forEach(c => c.classList.remove('active'));
     categoryBar.querySelector('[data-cat="all"]').classList.add('active');
     render();
@@ -559,7 +671,6 @@
   });
   topBtn.addEventListener('click', () => window.scrollTo({top:0, behavior:'smooth'}));
 
-  // Hero stat: total games
   document.getElementById('statTotal').textContent = games.length;
 
   render();
