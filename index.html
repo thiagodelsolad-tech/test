@@ -2,9 +2,13 @@
 <html lang="es">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>ApkProjects — Descarga juegos y apps</title>
 <meta name="description" content="Catálogo de juegos y aplicaciones para descargar.">
+<meta name="theme-color" content="#0E8F76">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="format-detection" content="telephone=no">
+<meta name="google-adsense-account" content="ca-pub-2490067322937125">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Sora:wght@600;700;800;900&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -103,6 +107,7 @@
     scrollbar-width:none;
   }
   .categories::-webkit-scrollbar{display:none;}
+  .categories{ -webkit-overflow-scrolling:touch; touch-action:pan-x; }
   .chip{
     flex-shrink:0;
     padding:7px 16px;
@@ -119,6 +124,10 @@
   }
   .chip:hover:not(.active){border-color:var(--accent); color:var(--accent-dark);}
   .chip:active{transform:scale(.96);}
+  .chip.suggest{
+    border-color:var(--violet); color:var(--violet);
+  }
+  .chip.suggest:hover{ background:var(--violet); color:#fff; border-color:var(--violet); }
 
   /* ---------- Ad slots ---------- */
   .ad-slot{
@@ -134,6 +143,10 @@
     padding:18px 12px;
     letter-spacing:.03em;
     text-transform:uppercase;
+  }
+  .ad-slot ins.adsbygoogle{
+    display:block;
+    min-height:90px;
   }
 
   /* ---------- Hero ---------- */
@@ -188,6 +201,21 @@
     font-size:150px; opacity:.14; transform:rotate(-8deg);
     line-height:1; user-select:none; pointer-events:none;
   }
+  .hero-actions{
+    margin-top:20px; display:flex; gap:10px; flex-wrap:wrap;
+  }
+  .hero-suggest-btn{
+    background:rgba(255,255,255,.16);
+    border:1px solid rgba(255,255,255,.32);
+    color:#fff;
+    font-family:inherit; font-weight:700; font-size:13px;
+    padding:10px 18px; border-radius:999px;
+    cursor:pointer; display:inline-flex; align-items:center; gap:6px;
+    transition:background .15s, transform .1s;
+    -webkit-tap-highlight-color:transparent;
+  }
+  .hero-suggest-btn:hover{ background:rgba(255,255,255,.28); }
+  .hero-suggest-btn:active{ transform:scale(.96); }
 
   /* ---------- Section ---------- */
   .section{
@@ -230,6 +258,7 @@
     text-align:left;
     font-family:inherit;
     width:100%;
+    -webkit-tap-highlight-color:transparent;
   }
   @keyframes cardIn{
     from{ opacity:0; transform:translateY(8px); }
@@ -314,6 +343,7 @@
     border:1px solid var(--border); background:var(--bg);
     cursor:pointer; display:flex; align-items:center; justify-content:center;
     color:var(--ink-soft);
+    -webkit-tap-highlight-color:transparent;
   }
   .modal-close:hover{ color:var(--ink); }
   .modal-top{
@@ -359,8 +389,34 @@
     background:var(--accent); color:#fff; border:none; border-radius:999px;
     padding:8px 16px; font-family:inherit; font-weight:700; font-size:12.5px;
     cursor:pointer; flex-shrink:0; transition:background .15s;
+    -webkit-tap-highlight-color:transparent;
   }
   .dl-go:hover{ background:var(--accent-dark); }
+
+  /* ---------- Suggestion modal ---------- */
+  .sg-field{ margin-bottom:14px; }
+  .sg-field label{
+    display:block; font-size:12px; font-weight:700; color:var(--ink-soft);
+    text-transform:uppercase; letter-spacing:.04em; margin-bottom:6px;
+  }
+  .sg-field input, .sg-field textarea{
+    width:100%; border:1px solid var(--border); border-radius:10px;
+    padding:11px 13px; font-family:inherit; font-size:14px; color:var(--ink);
+    background:var(--bg); outline:none; resize:vertical;
+    transition:border-color .15s, box-shadow .15s;
+  }
+  .sg-field input:focus, .sg-field textarea:focus{
+    border-color:var(--accent); box-shadow:0 0 0 3px var(--accent-soft);
+  }
+  .sg-submit{
+    width:100%; background:var(--violet); color:#fff; border:none;
+    border-radius:12px; padding:13px 16px; font-family:inherit; font-weight:700;
+    font-size:14px; cursor:pointer; transition:background .15s, transform .1s;
+    -webkit-tap-highlight-color:transparent;
+  }
+  .sg-submit:hover{ background:#5A4BC7; }
+  .sg-submit:active{ transform:scale(.98); }
+  .sg-note{ font-size:12px; color:var(--ink-soft); margin:10px 0 0; text-align:center; }
 
   /* ---------- Back to top ---------- */
   .top-btn{
@@ -371,6 +427,7 @@
     box-shadow:0 8px 20px rgba(0,0,0,.18);
     opacity:0; pointer-events:none; transform:translateY(8px);
     transition:opacity .2s, transform .2s;
+    -webkit-tap-highlight-color:transparent;
   }
   .top-btn.show{ opacity:1; pointer-events:auto; transform:translateY(0); }
 
@@ -419,12 +476,18 @@
       <div class="chip" data-cat="arcade">Arcade</div>
       <div class="chip" data-cat="deportes">Deportes</div>
       <div class="chip" data-cat="apps">Apps</div>
+      <div class="chip suggest" id="suggestChip">💡 Sugerencias</div>
     </div>
   </div>
 
-  <!-- AD SLOT: banner superior. Pega aquí tu código de AdSense u otro anuncio. -->
+  <!-- AD SLOT: banner superior (AdSense) -->
   <div class="ad-slot">
-    <div class="ad-box">Espacio de anuncio — banner superior (728×90 o responsive)</div>
+    <ins class="adsbygoogle"
+         style="display:block"
+         data-ad-client="ca-pub-2490067322937125"
+         data-ad-slot="0000000000"
+         data-ad-format="auto"
+         data-full-width-responsive="true"></ins>
   </div>
 
   <div class="hero-wrap">
@@ -436,6 +499,9 @@
         <div><strong id="statTotal">0</strong><span>Juegos disponibles</span></div>
         <div><strong id="statCats">5</strong><span>Categorías</span></div>
         <div><strong>100%</strong><span>Descarga directa</span></div>
+      </div>
+      <div class="hero-actions">
+        <button class="hero-suggest-btn" id="heroSuggestBtn" type="button">💡 Sugerir un juego o app</button>
       </div>
       <div class="hero-glyph">🎮</div>
     </div>
@@ -482,9 +548,14 @@
     </div>
   </div>
 
-  <!-- AD SLOT: entre secciones. Pega aquí otro bloque de anuncio si quieres. -->
+  <!-- AD SLOT: entre secciones (AdSense) -->
   <div class="ad-slot">
-    <div class="ad-box">Espacio de anuncio — entre secciones</div>
+    <ins class="adsbygoogle"
+         style="display:block"
+         data-ad-client="ca-pub-2490067322937125"
+         data-ad-slot="0000000000"
+         data-ad-format="auto"
+         data-full-width-responsive="true"></ins>
   </div>
 
   <footer>
@@ -518,6 +589,39 @@
     </div>
   </div>
 
+  <!-- Suggestion modal -->
+  <div class="overlay" id="suggestOverlay">
+    <div class="modal" id="suggestModal" role="dialog" aria-modal="true" aria-labelledby="suggestModalTitle">
+      <button class="modal-close" id="suggestModalClose" aria-label="Cerrar" type="button">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M18 6 6 18M6 6l12 12"/></svg>
+      </button>
+      <div class="modal-top">
+        <div class="modal-icon" style="background:var(--violet)">💡</div>
+        <div class="modal-title">
+          <h3 id="suggestModalTitle">Sugerir un juego o app</h3>
+          <div class="modal-meta">¿Falta algo en el catálogo? Cuéntanos.</div>
+        </div>
+      </div>
+      <form id="suggestForm">
+        <div class="sg-field">
+          <label for="sgName">Nombre del juego o app</label>
+          <input type="text" id="sgName" placeholder="Ej: Subway Surfers" required>
+        </div>
+        <div class="sg-field">
+          <label for="sgDetails">Detalles (opcional)</label>
+          <textarea id="sgDetails" rows="3" placeholder="Versión, enlace de referencia, plataforma, etc."></textarea>
+        </div>
+        <div class="sg-field">
+          <label for="sgContact">Tu correo (opcional)</label>
+          <input type="email" id="sgContact" placeholder="para avisarte cuando esté disponible">
+        </div>
+        <button type="submit" class="sg-submit">Enviar sugerencia</button>
+        <p class="sg-note">Se abrirá tu app de correo con la sugerencia lista para enviar.</p>
+      </form>
+    </div>
+  </div>
+
+<script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-2490067322937125" crossorigin="anonymous"></script>
 <script>
   // ======================================================
   // AGREGA TUS JUEGOS AQUÍ. Ver instrucciones completas en el
@@ -526,13 +630,13 @@
   // ======================================================
   const games = [
     {
-      title: "Minecraft 20.40",
+      title: "Minecraft 26.40",
       category: "aventura",
       rating: 4.8,
       size: "683 MB",
-      color: "##65EB2A",
-      initials: "SD",
-      cover: "img/Minecraft.png",
+      color: "#65EB2A",
+      initials: "img/Minecraft.png",
+      cover: "",
       description: "Minecraft es un videojuego de mundo abierto y tipo sandbox (caja de arena) donde los jugadores pueden explorar, extraer recursos, construir y sobrevivir en un entorno tridimensional formado por bloques con texturas pixeladas",
       downloads: [
         { label: "Mediafire", note: "Servidor directo", url: "https://www.mediafire.com/file/gqukw2mw1qz6syn/minecraft-26-40-apkprojects.apk/file" },
@@ -576,7 +680,7 @@
         <div class="empty">
           <div class="empty-mark">AP</div>
           <h3>${games.length ? 'No encontramos nada con esa búsqueda' : 'Todavía no hay juegos aquí'}</h3>
-          <p>${games.length ? 'Prueba con otra palabra o quita los filtros de categoría.' : 'Agrega tu primer juego editando el array <code>games</code> al final del archivo HTML.'}</p>
+          <p>${games.length ? 'Prueba con otra palabra o quita los filtros de categoría, o <strong>sugiere</strong> el juego que buscas.' : 'Agrega tu primer juego editando el array <code>games</code> al final del archivo HTML.'}</p>
         </div>`;
       return;
     }
@@ -636,12 +740,46 @@
 
   document.getElementById('modalClose').addEventListener('click', closeModal);
   overlay.addEventListener('click', (e) => { if(e.target === overlay) closeModal(); });
-  document.addEventListener('keydown', (e) => { if(e.key === 'Escape') closeModal(); });
+
+  // ---------- Suggestion modal ----------
+  const suggestOverlay = document.getElementById('suggestOverlay');
+  const suggestForm = document.getElementById('suggestForm');
+  const SUGGEST_EMAIL = 'contacto@apkprojects.xyz'; // <-- cambia esto por tu correo real
+
+  function openSuggest(){
+    suggestOverlay.classList.add('show');
+    document.body.classList.add('modal-open');
+  }
+  function closeSuggest(){
+    suggestOverlay.classList.remove('show');
+    document.body.classList.remove('modal-open');
+  }
+
+  document.getElementById('suggestChip').addEventListener('click', openSuggest);
+  document.getElementById('heroSuggestBtn').addEventListener('click', openSuggest);
+  document.getElementById('suggestModalClose').addEventListener('click', closeSuggest);
+  suggestOverlay.addEventListener('click', (e) => { if(e.target === suggestOverlay) closeSuggest(); });
+
+  suggestForm.addEventListener('submit', (e) => {
+    e.preventDefault();
+    const name = document.getElementById('sgName').value.trim();
+    const details = document.getElementById('sgDetails').value.trim();
+    const contact = document.getElementById('sgContact').value.trim();
+    const subject = `Sugerencia de juego/app: ${name}`;
+    const body = `Juego/app sugerido: ${name}\n\nDetalles: ${details || '(sin detalles)'}\n\nCorreo de contacto: ${contact || '(no proporcionado)'}`;
+    window.location.href = `mailto:${SUGGEST_EMAIL}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+    suggestForm.reset();
+    closeSuggest();
+  });
+
+  document.addEventListener('keydown', (e) => {
+    if(e.key === 'Escape'){ closeModal(); closeSuggest(); }
+  });
 
   // ---------- Filters / search ----------
   categoryBar.addEventListener('click', (e) => {
     const chip = e.target.closest('.chip');
-    if(!chip) return;
+    if(!chip || chip.id === 'suggestChip') return;
     categoryBar.querySelectorAll('.chip').forEach(c => c.classList.remove('active'));
     chip.classList.add('active');
     activeCat = chip.dataset.cat;
@@ -672,6 +810,13 @@
   topBtn.addEventListener('click', () => window.scrollTo({top:0, behavior:'smooth'}));
 
   document.getElementById('statTotal').textContent = games.length;
+
+  // Cargar los anuncios de AdSense
+  (function loadAds(){
+    document.querySelectorAll('ins.adsbygoogle').forEach(() => {
+      try { (window.adsbygoogle = window.adsbygoogle || []).push({}); } catch(err) { /* AdSense no disponible todavía */ }
+    });
+  })();
 
   render();
 </script>
