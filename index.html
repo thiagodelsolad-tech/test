@@ -751,9 +751,18 @@
     return g.cover ? `<img src="${g.cover}" alt="${g.title}" loading="lazy">` : (g.initials || g.title.slice(0,2).toUpperCase());
   }
 
-  // ---------- Corazones: valoración real de los usuarios ----------
-  // Cada juego arranca en 0. Sube cuando alguien da "❤" tras descargar.
-  const HEARTS_KEY = 'apkprojects_hearts_v1';
+  // ---------- Corazones: valoración REAL y COMPARTIDA entre todos los usuarios ----------
+  // Cada juego arranca en 0. Los conteos se guardan en un contador público
+  // (Abacus) para que TODOS los visitantes vean el mismo número — no cada
+  // quien el suyo. Solo se guarda localmente si YA votaste, para no dejarte
+  // votar dos veces desde el mismo navegador.
+  //
+  // IMPORTANTE: esto usa un servicio gratuito de terceros (abacus.jasoncameron.dev).
+  // Es suficiente para un contador de "me gusta" simple, pero si más adelante
+  // quieres algo 100% bajo tu control (y con mejor protección anti-trampas),
+  // lo ideal es un backend propio (Firebase/Supabase). Puedo ayudarte con eso
+  // cuando quieras.
+  const HEARTS_NAMESPACE = 'apkprojects-thiagodelsolad'; // cámbialo por algo único si quieres tu propio espacio
   const VOTED_KEY = 'apkprojects_voted_v1';
 
   function loadStore(key){
@@ -766,20 +775,41 @@
     try{ localStorage.setItem(key, JSON.stringify(obj)); }catch(e){}
   }
 
-  let heartsData = loadStore(HEARTS_KEY);
   let votedData = loadStore(VOTED_KEY);
+  let heartsCache = {}; // último valor conocido de cada juego (compartido, viene del servidor)
 
-  function heartsFor(title){ return heartsData[title] || 0; }
+  function heartKey(title){
+    return encodeURIComponent(title.toLowerCase().trim().replace(/\s+/g, '-'));
+  }
   function hasVoted(title){ return !!votedData[title]; }
+  function heartsFor(title){ return heartsCache[title] || 0; }
 
-  function giveHeart(title){
+  // Trae el conteo real (compartido por todos) de un juego desde el servidor
+  async function fetchHeartCount(title){
+    try{
+      const res = await fetch(`https://abacus.jasoncameron.dev/get/${HEARTS_NAMESPACE}/${heartKey(title)}`);
+      const data = await res.json();
+      heartsCache[title] = data.value || 0;
+    }catch(e){
+      heartsCache[title] = heartsFor(title);
+    }
+    return heartsCache[title];
+  }
+
+  // Da un corazón: suma +1 en el servidor compartido (no solo local)
+  async function giveHeart(title){
     if(hasVoted(title)) return heartsFor(title);
-    heartsData[title] = heartsFor(title) + 1;
+    try{
+      const res = await fetch(`https://abacus.jasoncameron.dev/hit/${HEARTS_NAMESPACE}/${heartKey(title)}`);
+      const data = await res.json();
+      heartsCache[title] = data.value;
+    }catch(e){
+      heartsCache[title] = heartsFor(title) + 1; // respaldo si falla la red
+    }
     votedData[title] = true;
-    saveStore(HEARTS_KEY, heartsData);
     saveStore(VOTED_KEY, votedData);
     renderTopRatedPage();
-    return heartsData[title];
+    return heartsCache[title];
   }
 
   const HEART_SVG = '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 21s-6.7-4.35-9.3-8.1C1 10.1 1.6 6.6 4.6 5.2c2.2-1 4.6-.2 5.9 1.6L12 8.4l1.5-1.6c1.3-1.8 3.7-2.6 5.9-1.6 3 1.4 3.6 4.9 1.9 7.7C18.7 16.65 12 21 12 21z"/></svg>';
@@ -794,8 +824,19 @@
     return '';
   }
 
-  function renderTopRatedPage(){
+  async function renderTopRatedPage(){
     if(!topRatedGrid) return;
+
+    // Mientras llegan los datos del servidor compartido, mostramos un estado de carga
+    topRatedGrid.innerHTML = `
+      <div class="empty">
+        <div class="empty-mark">❤</div>
+        <h3>Cargando valoraciones…</h3>
+        <p>Consultando los votos de todos los usuarios.</p>
+      </div>`;
+
+    await Promise.all(games.map(g => fetchHeartCount(g.title)));
+
     const ranked = games
       .map(g => ({ g, h: heartsFor(g.title) }))
       .filter(x => x.h > 0)
@@ -806,7 +847,7 @@
         <div class="empty">
           <div class="empty-mark">❤</div>
           <h3>Todavía nadie ha valorado nada</h3>
-          <p>Abre un juego, descárgalo y dale un corazón desde su ficha — en cuanto reciba su primer voto, aparecerá aquí.</p>
+          <p>Abre un juego, descárgalo y dale un corazón desde su ficha — en cuanto reciba su primer voto, aparecerá aquí para todos.</p>
         </div>`;
       return;
     }
@@ -917,6 +958,11 @@
 
     overlay.classList.add('show');
     document.body.classList.add('sheet-open');
+
+    // Refresca el conteo real (compartido) por si cambió desde la última vez
+    fetchHeartCount(game.title).then(() => {
+      if(currentGameTitle === game.title) updateHeartUI(game.title);
+    });
   }
   function closeSheet(){
     overlay.classList.remove('show');
@@ -939,17 +985,18 @@
     heartPrompt.classList.add('show');
   });
 
-  heartBtn.addEventListener('click', () => {
+  heartBtn.addEventListener('click', async () => {
     if(!currentGameTitle) return;
     if(hasVoted(currentGameTitle)){
       heartBtn.classList.add('bump');
       setTimeout(() => heartBtn.classList.remove('bump'), 200);
       return;
     }
-    const count = giveHeart(currentGameTitle);
-    heartCountBadge.textContent = count;
+    // UI optimista: se ve al toque, y se confirma con el servidor compartido
     heartBtn.classList.add('voted', 'bump');
     setTimeout(() => heartBtn.classList.remove('bump'), 220);
+    const count = await giveHeart(currentGameTitle);
+    heartCountBadge.textContent = count;
   });
 
   // ---------- Suggestion sheet ----------
