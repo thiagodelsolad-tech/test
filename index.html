@@ -130,7 +130,7 @@
 
   /* ---------- Ad slots ---------- */
   .ad-slot{
-    max-width:1180px; margin:20px auto 0; padding:0 20px;
+    max-width:1180px; margin:24px auto 0; padding:0 20px;
   }
   .ad-slot .ad-box{
     border:1px dashed var(--border);
@@ -143,17 +143,46 @@
     letter-spacing:.03em;
     text-transform:uppercase;
   }
+  .ad-card{
+    position:relative;
+    border-radius:18px;
+    background:
+      radial-gradient(circle at 0% 0%, rgba(14,143,118,.05), transparent 55%),
+      radial-gradient(circle at 100% 100%, rgba(109,92,224,.06), transparent 55%),
+      var(--surface);
+    border:1px solid var(--border);
+    box-shadow:var(--shadow);
+    padding:14px 14px 16px;
+    overflow:hidden;
+  }
+  .ad-card::before{
+    content:"";
+    position:absolute; top:0; left:0; right:0; height:3px;
+    background:linear-gradient(90deg, var(--accent), var(--violet), var(--coral));
+  }
+  .ad-card-label{
+    display:flex; align-items:center; justify-content:center; gap:6px;
+    font-size:10.5px; font-weight:700; color:var(--ink-soft);
+    text-transform:uppercase; letter-spacing:.08em;
+    margin-bottom:10px;
+  }
+  .ad-card-label::before, .ad-card-label::after{
+    content:""; flex:1; height:1px; background:var(--border);
+  }
   .ad-slot .ad-container{
-    min-height:90px;
+    min-height:50px;
     display:flex;
     align-items:center;
     justify-content:center;
+    overflow:hidden;
+    border-radius:12px;
   }
   .ad-mobile{ display:flex; }
   .ad-desktop{ display:none; }
+  #adSlotMiddle{ min-height:250px; }
   @media (min-width:640px){
     .ad-mobile{ display:none; }
-    .ad-desktop{ display:flex; }
+    .ad-desktop{ display:flex; min-height:90px; }
   }
 
   /* ---------- Hero ---------- */
@@ -494,29 +523,32 @@
        que le corresponde. El CSS de abajo muestra uno u otro según
        el ancho de pantalla. -->
   <div class="ad-slot">
-    <div class="ad-container ad-mobile" id="adSlotTopMobile">
-      <script>
-        atOptions = {
-          'key' : '0c552db9603823b8354d2c686ebe16d7',
-          'format' : 'iframe',
-          'height' : 50,
-          'width' : 320,
-          'params' : {}
-        };
-      </script>
-      <script src="https://www.highperformanceformat.com/0c552db9603823b8354d2c686ebe16d7/invoke.js"></script>
-    </div>
-    <div class="ad-container ad-desktop" id="adSlotTopDesktop">
-      <script>
-        atOptions = {
-          'key' : '76a4887bf5246065c1644d5ff3ee96ae',
-          'format' : 'iframe',
-          'height' : 90,
-          'width' : 728,
-          'params' : {}
-        };
-      </script>
-      <script src="https://www.highperformanceformat.com/76a4887bf5246065c1644d5ff3ee96ae/invoke.js"></script>
+    <div class="ad-card">
+      <div class="ad-card-label">Publicidad</div>
+      <div class="ad-container ad-mobile" id="adSlotTopMobile">
+        <script>
+          atOptions = {
+            'key' : '0c552db9603823b8354d2c686ebe16d7',
+            'format' : 'iframe',
+            'height' : 50,
+            'width' : 320,
+            'params' : {}
+          };
+        </script>
+        <script src="https://www.highperformanceformat.com/0c552db9603823b8354d2c686ebe16d7/invoke.js"></script>
+      </div>
+      <div class="ad-container ad-desktop" id="adSlotTopDesktop">
+        <script>
+          atOptions = {
+            'key' : '76a4887bf5246065c1644d5ff3ee96ae',
+            'format' : 'iframe',
+            'height' : 90,
+            'width' : 728,
+            'params' : {}
+          };
+        </script>
+        <script src="https://www.highperformanceformat.com/76a4887bf5246065c1644d5ff3ee96ae/invoke.js"></script>
+      </div>
     </div>
   </div>
 
@@ -582,8 +614,11 @@
        Este funciona bien con un banner de 300x250 (Medium Rectangle),
        igual en móvil y desktop. Pega aquí el código de Adsterra. -->
   <div class="ad-slot">
-    <div class="ad-container" id="adSlotMiddle">
-      <!-- Pega aquí tu script de Adsterra 300x250 -->
+    <div class="ad-card">
+      <div class="ad-card-label">Publicidad</div>
+      <div class="ad-container" id="adSlotMiddle">
+        <!-- Pega aquí tu script de Adsterra 300x250 -->
+      </div>
     </div>
   </div>
 
