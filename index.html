@@ -130,7 +130,7 @@
 
   /* ---------- Ad slots ---------- */
   .ad-slot{
-    max-width:1180px; margin:24px auto 0; padding:0 20px;
+    max-width:1180px; margin:26px auto 0; padding:0 20px;
   }
   .ad-slot .ad-box{
     border:1px dashed var(--border);
@@ -145,29 +145,46 @@
   }
   .ad-card{
     position:relative;
-    border-radius:18px;
+    border-radius:20px;
     background:
-      radial-gradient(circle at 0% 0%, rgba(14,143,118,.05), transparent 55%),
-      radial-gradient(circle at 100% 100%, rgba(109,92,224,.06), transparent 55%),
+      radial-gradient(circle at 0% 0%, rgba(14,143,118,.07), transparent 55%),
+      radial-gradient(circle at 100% 100%, rgba(109,92,224,.08), transparent 55%),
       var(--surface);
     border:1px solid var(--border);
-    box-shadow:var(--shadow);
-    padding:14px 14px 16px;
+    box-shadow:0 1px 2px rgba(16,24,32,.04), 0 14px 30px -18px rgba(14,143,118,.35);
+    padding:16px 16px 18px;
     overflow:hidden;
+    transition:box-shadow .2s ease, transform .2s ease;
+  }
+  .ad-card:hover{
+    box-shadow:0 1px 2px rgba(16,24,32,.05), 0 18px 36px -16px rgba(14,143,118,.45);
+    transform:translateY(-2px);
   }
   .ad-card::before{
     content:"";
     position:absolute; top:0; left:0; right:0; height:3px;
     background:linear-gradient(90deg, var(--accent), var(--violet), var(--coral));
+    background-size:200% 100%;
+    animation:adShimmer 5s linear infinite;
+  }
+  @keyframes adShimmer{
+    0%{ background-position:0% 0; }
+    100%{ background-position:200% 0; }
   }
   .ad-card-label{
-    display:flex; align-items:center; justify-content:center; gap:6px;
+    display:flex; align-items:center; justify-content:center; gap:8px;
     font-size:10.5px; font-weight:700; color:var(--ink-soft);
-    text-transform:uppercase; letter-spacing:.08em;
-    margin-bottom:10px;
+    text-transform:uppercase; letter-spacing:.1em;
+    margin-bottom:12px;
+  }
+  .ad-card-label .spark{
+    display:inline-flex; width:5px; height:5px; border-radius:50%;
+    background:var(--accent);
+    box-shadow:0 0 0 3px var(--accent-soft);
   }
   .ad-card-label::before, .ad-card-label::after{
-    content:""; flex:1; height:1px; background:var(--border);
+    content:""; flex:1; height:1px;
+    background:linear-gradient(90deg, transparent, var(--border), transparent);
   }
   .ad-slot .ad-container{
     min-height:50px;
@@ -176,6 +193,7 @@
     justify-content:center;
     overflow:hidden;
     border-radius:12px;
+    background:var(--bg);
   }
   .ad-mobile{ display:flex; }
   .ad-desktop{ display:none; }
@@ -517,38 +535,14 @@
   </div>
 
   <!-- AD SLOT: banner superior (Adsterra)
-       Crea 2 banners en tu panel de Adsterra: uno de 320x50 y otro
-       de 728x90. Pega cada código de Adsterra (el <script> con
-       "atOptions" + el <script src=".../invoke.js">) dentro del div
-       que le corresponde. El CSS de abajo muestra uno u otro según
-       el ancho de pantalla. -->
+       Los anuncios se cargan más abajo, en el script principal,
+       dentro de iframes aislados (así no se pisan entre sí). Solo
+       cambia las claves ('key') y medidas ahí si creas otros banners. -->
   <div class="ad-slot">
     <div class="ad-card">
-      <div class="ad-card-label">Publicidad</div>
-      <div class="ad-container ad-mobile" id="adSlotTopMobile">
-        <script>
-          atOptions = {
-            'key' : '0c552db9603823b8354d2c686ebe16d7',
-            'format' : 'iframe',
-            'height' : 50,
-            'width' : 320,
-            'params' : {}
-          };
-        </script>
-        <script src="https://www.highperformanceformat.com/0c552db9603823b8354d2c686ebe16d7/invoke.js"></script>
-      </div>
-      <div class="ad-container ad-desktop" id="adSlotTopDesktop">
-        <script>
-          atOptions = {
-            'key' : '76a4887bf5246065c1644d5ff3ee96ae',
-            'format' : 'iframe',
-            'height' : 90,
-            'width' : 728,
-            'params' : {}
-          };
-        </script>
-        <script src="https://www.highperformanceformat.com/76a4887bf5246065c1644d5ff3ee96ae/invoke.js"></script>
-      </div>
+      <div class="ad-card-label"><span class="spark"></span>Publicidad<span class="spark"></span></div>
+      <div class="ad-container ad-mobile" id="adSlotTopMobile"></div>
+      <div class="ad-container ad-desktop" id="adSlotTopDesktop"></div>
     </div>
   </div>
 
@@ -615,7 +609,7 @@
        igual en móvil y desktop. Pega aquí el código de Adsterra. -->
   <div class="ad-slot">
     <div class="ad-card">
-      <div class="ad-card-label">Publicidad</div>
+      <div class="ad-card-label"><span class="spark"></span>Publicidad<span class="spark"></span></div>
       <div class="ad-container" id="adSlotMiddle">
         <!-- Pega aquí tu script de Adsterra 300x250 -->
       </div>
@@ -873,6 +867,43 @@
   topBtn.addEventListener('click', () => window.scrollTo({top:0, behavior:'smooth'}));
 
   document.getElementById('statTotal').textContent = games.length;
+
+  // ======================================================
+  // ANUNCIOS ADSTERRA — carga aislada en iframe.
+  // Cada anuncio corre dentro de su propio iframe para que su
+  // variable "atOptions" no choque con la de los demás anuncios
+  // de la página (esa mezcla es la causa típica de que solo
+  // funcione uno de varios banners).
+  //
+  // Para agregar/cambiar un banner, edita loadAdsterraAd(...) con:
+  // el id del contenedor, la key de Adsterra, ancho y alto.
+  // ======================================================
+  function loadAdsterraAd(containerId, key, width, height){
+    const container = document.getElementById(containerId);
+    if(!container || !key) return;
+    const iframe = document.createElement('iframe');
+    iframe.title = 'Publicidad';
+    iframe.style.border = '0';
+    iframe.style.width = width + 'px';
+    iframe.style.height = height + 'px';
+    iframe.style.maxWidth = '100%';
+    iframe.scrolling = 'no';
+    container.appendChild(iframe);
+    const doc = iframe.contentWindow.document;
+    doc.open();
+    doc.write(
+      '<!DOCTYPE html><html><head><style>html,body{margin:0;padding:0;overflow:hidden;background:transparent;}</style></head><body>' +
+      '<script>atOptions={"key":"' + key + '","format":"iframe","height":' + height + ',"width":' + width + ',"params":{}};<\/script>' +
+      '<script src="https://www.highperformanceformat.com/' + key + '/invoke.js"><\/script>' +
+      '</body></html>'
+    );
+    doc.close();
+  }
+
+  loadAdsterraAd('adSlotTopMobile', '0c552db9603823b8354d2c686ebe16d7', 320, 50);
+  loadAdsterraAd('adSlotTopDesktop', '76a4887bf5246065c1644d5ff3ee96ae', 728, 90);
+  // Cuando tengas el banner de 300x250, descomenta y pon su key:
+  // loadAdsterraAd('adSlotMiddle', 'TU_KEY_AQUI', 300, 250);
 
   render();
 </script>
