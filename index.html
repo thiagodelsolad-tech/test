@@ -8,7 +8,6 @@
 <meta name="theme-color" content="#0E8F76">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="format-detection" content="telephone=no">
-<meta name="google-adsense-account" content="ca-pub-2490067322937125">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Sora:wght@600;700;800;900&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -144,9 +143,17 @@
     letter-spacing:.03em;
     text-transform:uppercase;
   }
-  .ad-slot ins.adsbygoogle{
-    display:block;
+  .ad-slot .ad-container{
     min-height:90px;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+  }
+  .ad-mobile{ display:flex; }
+  .ad-desktop{ display:none; }
+  @media (min-width:640px){
+    .ad-mobile{ display:none; }
+    .ad-desktop{ display:flex; }
   }
 
   /* ---------- Hero ---------- */
@@ -480,14 +487,37 @@
     </div>
   </div>
 
-  <!-- AD SLOT: banner superior (AdSense) -->
+  <!-- AD SLOT: banner superior (Adsterra)
+       Crea 2 banners en tu panel de Adsterra: uno de 320x50 y otro
+       de 728x90. Pega cada código de Adsterra (el <script> con
+       "atOptions" + el <script src=".../invoke.js">) dentro del div
+       que le corresponde. El CSS de abajo muestra uno u otro según
+       el ancho de pantalla. -->
   <div class="ad-slot">
-    <ins class="adsbygoogle"
-         style="display:block"
-         data-ad-client="ca-pub-2490067322937125"
-         data-ad-slot="0000000000"
-         data-ad-format="auto"
-         data-full-width-responsive="true"></ins>
+    <div class="ad-container ad-mobile" id="adSlotTopMobile">
+      <script>
+        atOptions = {
+          'key' : '0c552db9603823b8354d2c686ebe16d7',
+          'format' : 'iframe',
+          'height' : 50,
+          'width' : 320,
+          'params' : {}
+        };
+      </script>
+      <script src="https://www.highperformanceformat.com/0c552db9603823b8354d2c686ebe16d7/invoke.js"></script>
+    </div>
+    <div class="ad-container ad-desktop" id="adSlotTopDesktop">
+      <script>
+        atOptions = {
+          'key' : '76a4887bf5246065c1644d5ff3ee96ae',
+          'format' : 'iframe',
+          'height' : 90,
+          'width' : 728,
+          'params' : {}
+        };
+      </script>
+      <script src="https://www.highperformanceformat.com/76a4887bf5246065c1644d5ff3ee96ae/invoke.js"></script>
+    </div>
   </div>
 
   <div class="hero-wrap">
@@ -548,14 +578,13 @@
     </div>
   </div>
 
-  <!-- AD SLOT: entre secciones (AdSense) -->
+  <!-- AD SLOT: entre secciones (Adsterra)
+       Este funciona bien con un banner de 300x250 (Medium Rectangle),
+       igual en móvil y desktop. Pega aquí el código de Adsterra. -->
   <div class="ad-slot">
-    <ins class="adsbygoogle"
-         style="display:block"
-         data-ad-client="ca-pub-2490067322937125"
-         data-ad-slot="0000000000"
-         data-ad-format="auto"
-         data-full-width-responsive="true"></ins>
+    <div class="ad-container" id="adSlotMiddle">
+      <!-- Pega aquí tu script de Adsterra 300x250 -->
+    </div>
   </div>
 
   <footer>
@@ -621,7 +650,6 @@
     </div>
   </div>
 
-<script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-2490067322937125" crossorigin="anonymous"></script>
 <script>
   // ======================================================
   // AGREGA TUS JUEGOS AQUÍ. Ver instrucciones completas en el
@@ -810,13 +838,6 @@
   topBtn.addEventListener('click', () => window.scrollTo({top:0, behavior:'smooth'}));
 
   document.getElementById('statTotal').textContent = games.length;
-
-  // Cargar los anuncios de AdSense
-  (function loadAds(){
-    document.querySelectorAll('ins.adsbygoogle').forEach(() => {
-      try { (window.adsbygoogle = window.adsbygoogle || []).push({}); } catch(err) { /* AdSense no disponible todavía */ }
-    });
-  })();
 
   render();
 </script>
