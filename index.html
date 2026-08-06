@@ -80,6 +80,10 @@
     background:rgba(118,118,128,.12);
     border-radius:11px;
     padding:8px 10px;
+    transition:background .15s ease;
+  }
+  .search-field:focus-within{
+    background:rgba(118,118,128,.18);
   }
   .search-field svg{ color:var(--label-3); flex-shrink:0; }
   .search-field input{
@@ -125,25 +129,59 @@
     box-shadow:0 1px 3px rgba(0,0,0,.12);
   }
 
-  /* ---------- Ad card ---------- */
+  /* ---------- Ad card (estilo iOS / App Store) ---------- */
   .ad-slot{
     max-width:900px; margin:16px auto 0; padding:0 16px;
   }
   .ad-card{
-    border-radius:var(--radius-md);
-    background:var(--surface);
-    border:.5px solid var(--separator);
-    padding:10px 10px 12px;
+    position:relative;
+    border-radius:var(--radius-lg);
+    background:
+      linear-gradient(var(--surface), var(--surface)) padding-box,
+      linear-gradient(135deg, rgba(0,122,255,.35), rgba(175,82,222,.3) 45%, rgba(0,0,0,.04) 75%) border-box;
+    border:1px solid transparent;
+    padding:16px 12px 14px;
     overflow:hidden;
+    box-shadow:0 1px 2px rgba(0,0,0,.04), 0 14px 30px -16px rgba(0,0,0,.22);
   }
   .ad-card-label{
-    font-size:10px; font-weight:700; color:var(--label-3);
-    text-transform:uppercase; letter-spacing:.08em;
-    text-align:center; margin-bottom:8px;
+    position:absolute;
+    top:12px; left:12px;
+    display:inline-flex; align-items:center; gap:5px;
+    font-size:9.5px; font-weight:800; color:var(--label);
+    background:rgba(255,255,255,.7);
+    backdrop-filter:saturate(180%) blur(8px);
+    -webkit-backdrop-filter:saturate(180%) blur(8px);
+    text-transform:uppercase; letter-spacing:.06em;
+    padding:4px 9px 4px 7px;
+    border-radius:999px;
+    box-shadow:0 1px 3px rgba(0,0,0,.08);
+    z-index:2;
+  }
+  .ad-card-label::before{
+    content:"";
+    width:6px; height:6px; border-radius:50%;
+    background:var(--orange);
+    flex-shrink:0;
+    animation:adPulse 1.8s ease-in-out infinite;
+  }
+  @keyframes adPulse{
+    0%,100%{ box-shadow:0 0 0 0 rgba(255,149,0,.5); }
+    50%{ box-shadow:0 0 0 4px rgba(255,149,0,0); }
   }
   .ad-container{
     min-height:50px; display:flex; align-items:center; justify-content:center;
-    overflow:hidden; border-radius:10px; background:var(--surface-2);
+    overflow:hidden; border-radius:13px;
+    background:linear-gradient(180deg, var(--surface-2), #F1F1F6);
+    margin-top:24px;
+    position:relative;
+  }
+  .ad-container::after{
+    content:"";
+    position:absolute; inset:0;
+    border-radius:13px;
+    box-shadow:inset 0 0 0 1px rgba(0,0,0,.05);
+    pointer-events:none;
   }
   .ad-mobile{ display:flex; }
   .ad-desktop{ display:none; }
@@ -172,21 +210,83 @@
     color:#fff;
     cursor:pointer;
     -webkit-tap-highlight-color:transparent;
+    box-shadow:0 8px 24px -10px rgba(88,86,214,.45);
+    transition:transform .15s ease, box-shadow .15s ease;
+  }
+  .featured-card:active{
+    transform:scale(.985);
+    box-shadow:0 4px 14px -8px rgba(88,86,214,.4);
   }
   .featured-eyebrow{
     font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:.08em;
     opacity:.85; margin-bottom:6px;
   }
   .featured-name{ font-size:22px; font-weight:800; letter-spacing:-.01em; margin:0 0 4px; }
-  .featured-sub{ font-size:13px; opacity:.9; max-width:70%; }
+  .featured-sub{ font-size:13px; opacity:.9; max-width:70%; line-height:1.4; }
   .featured-icon{
     position:absolute; right:18px; top:18px;
     width:56px; height:56px; border-radius:22%;
     background:rgba(255,255,255,.22); border:1px solid rgba(255,255,255,.3);
     display:flex; align-items:center; justify-content:center;
     font-weight:800; font-size:20px; overflow:hidden;
+    box-shadow:0 4px 12px rgba(0,0,0,.15);
   }
   .featured-icon img{ width:100%; height:100%; object-fit:cover; }
+
+  /* ---------- Mejores valorados (por los usuarios) ---------- */
+  .top-rated-row{
+    display:flex; gap:12px; overflow-x:auto;
+    scroll-snap-type:x proximity;
+    padding:2px 2px 10px;
+    scrollbar-width:none; -ms-overflow-style:none;
+  }
+  .top-rated-row::-webkit-scrollbar{ display:none; }
+  .top-card{
+    flex:0 0 auto; scroll-snap-align:start;
+    width:134px;
+    border-radius:20px;
+    padding:14px 12px 12px;
+    text-align:left; cursor:pointer;
+    display:flex; flex-direction:column; gap:9px;
+    background:
+      linear-gradient(160deg, rgba(255,255,255,.85), rgba(255,255,255,.55)) padding-box,
+      linear-gradient(160deg, rgba(255,255,255,.95), rgba(0,122,255,.15)) border-box;
+    border:1px solid transparent;
+    backdrop-filter:saturate(180%) blur(16px);
+    -webkit-backdrop-filter:saturate(180%) blur(16px);
+    box-shadow:0 1px 2px rgba(0,0,0,.04), 0 12px 26px -16px rgba(0,0,0,.24);
+    transition:transform .15s cubic-bezier(.34,1.4,.64,1), box-shadow .15s ease;
+  }
+  .top-card:active{ transform:scale(.95); }
+  .top-card .rank{
+    font-size:10px; font-weight:800; color:var(--label-3);
+    text-transform:uppercase; letter-spacing:.07em;
+  }
+  .top-card .top-icon{
+    width:52px; height:52px; border-radius:22%;
+    display:flex; align-items:center; justify-content:center;
+    color:#fff; font-weight:800; font-size:18px; overflow:hidden;
+    box-shadow:0 5px 12px -4px rgba(0,0,0,.28);
+  }
+  .top-card .top-icon img{ width:100%; height:100%; object-fit:cover; }
+  .top-card .top-name{
+    font-size:12.5px; font-weight:700; color:var(--label); line-height:1.28;
+    display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden;
+  }
+  .top-card .top-hearts{
+    display:inline-flex; align-items:center; gap:4px;
+    font-size:11px; font-weight:800; color:var(--red);
+    background:rgba(255,59,48,.12);
+    padding:3px 9px; border-radius:999px; align-self:flex-start;
+  }
+  .top-card .top-hearts svg{ width:11px; height:11px; flex-shrink:0; }
+  .top-empty{
+    border:1.5px dashed var(--separator); border-radius:18px;
+    background:var(--surface); padding:22px 18px; text-align:center;
+    color:var(--label-2); font-size:13px; line-height:1.55;
+    width:100%;
+  }
+
 
   /* ---------- Section ---------- */
   .section{
@@ -207,7 +307,7 @@
   .grid{
     display:grid;
     grid-template-columns:repeat(auto-fill, minmax(76px,1fr));
-    gap:18px 8px;
+    gap:20px 10px;
   }
   .app-tile{
     background:transparent; border:none; cursor:pointer;
@@ -226,8 +326,8 @@
     display:flex; align-items:center; justify-content:center;
     font-weight:800; font-size:22px; color:#fff;
     overflow:hidden;
-    box-shadow:0 1px 2px rgba(0,0,0,.08), 0 4px 10px -4px rgba(0,0,0,.18);
-    transition:transform .12s ease;
+    box-shadow:0 1px 2px rgba(0,0,0,.08), 0 6px 14px -6px rgba(0,0,0,.22);
+    transition:transform .12s ease, box-shadow .12s ease;
   }
   .app-icon img{ width:100%; height:100%; object-fit:cover; }
   .app-tile .name{
@@ -254,7 +354,7 @@
     font-size:20px; font-weight:800;
   }
   .empty h3{ color:var(--label); font-size:15px; margin:0 0 4px; font-weight:700; }
-  .empty p{ margin:0; font-size:13px; max-width:340px; margin:0 auto; }
+  .empty p{ margin:0; font-size:13px; max-width:340px; margin:0 auto; line-height:1.5; }
   .empty code{ background:var(--bg); border:1px solid var(--separator); padding:1px 6px; border-radius:5px; font-size:12px; }
 
   /* ---------- Bottom tab bar ---------- */
@@ -276,9 +376,11 @@
     padding:8px 4px 6px;
     color:var(--label-3);
     font-family:var(--sys); font-size:10px; font-weight:600;
+    transition:color .12s ease;
   }
   .tab-btn.active{ color:var(--blue); }
   .tab-btn svg{ width:24px; height:24px; }
+  .tab-btn:active{ opacity:.6; }
 
   /* ---------- Sheet (bottom modal) ---------- */
   .overlay{
@@ -297,6 +399,7 @@
     transform:translateY(30px);
     transition:transform .28s cubic-bezier(.32,.72,0,1);
     padding-bottom:calc(24px + var(--safe-b));
+    box-shadow:0 -8px 30px rgba(0,0,0,.12);
   }
   .overlay.show .sheet{ transform:translateY(0); }
   @media (min-width:640px){
@@ -313,7 +416,9 @@
     background:rgba(118,118,128,.16); border:none; cursor:pointer;
     display:flex; align-items:center; justify-content:center;
     color:var(--label-2);
+    transition:background .12s ease;
   }
+  .sheet-close:active{ background:rgba(118,118,128,.28); }
   .sheet-inner{ position:relative; padding:6px 20px 4px; }
   .sheet-top{
     display:flex; gap:14px; align-items:center; margin:14px 0 18px;
@@ -323,7 +428,7 @@
     display:flex; align-items:center; justify-content:center;
     font-weight:800; font-size:26px; color:#fff;
     overflow:hidden;
-    box-shadow:0 2px 6px rgba(0,0,0,.12);
+    box-shadow:0 4px 14px -4px rgba(0,0,0,.25);
   }
   .sheet-icon img{ width:100%; height:100%; object-fit:cover; }
   .sheet-title h3{ font-size:19px; font-weight:800; margin:0 0 4px; letter-spacing:-.01em; }
@@ -335,7 +440,7 @@
     display:inline-block; margin-top:6px;
   }
   .sheet-desc{
-    font-size:14px; color:var(--label); line-height:1.5; margin:0 0 22px;
+    font-size:14px; color:var(--label); line-height:1.55; margin:0 0 22px;
   }
   .dl-label{
     font-size:12px; font-weight:700; color:var(--label-2);
@@ -347,6 +452,7 @@
     background:var(--surface); border-radius:14px;
     padding:13px 14px;
     box-shadow:0 1px 2px rgba(0,0,0,.05);
+    border:.5px solid var(--separator);
   }
   .dl-option-left{ display:flex; align-items:center; gap:10px; font-weight:700; font-size:14.5px; }
   .dl-option-left .dot{ width:8px; height:8px; border-radius:50%; background:var(--green); flex-shrink:0; }
@@ -355,8 +461,52 @@
     background:var(--blue); color:#fff; border:none; border-radius:999px;
     padding:8px 18px; font-family:var(--sys); font-weight:700; font-size:13px;
     cursor:pointer; flex-shrink:0;
+    transition:background .12s ease, transform .12s ease;
   }
-  .dl-go:active{ background:var(--blue-dark); }
+  .dl-go:active{ background:var(--blue-dark); transform:scale(.96); }
+
+  /* ---------- Panel de "dar corazón" (aparece al descargar) ---------- */
+  .heart-prompt{
+    margin-top:0; max-height:0; opacity:0; overflow:hidden;
+    transition:max-height .4s cubic-bezier(.32,.72,0,1), opacity .3s ease, margin-top .4s ease;
+  }
+  .heart-prompt.show{
+    max-height:140px; opacity:1; margin-top:14px;
+  }
+  .heart-card{
+    display:flex; align-items:center; gap:12px;
+    background:
+      linear-gradient(rgba(255,255,255,.6), rgba(255,255,255,.4)) padding-box,
+      linear-gradient(135deg, rgba(255,59,48,.5), rgba(255,149,0,.4)) border-box;
+    border:1px solid transparent;
+    backdrop-filter:saturate(180%) blur(14px);
+    -webkit-backdrop-filter:saturate(180%) blur(14px);
+    border-radius:18px; padding:12px 14px;
+    box-shadow:0 8px 20px -14px rgba(255,59,48,.5);
+  }
+  .heart-card-text{ flex:1; }
+  .heart-card-text strong{ display:block; font-size:13.5px; font-weight:800; margin-bottom:2px; }
+  .heart-card-text span{ font-size:11.5px; color:var(--label-2); line-height:1.4; }
+  .heart-btn{
+    flex-shrink:0; border:none; cursor:pointer;
+    width:54px; height:54px; border-radius:50%;
+    background:var(--surface);
+    display:flex; align-items:center; justify-content:center;
+    box-shadow:0 3px 10px rgba(0,0,0,.12);
+    transition:transform .18s cubic-bezier(.34,1.56,.64,1), background .18s ease;
+    position:relative;
+  }
+  .heart-btn svg{ width:24px; height:24px; color:var(--red); transition:color .18s ease; }
+  .heart-btn.voted{ background:var(--red); }
+  .heart-btn.voted svg{ color:#fff; }
+  .heart-btn.bump{ transform:scale(1.22); }
+  .heart-count-badge{
+    font-size:10px; font-weight:800; color:var(--label);
+    position:absolute; bottom:-6px; left:50%; transform:translateX(-50%);
+    background:var(--surface); border-radius:999px; padding:1px 7px;
+    box-shadow:0 1px 4px rgba(0,0,0,.18);
+    min-width:16px; text-align:center;
+  }
 
   /* ---------- Suggestion sheet form ---------- */
   .sg-field{ margin-bottom:14px; }
@@ -369,19 +519,22 @@
     padding:12px 13px; font-family:var(--sys); font-size:16px; color:var(--label);
     background:var(--surface); outline:none; resize:vertical;
     box-shadow:0 1px 2px rgba(0,0,0,.05);
+    border:1px solid transparent;
+    transition:border-color .12s ease;
   }
-  .sg-field input:focus, .sg-field textarea:focus{ outline:2px solid var(--blue); }
+  .sg-field input:focus, .sg-field textarea:focus{ border-color:var(--blue); }
   .sg-submit{
     width:100%; background:var(--blue); color:#fff; border:none;
     border-radius:14px; padding:14px 16px; font-family:var(--sys); font-weight:700;
     font-size:16px; cursor:pointer;
+    transition:background .12s ease, transform .12s ease;
   }
-  .sg-submit:active{ background:var(--blue-dark); }
-  .sg-note{ font-size:12px; color:var(--label-2); margin:10px 0 0; text-align:center; }
+  .sg-submit:active{ background:var(--blue-dark); transform:scale(.985); }
+  .sg-note{ font-size:12px; color:var(--label-2); margin:10px 0 0; text-align:center; line-height:1.5; }
 
   @media (max-width:420px){
     .large-title{ font-size:28px; }
-    .grid{ grid-template-columns:repeat(auto-fill, minmax(68px,1fr)); gap:16px 6px; }
+    .grid{ grid-template-columns:repeat(auto-fill, minmax(68px,1fr)); gap:18px 8px; }
     .featured-name{ font-size:19px; }
   }
 </style>
@@ -427,6 +580,14 @@
   </div>
 
   <div class="featured-wrap" id="featuredWrap"></div>
+
+  <div class="section" id="topRatedSection" style="padding-top:8px;">
+    <div class="section-head">
+      <h2>Mejores valorados</h2>
+    </div>
+    <p class="result-count">Elegidos por quienes ya los descargaron ❤️</p>
+    <div class="top-rated-row" id="topRatedRow"></div>
+  </div>
 
   <div class="section">
     <div class="section-head">
@@ -509,9 +670,23 @@
         <p class="sheet-desc" id="sheetDesc"></p>
         <p class="dl-label">Métodos de descarga</p>
         <div class="dl-list" id="sheetDownloads"></div>
+
+        <div class="heart-prompt" id="heartPrompt">
+          <div class="heart-card">
+            <div class="heart-card-text">
+              <strong>¿Te gustó?</strong>
+              <span>Dale un corazón para ayudar a otros a encontrarlo</span>
+            </div>
+            <button class="heart-btn" id="heartBtn" type="button" aria-label="Dar corazón">
+              <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 21s-6.7-4.35-9.3-8.1C1 10.1 1.6 6.6 4.6 5.2c2.2-1 4.6-.2 5.9 1.6L12 8.4l1.5-1.6c1.3-1.8 3.7-2.6 5.9-1.6 3 1.4 3.6 4.9 1.9 7.7C18.7 16.65 12 21 12 21z"/></svg>
+              <span class="heart-count-badge" id="heartCountBadge">0</span>
+            </button>
+          </div>
+        </div>
       </div>
     </div>
   </div>
+
 
   <!-- Suggestion sheet -->
   <div class="overlay" id="suggestOverlay">
@@ -601,6 +776,71 @@
     return g.cover ? `<img src="${g.cover}" alt="${g.title}" loading="lazy">` : (g.initials || g.title.slice(0,2).toUpperCase());
   }
 
+  // ---------- Corazones: valoración real de los usuarios ----------
+  // Cada juego arranca en 0. Sube cuando alguien da "❤" tras descargar.
+  const HEARTS_KEY = 'apkprojects_hearts_v1';
+  const VOTED_KEY = 'apkprojects_voted_v1';
+
+  function loadStore(key){
+    try{
+      const v = JSON.parse(localStorage.getItem(key));
+      return (v && typeof v === 'object') ? v : {};
+    }catch(e){ return {}; }
+  }
+  function saveStore(key, obj){
+    try{ localStorage.setItem(key, JSON.stringify(obj)); }catch(e){}
+  }
+
+  let heartsData = loadStore(HEARTS_KEY);
+  let votedData = loadStore(VOTED_KEY);
+
+  function heartsFor(title){ return heartsData[title] || 0; }
+  function hasVoted(title){ return !!votedData[title]; }
+
+  function giveHeart(title){
+    if(hasVoted(title)) return heartsFor(title);
+    heartsData[title] = heartsFor(title) + 1;
+    votedData[title] = true;
+    saveStore(HEARTS_KEY, heartsData);
+    saveStore(VOTED_KEY, votedData);
+    renderTopRated();
+    return heartsData[title];
+  }
+
+  const HEART_SVG = '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 21s-6.7-4.35-9.3-8.1C1 10.1 1.6 6.6 4.6 5.2c2.2-1 4.6-.2 5.9 1.6L12 8.4l1.5-1.6c1.3-1.8 3.7-2.6 5.9-1.6 3 1.4 3.6 4.9 1.9 7.7C18.7 16.65 12 21 12 21z"/></svg>';
+
+  const topRatedRow = document.getElementById('topRatedRow');
+
+  function renderTopRated(){
+    if(!topRatedRow) return;
+    const ranked = games
+      .map(g => ({ g, h: heartsFor(g.title) }))
+      .filter(x => x.h > 0)
+      .sort((a,b) => b.h - a.h)
+      .slice(0, 8);
+
+    if(!ranked.length){
+      topRatedRow.innerHTML = `<div class="top-empty">Todavía nadie ha valorado ningún juego. Abre uno, descárgalo y sé el primero en darle ❤️.</div>`;
+      return;
+    }
+
+    topRatedRow.innerHTML = ranked.map((x, i) => `
+      <button class="top-card" data-title="${x.g.title.replace(/"/g,'&quot;')}" type="button">
+        <span class="rank">#${i+1}</span>
+        <div class="top-icon" ${x.g.cover ? '' : `style="background:${x.g.color}"`}>${iconMarkup(x.g)}</div>
+        <span class="top-name">${x.g.title}</span>
+        <span class="top-hearts">${HEART_SVG} ${x.h}</span>
+      </button>
+    `).join('');
+  }
+
+  topRatedRow.addEventListener('click', (e) => {
+    const card = e.target.closest('.top-card');
+    if(!card) return;
+    const game = games.find(g => g.title === card.dataset.title);
+    if(game) openSheet(game);
+  });
+
   function renderFeatured(){
     if(!games.length){ featuredWrap.innerHTML = ''; return; }
     const top = games.slice().sort((a,b) => b.rating - a.rating)[0];
@@ -652,8 +892,18 @@
   const sheetTag = document.getElementById('sheetTag');
   const sheetDesc = document.getElementById('sheetDesc');
   const sheetDownloads = document.getElementById('sheetDownloads');
+  const heartPrompt = document.getElementById('heartPrompt');
+  const heartBtn = document.getElementById('heartBtn');
+  const heartCountBadge = document.getElementById('heartCountBadge');
+  let currentGameTitle = null;
+
+  function updateHeartUI(title){
+    heartCountBadge.textContent = heartsFor(title);
+    heartBtn.classList.toggle('voted', hasVoted(title));
+  }
 
   function openSheet(game){
+    currentGameTitle = game.title;
     sheetIcon.innerHTML = iconMarkup(game);
     sheetIcon.style.background = game.cover ? 'transparent' : game.color;
     sheetTitle.textContent = game.title;
@@ -673,6 +923,9 @@
         </div>`).join('')
       : `<p class="dl-option-note">Todavía no hay enlaces de descarga para este juego.</p>`;
 
+    heartPrompt.classList.remove('show');
+    updateHeartUI(game.title);
+
     overlay.classList.add('show');
     document.body.classList.add('sheet-open');
   }
@@ -690,10 +943,30 @@
   document.getElementById('sheetClose').addEventListener('click', closeSheet);
   overlay.addEventListener('click', (e) => { if(e.target === overlay) closeSheet(); });
 
+  // Al hacer clic en "Ir" (descargar), invitamos a dar un corazón
+  sheetDownloads.addEventListener('click', (e) => {
+    if(!e.target.closest('.dl-go') || !currentGameTitle) return;
+    updateHeartUI(currentGameTitle);
+    heartPrompt.classList.add('show');
+  });
+
+  heartBtn.addEventListener('click', () => {
+    if(!currentGameTitle) return;
+    if(hasVoted(currentGameTitle)){
+      heartBtn.classList.add('bump');
+      setTimeout(() => heartBtn.classList.remove('bump'), 200);
+      return;
+    }
+    const count = giveHeart(currentGameTitle);
+    heartCountBadge.textContent = count;
+    heartBtn.classList.add('voted', 'bump');
+    setTimeout(() => heartBtn.classList.remove('bump'), 220);
+  });
+
   // ---------- Suggestion sheet ----------
   const suggestOverlay = document.getElementById('suggestOverlay');
   const suggestForm = document.getElementById('suggestForm');
-  const SUGGEST_EMAIL = 'contacto@apkprojects.xyz'; // <-- cambia esto por tu correo real
+  const SUGGEST_EMAIL = 'thiagodelsolad@gmail.com'; // <-- correo de contacto para sugerencias
 
   function openSuggest(){
     suggestOverlay.classList.add('show');
@@ -775,8 +1048,7 @@
   });
 
   // ======================================================
-  // ANUNCIOS ADSTERRA — carga aislada en iframe (sin cambios
-  // respecto a como los tenías, solo movidos al nuevo diseño).
+  // ANUNCIOS ADSTERRA — carga aislada en iframe (sin cambios).
   // ======================================================
   function loadAdsterraAd(containerId, key, width, height){
     const container = document.getElementById(containerId);
@@ -805,10 +1077,12 @@
   loadAdsterraAd('adSlotMiddle', 'f49c2e7ae12570d06b9c194497928af0', 300, 250);
 
   renderFeatured();
+  renderTopRated();
   render();
 </script>
 
   <!-- Popunder Adsterra -->
   <script src="https://pl30708723.effectivecpmnetwork.com/d3/b0/f7/d3b0f74ea824c697046c92444a6f2f11.js"></script>
+
 </body>
 </html>
