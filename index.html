@@ -5,195 +5,145 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>ApkProjects — Descarga juegos y apps</title>
 <meta name="description" content="Catálogo de juegos y aplicaciones para descargar.">
-<meta name="theme-color" content="#0E8F76">
+<meta name="theme-color" content="#F2F2F7">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="format-detection" content="telephone=no">
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Sora:wght@600;700;800;900&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
   :root{
-    --bg:#F6F8F9;
+    --bg:#F2F2F7;
     --surface:#FFFFFF;
-    --border:#E6E9EC;
-    --ink:#161A1D;
-    --ink-soft:#5B6570;
-    --accent:#0E8F76;
-    --accent-dark:#0B6E5B;
-    --accent-soft:#E4F5F1;
-    --violet:#6D5CE0;
-    --coral:#FF6B57;
-    --star:#F5A623;
-    --radius:16px;
-    --radius-sm:10px;
-    --shadow: 0 1px 2px rgba(16,24,32,0.04), 0 8px 24px -12px rgba(16,24,32,0.08);
+    --surface-2:#FAFAFC;
+    --separator:#E4E4E9;
+    --label:#1C1C1E;
+    --label-2:#6E6E73;
+    --label-3:#AEAEB2;
+    --blue:#007AFF;
+    --blue-dark:#0060DF;
+    --green:#34C759;
+    --red:#FF3B30;
+    --orange:#FF9500;
+    --purple:#AF52DE;
+    --yellow:#FFCC00;
+    --pill:#E9E9EE;
+    --radius-lg:20px;
+    --radius-md:14px;
+    --sys:-apple-system,BlinkMacSystemFont,"SF Pro Text","SF Pro Display","Helvetica Neue",Helvetica,Arial,sans-serif;
+    --safe-b:env(safe-area-inset-bottom, 0px);
+    --safe-t:env(safe-area-inset-top, 0px);
   }
-  *{box-sizing:border-box;}
+  *{box-sizing:border-box; -webkit-tap-highlight-color:transparent;}
   html{scroll-behavior:smooth;}
   html,body{margin:0;padding:0;}
   body{
     background:var(--bg);
-    color:var(--ink);
-    font-family:'Inter',system-ui,sans-serif;
+    color:var(--label);
+    font-family:var(--sys);
     -webkit-font-smoothing:antialiased;
+    padding-bottom:calc(78px + var(--safe-b));
   }
-  h1,h2,h3,.brand{font-family:'Sora',system-ui,sans-serif;}
   a{color:inherit;text-decoration:none;}
   img{max-width:100%;display:block;}
-  body.modal-open{overflow:hidden;}
+  button{font-family:var(--sys);}
+  body.sheet-open{overflow:hidden;}
 
-  /* ---------- Top bar ---------- */
-  .topbar{
+  /* ---------- Nav bar ---------- */
+  .navbar{
     position:sticky; top:0; z-index:50;
-    background:rgba(255,255,255,.9);
-    backdrop-filter:blur(8px);
-    border-bottom:1px solid var(--border);
+    padding-top:var(--safe-t);
+    background:rgba(242,242,247,.82);
+    backdrop-filter:saturate(180%) blur(20px);
+    -webkit-backdrop-filter:saturate(180%) blur(20px);
+    border-bottom:.5px solid var(--separator);
   }
-  .topbar-inner{
-    max-width:1180px; margin:0 auto;
-    display:flex; align-items:center; gap:20px;
-    padding:14px 20px;
+  .navbar-inner{
+    max-width:900px; margin:0 auto;
+    padding:6px 16px 10px;
   }
-  .brand{
-    display:flex; align-items:center; gap:10px;
-    font-weight:800; font-size:19px; letter-spacing:-0.01em;
+  .navbar-title-row{
+    display:flex; align-items:center; justify-content:space-between;
+    padding:4px 0 6px;
+  }
+  .navbar-title{
+    font-size:15px; font-weight:600; color:var(--label);
+    letter-spacing:-.01em;
+  }
+  .large-title{
+    font-size:32px; font-weight:800; letter-spacing:-0.02em;
+    margin:2px 0 10px; color:var(--label);
+  }
+  .search-wrap{
+    display:flex; align-items:center; gap:8px;
+  }
+  .search-field{
+    flex:1;
+    display:flex; align-items:center; gap:6px;
+    background:rgba(118,118,128,.12);
+    border-radius:11px;
+    padding:8px 10px;
+  }
+  .search-field svg{ color:var(--label-3); flex-shrink:0; }
+  .search-field input{
+    border:none; background:transparent; outline:none;
+    font-family:var(--sys); font-size:16px; color:var(--label); width:100%;
+  }
+  .search-field input::placeholder{ color:var(--label-3); }
+  .search-clear{
+    display:none; width:18px; height:18px; border-radius:50%;
+    background:var(--label-3); color:#fff; border:none; cursor:pointer;
+    align-items:center; justify-content:center; flex-shrink:0;
+  }
+  .search-field.has-text .search-clear{ display:flex; }
+  .cancel-btn{
+    color:var(--blue); font-size:16px; font-weight:400; background:none;
+    border:none; cursor:pointer; white-space:nowrap; padding:6px 2px;
+    display:none;
+  }
+  .cancel-btn.show{ display:block; }
+
+  /* ---------- Segmented category control ---------- */
+  .segwrap{
+    max-width:900px; margin:0 auto;
+    padding:0 16px 12px;
+    overflow-x:auto; scrollbar-width:none;
+  }
+  .segwrap::-webkit-scrollbar{display:none;}
+  .segmented{
+    display:inline-flex; gap:2px;
+    background:var(--pill);
+    padding:2px; border-radius:9px;
+  }
+  .seg-btn{
+    flex-shrink:0;
+    border:none; background:transparent; cursor:pointer;
+    font-family:var(--sys); font-size:13px; font-weight:600; color:var(--label);
+    padding:6px 14px; border-radius:7px;
+    transition:background .15s, color .15s;
     white-space:nowrap;
   }
-  .brand-mark{
-    width:34px; height:34px; border-radius:9px;
-    background:linear-gradient(155deg, var(--accent), var(--violet));
-    display:flex; align-items:center; justify-content:center;
-    color:#fff; font-weight:800; font-size:16px;
-    flex-shrink:0;
+  .seg-btn.active{
+    background:var(--surface); color:var(--label);
+    box-shadow:0 1px 3px rgba(0,0,0,.12);
   }
-  .search-form{
-    flex:1; max-width:520px;
-    display:flex; align-items:center; gap:6px;
-    background:var(--bg);
-    border:1.5px solid var(--border);
-    border-radius:999px;
-    padding:6px 6px 6px 16px;
-    color:var(--ink-soft);
-    font-size:14px;
-    transition:border-color .15s, box-shadow .15s;
-  }
-  .search-form:focus-within{
-    border-color:var(--accent);
-    box-shadow:0 0 0 3px var(--accent-soft);
-  }
-  .search-form input{
-    border:none; background:transparent; outline:none;
-    font-family:inherit; font-size:14px; color:var(--ink); width:100%;
-  }
-  .search-form input::placeholder{color:var(--ink-soft);}
-  .search-btn{
-    flex-shrink:0;
-    width:34px; height:34px; border-radius:50%;
-    border:none; cursor:pointer;
-    background:var(--accent); color:#fff;
-    display:flex; align-items:center; justify-content:center;
-    transition:background .15s, transform .1s;
-  }
-  .search-btn:hover{ background:var(--accent-dark); }
-  .search-btn:active{ transform:scale(.92); }
 
-  /* ---------- Category nav ---------- */
-  .categories{
-    max-width:1180px; margin:0 auto;
-    display:flex; gap:8px;
-    padding:0 20px 14px;
-    overflow-x:auto;
-    scrollbar-width:none;
-  }
-  .categories::-webkit-scrollbar{display:none;}
-  .categories{ -webkit-overflow-scrolling:touch; touch-action:pan-x; }
-  .chip{
-    flex-shrink:0;
-    padding:7px 16px;
-    border-radius:999px;
-    font-size:13px; font-weight:600;
-    border:1px solid var(--border);
-    background:var(--surface);
-    color:var(--ink-soft);
-    cursor:pointer;
-    transition:background .15s, color .15s, border-color .15s, transform .1s;
-  }
-  .chip.active{
-    background:var(--ink); color:#fff; border-color:var(--ink);
-  }
-  .chip:hover:not(.active){border-color:var(--accent); color:var(--accent-dark);}
-  .chip:active{transform:scale(.96);}
-  .chip.suggest{
-    border-color:var(--violet); color:var(--violet);
-  }
-  .chip.suggest:hover{ background:var(--violet); color:#fff; border-color:var(--violet); }
-
-  /* ---------- Ad slots ---------- */
+  /* ---------- Ad card ---------- */
   .ad-slot{
-    max-width:1180px; margin:26px auto 0; padding:0 20px;
-  }
-  .ad-slot .ad-box{
-    border:1px dashed var(--border);
-    border-radius:var(--radius-sm);
-    background:var(--surface);
-    color:var(--ink-soft);
-    font-size:12px;
-    text-align:center;
-    padding:18px 12px;
-    letter-spacing:.03em;
-    text-transform:uppercase;
+    max-width:900px; margin:16px auto 0; padding:0 16px;
   }
   .ad-card{
-    position:relative;
-    border-radius:20px;
-    background:
-      radial-gradient(circle at 0% 0%, rgba(14,143,118,.07), transparent 55%),
-      radial-gradient(circle at 100% 100%, rgba(109,92,224,.08), transparent 55%),
-      var(--surface);
-    border:1px solid var(--border);
-    box-shadow:0 1px 2px rgba(16,24,32,.04), 0 14px 30px -18px rgba(14,143,118,.35);
-    padding:16px 16px 18px;
+    border-radius:var(--radius-md);
+    background:var(--surface);
+    border:.5px solid var(--separator);
+    padding:10px 10px 12px;
     overflow:hidden;
-    transition:box-shadow .2s ease, transform .2s ease;
-  }
-  .ad-card:hover{
-    box-shadow:0 1px 2px rgba(16,24,32,.05), 0 18px 36px -16px rgba(14,143,118,.45);
-    transform:translateY(-2px);
-  }
-  .ad-card::before{
-    content:"";
-    position:absolute; top:0; left:0; right:0; height:3px;
-    background:linear-gradient(90deg, var(--accent), var(--violet), var(--coral));
-    background-size:200% 100%;
-    animation:adShimmer 5s linear infinite;
-  }
-  @keyframes adShimmer{
-    0%{ background-position:0% 0; }
-    100%{ background-position:200% 0; }
   }
   .ad-card-label{
-    display:flex; align-items:center; justify-content:center; gap:8px;
-    font-size:10.5px; font-weight:700; color:var(--ink-soft);
-    text-transform:uppercase; letter-spacing:.1em;
-    margin-bottom:12px;
+    font-size:10px; font-weight:700; color:var(--label-3);
+    text-transform:uppercase; letter-spacing:.08em;
+    text-align:center; margin-bottom:8px;
   }
-  .ad-card-label .spark{
-    display:inline-flex; width:5px; height:5px; border-radius:50%;
-    background:var(--accent);
-    box-shadow:0 0 0 3px var(--accent-soft);
-  }
-  .ad-card-label::before, .ad-card-label::after{
-    content:""; flex:1; height:1px;
-    background:linear-gradient(90deg, transparent, var(--border), transparent);
-  }
-  .ad-slot .ad-container{
-    min-height:50px;
-    display:flex;
-    align-items:center;
-    justify-content:center;
-    overflow:hidden;
-    border-radius:12px;
-    background:var(--bg);
+  .ad-container{
+    min-height:50px; display:flex; align-items:center; justify-content:center;
+    overflow:hidden; border-radius:10px; background:var(--surface-2);
   }
   .ad-mobile{ display:flex; }
   .ad-desktop{ display:none; }
@@ -203,487 +153,404 @@
     .ad-desktop{ display:flex; min-height:90px; }
   }
 
-  /* ---------- Hero ---------- */
-  .hero-wrap{
-    max-width:1180px; margin:0 auto; padding:24px 20px 0;
+  /* ---------- Featured card ---------- */
+  .featured-wrap{
+    max-width:900px; margin:18px auto 0; padding:0 16px;
   }
-  .hero{
-    position:relative;
-    overflow:hidden;
-    border-radius:24px;
-    padding:40px 32px;
+  .featured-label{
+    font-size:22px; font-weight:800; letter-spacing:-.01em; margin:0 0 10px;
+  }
+  .featured-card{
+    position:relative; overflow:hidden;
+    border-radius:var(--radius-lg);
+    padding:22px 20px;
+    min-height:170px;
+    display:flex; flex-direction:column; justify-content:flex-end;
     background:
-      radial-gradient(circle at 15% 20%, rgba(255,255,255,.16) 0, transparent 40%),
-      radial-gradient(circle at 85% 85%, rgba(255,255,255,.12) 0, transparent 45%),
-      linear-gradient(120deg, var(--accent) 0%, var(--accent-dark) 45%, var(--violet) 100%);
+      radial-gradient(circle at 20% 15%, rgba(255,255,255,.18), transparent 45%),
+      linear-gradient(135deg, var(--blue), #5856D6 60%, var(--purple));
     color:#fff;
-  }
-  .hero-badge{
-    display:inline-flex; align-items:center; gap:6px;
-    background:rgba(255,255,255,.16);
-    border:1px solid rgba(255,255,255,.28);
-    padding:5px 12px; border-radius:999px;
-    font-size:12px; font-weight:700; letter-spacing:.02em;
-    margin-bottom:14px;
-  }
-  .hero-badge .dot{
-    width:6px; height:6px; border-radius:50%;
-    background:#5CFFB0;
-    box-shadow:0 0 0 0 rgba(92,255,176,.6);
-    animation:pulse 1.8s infinite;
-  }
-  @keyframes pulse{
-    0%{ box-shadow:0 0 0 0 rgba(92,255,176,.55); }
-    70%{ box-shadow:0 0 0 7px rgba(92,255,176,0); }
-    100%{ box-shadow:0 0 0 0 rgba(92,255,176,0); }
-  }
-  .hero h1{
-    font-size:32px; font-weight:900; margin:0 0 8px; letter-spacing:-0.02em;
-    max-width:520px; line-height:1.15;
-  }
-  .hero p{
-    margin:0 0 22px; color:rgba(255,255,255,.85); font-size:15px; max-width:440px;
-  }
-  .hero-stats{
-    display:flex; gap:28px; flex-wrap:wrap;
-  }
-  .hero-stats div{ display:flex; flex-direction:column; }
-  .hero-stats strong{ font-family:'Sora',sans-serif; font-size:22px; font-weight:800; }
-  .hero-stats span{ font-size:12px; color:rgba(255,255,255,.75); }
-  .hero-glyph{
-    position:absolute; right:-10px; bottom:-24px;
-    font-size:150px; opacity:.14; transform:rotate(-8deg);
-    line-height:1; user-select:none; pointer-events:none;
-  }
-  .hero-actions{
-    margin-top:20px; display:flex; gap:10px; flex-wrap:wrap;
-  }
-  .hero-suggest-btn{
-    background:rgba(255,255,255,.16);
-    border:1px solid rgba(255,255,255,.32);
-    color:#fff;
-    font-family:inherit; font-weight:700; font-size:13px;
-    padding:10px 18px; border-radius:999px;
-    cursor:pointer; display:inline-flex; align-items:center; gap:6px;
-    transition:background .15s, transform .1s;
+    cursor:pointer;
     -webkit-tap-highlight-color:transparent;
   }
-  .hero-suggest-btn:hover{ background:rgba(255,255,255,.28); }
-  .hero-suggest-btn:active{ transform:scale(.96); }
+  .featured-eyebrow{
+    font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:.08em;
+    opacity:.85; margin-bottom:6px;
+  }
+  .featured-name{ font-size:22px; font-weight:800; letter-spacing:-.01em; margin:0 0 4px; }
+  .featured-sub{ font-size:13px; opacity:.9; max-width:70%; }
+  .featured-icon{
+    position:absolute; right:18px; top:18px;
+    width:56px; height:56px; border-radius:22%;
+    background:rgba(255,255,255,.22); border:1px solid rgba(255,255,255,.3);
+    display:flex; align-items:center; justify-content:center;
+    font-weight:800; font-size:20px; overflow:hidden;
+  }
+  .featured-icon img{ width:100%; height:100%; object-fit:cover; }
 
   /* ---------- Section ---------- */
   .section{
-    max-width:1180px; margin:0 auto; padding:28px 20px 4px;
+    max-width:900px; margin:0 auto; padding:26px 16px 4px;
   }
   .section-head{
     display:flex; align-items:center; justify-content:space-between;
-    margin-bottom:14px; gap:12px; flex-wrap:wrap;
+    margin-bottom:12px;
   }
   .section-head h2{
-    font-size:18px; font-weight:700; margin:0;
-    display:flex; align-items:center; gap:8px;
+    font-size:22px; font-weight:800; margin:0; letter-spacing:-.01em;
   }
-  .see-all{
-    font-size:13px; font-weight:600; color:var(--accent-dark);
-    background:none; border:none; font-family:inherit;
-    cursor:pointer; padding:0;
-  }
-  .see-all:hover{ text-decoration:underline; }
   .result-count{
-    font-size:12px; color:var(--ink-soft); margin:-6px 0 14px;
+    font-size:13px; color:var(--label-2); margin:-6px 0 12px;
   }
 
-  /* ---------- Grid (cover + name only) ---------- */
+  /* ---------- Home-screen style icon grid ---------- */
   .grid{
     display:grid;
-    grid-template-columns:repeat(auto-fill, minmax(140px,1fr));
-    gap:16px;
+    grid-template-columns:repeat(auto-fill, minmax(76px,1fr));
+    gap:18px 8px;
   }
-  .card{
-    background:var(--surface);
-    border:1px solid var(--border);
-    border-radius:var(--radius);
-    padding:10px;
-    display:flex; flex-direction:column; gap:8px;
-    box-shadow:var(--shadow);
-    transition:transform .18s ease, box-shadow .18s ease;
-    animation:cardIn .35s ease both;
-    cursor:pointer;
-    text-align:left;
-    font-family:inherit;
-    width:100%;
-    -webkit-tap-highlight-color:transparent;
+  .app-tile{
+    background:transparent; border:none; cursor:pointer;
+    display:flex; flex-direction:column; align-items:center; gap:6px;
+    padding:2px; text-align:center;
+    animation:tileIn .3s ease both;
   }
-  @keyframes cardIn{
-    from{ opacity:0; transform:translateY(8px); }
-    to{ opacity:1; transform:translateY(0); }
+  @keyframes tileIn{
+    from{ opacity:0; transform:scale(.9); }
+    to{ opacity:1; transform:scale(1); }
   }
-  .card:hover{
-    transform:translateY(-4px);
-    box-shadow:0 6px 14px rgba(16,24,32,0.07), 0 18px 32px -16px rgba(16,24,32,0.2);
-  }
-  .card:hover .icon{ transform:scale(1.03); }
-  .card:focus-visible{ outline:2px solid var(--accent); outline-offset:2px; }
-  .icon{
+  .app-tile:active .app-icon{ transform:scale(.9); }
+  .app-icon{
     width:100%; aspect-ratio:1/1;
-    border-radius:14px;
+    border-radius:22%;
     display:flex; align-items:center; justify-content:center;
-    font-family:'Sora',sans-serif; font-weight:800; font-size:26px;
-    color:#fff;
+    font-weight:800; font-size:22px; color:#fff;
     overflow:hidden;
-    transition:transform .18s ease;
+    box-shadow:0 1px 2px rgba(0,0,0,.08), 0 4px 10px -4px rgba(0,0,0,.18);
+    transition:transform .12s ease;
   }
-  .icon img{
-    width:100%; height:100%; object-fit:cover;
-  }
-  .card h3{
-    font-size:13.5px; font-weight:700; margin:0;
-    overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
+  .app-icon img{ width:100%; height:100%; object-fit:cover; }
+  .app-tile .name{
+    font-size:11.5px; font-weight:500; color:var(--label);
+    max-width:100%; overflow:hidden; text-overflow:ellipsis;
+    white-space:nowrap; line-height:1.3;
   }
 
   /* ---------- Empty state ---------- */
   .empty{
     grid-column:1/-1;
-    border:1.5px dashed var(--border);
-    border-radius:var(--radius);
+    border:1.5px dashed var(--separator);
+    border-radius:var(--radius-md);
     background:var(--surface);
-    padding:44px 24px;
+    padding:40px 20px;
     text-align:center;
-    color:var(--ink-soft);
+    color:var(--label-2);
   }
   .empty .empty-mark{
     width:52px; height:52px; margin:0 auto 14px;
-    border-radius:14px;
-    background:var(--accent-soft);
-    color:var(--accent-dark);
+    border-radius:22%;
+    background:var(--pill); color:var(--blue);
     display:flex; align-items:center; justify-content:center;
-    font-size:22px; font-weight:800; font-family:'Sora',sans-serif;
+    font-size:20px; font-weight:800;
   }
-  .empty h3{
-    color:var(--ink); font-size:15px; margin:0 0 4px;
-  }
-  .empty p{margin:0; font-size:13px; max-width:360px; margin:0 auto;}
-  .empty code{
-    background:var(--bg); border:1px solid var(--border);
-    padding:1px 6px; border-radius:5px; font-size:12px;
-  }
+  .empty h3{ color:var(--label); font-size:15px; margin:0 0 4px; font-weight:700; }
+  .empty p{ margin:0; font-size:13px; max-width:340px; margin:0 auto; }
+  .empty code{ background:var(--bg); border:1px solid var(--separator); padding:1px 6px; border-radius:5px; font-size:12px; }
 
-  /* ---------- Detail modal ---------- */
+  /* ---------- Bottom tab bar ---------- */
+  .tabbar{
+    position:fixed; left:0; right:0; bottom:0; z-index:60;
+    background:rgba(249,249,251,.86);
+    backdrop-filter:saturate(180%) blur(20px);
+    -webkit-backdrop-filter:saturate(180%) blur(20px);
+    border-top:.5px solid var(--separator);
+    padding-bottom:var(--safe-b);
+  }
+  .tabbar-inner{
+    max-width:900px; margin:0 auto;
+    display:flex;
+  }
+  .tab-btn{
+    flex:1; background:none; border:none; cursor:pointer;
+    display:flex; flex-direction:column; align-items:center; gap:3px;
+    padding:8px 4px 6px;
+    color:var(--label-3);
+    font-family:var(--sys); font-size:10px; font-weight:600;
+  }
+  .tab-btn.active{ color:var(--blue); }
+  .tab-btn svg{ width:24px; height:24px; }
+
+  /* ---------- Sheet (bottom modal) ---------- */
   .overlay{
-    position:fixed; inset:0; z-index:100;
-    background:rgba(15,18,20,.55);
+    position:fixed; inset:0; z-index:200;
+    background:rgba(0,0,0,.35);
     display:flex; align-items:flex-end; justify-content:center;
     opacity:0; pointer-events:none;
-    transition:opacity .2s ease;
+    transition:opacity .25s ease;
   }
   .overlay.show{ opacity:1; pointer-events:auto; }
-  .modal{
-    background:var(--surface);
-    width:100%; max-width:480px;
-    border-radius:22px 22px 0 0;
-    padding:24px 22px 28px;
+  .sheet{
+    background:var(--bg);
+    width:100%; max-width:520px;
+    border-radius:20px 20px 0 0;
     max-height:88vh; overflow-y:auto;
-    transform:translateY(24px);
-    transition:transform .22s ease;
+    transform:translateY(30px);
+    transition:transform .28s cubic-bezier(.32,.72,0,1);
+    padding-bottom:calc(24px + var(--safe-b));
   }
-  .overlay.show .modal{ transform:translateY(0); }
+  .overlay.show .sheet{ transform:translateY(0); }
   @media (min-width:640px){
     .overlay{ align-items:center; }
-    .modal{ border-radius:22px; max-width:420px; }
+    .sheet{ border-radius:20px; max-height:80vh; }
   }
-  .modal-close{
-    float:right;
-    width:32px; height:32px; border-radius:50%;
-    border:1px solid var(--border); background:var(--bg);
-    cursor:pointer; display:flex; align-items:center; justify-content:center;
-    color:var(--ink-soft);
-    -webkit-tap-highlight-color:transparent;
+  .sheet-handle{
+    width:36px; height:5px; border-radius:3px;
+    background:var(--separator); margin:10px auto 4px;
   }
-  .modal-close:hover{ color:var(--ink); }
-  .modal-top{
-    display:flex; gap:14px; align-items:center; margin-bottom:16px;
-  }
-  .modal-icon{
-    width:76px; height:76px; border-radius:18px; flex-shrink:0;
+  .sheet-close{
+    position:absolute; right:14px; top:14px;
+    width:30px; height:30px; border-radius:50%;
+    background:rgba(118,118,128,.16); border:none; cursor:pointer;
     display:flex; align-items:center; justify-content:center;
-    font-family:'Sora',sans-serif; font-weight:800; font-size:26px; color:#fff;
-    overflow:hidden;
+    color:var(--label-2);
   }
-  .modal-icon img{ width:100%; height:100%; object-fit:cover; }
-  .modal-title h3{ font-size:18px; margin:0 0 4px; }
-  .modal-meta{ font-size:12.5px; color:var(--ink-soft); display:flex; align-items:center; gap:6px; flex-wrap:wrap; }
-  .modal-meta .stars{ color:var(--star); }
-  .modal-tag{
-    font-size:11px; font-weight:600; color:var(--accent-dark);
-    background:var(--accent-soft); padding:2px 8px; border-radius:6px;
+  .sheet-inner{ position:relative; padding:6px 20px 4px; }
+  .sheet-top{
+    display:flex; gap:14px; align-items:center; margin:14px 0 18px;
+  }
+  .sheet-icon{
+    width:78px; height:78px; border-radius:22%; flex-shrink:0;
+    display:flex; align-items:center; justify-content:center;
+    font-weight:800; font-size:26px; color:#fff;
+    overflow:hidden;
+    box-shadow:0 2px 6px rgba(0,0,0,.12);
+  }
+  .sheet-icon img{ width:100%; height:100%; object-fit:cover; }
+  .sheet-title h3{ font-size:19px; font-weight:800; margin:0 0 4px; letter-spacing:-.01em; }
+  .sheet-meta{ font-size:12.5px; color:var(--label-2); display:flex; align-items:center; gap:5px; flex-wrap:wrap; }
+  .sheet-meta .stars{ color:var(--orange); }
+  .sheet-tag{
+    font-size:11px; font-weight:700; color:var(--blue);
+    background:rgba(0,122,255,.1); padding:2px 9px; border-radius:6px;
     display:inline-block; margin-top:6px;
   }
-  .modal-desc{
-    font-size:13.5px; color:var(--ink-soft); line-height:1.55; margin:0 0 20px;
+  .sheet-desc{
+    font-size:14px; color:var(--label); line-height:1.5; margin:0 0 22px;
   }
   .dl-label{
-    font-size:12px; font-weight:700; color:var(--ink-soft);
-    text-transform:uppercase; letter-spacing:.04em; margin:0 0 10px;
+    font-size:12px; font-weight:700; color:var(--label-2);
+    text-transform:uppercase; letter-spacing:.05em; margin:0 0 10px;
   }
   .dl-list{ display:flex; flex-direction:column; gap:10px; }
   .dl-option{
     display:flex; align-items:center; justify-content:space-between; gap:10px;
-    border:1px solid var(--border); border-radius:12px;
-    padding:12px 14px;
-    background:var(--surface);
-    transition:border-color .15s, background .15s;
+    background:var(--surface); border-radius:14px;
+    padding:13px 14px;
+    box-shadow:0 1px 2px rgba(0,0,0,.05);
   }
-  .dl-option:hover{ border-color:var(--accent); background:var(--accent-soft); }
-  .dl-option-left{ display:flex; align-items:center; gap:10px; font-weight:700; font-size:14px; }
-  .dl-option-left .dot{
-    width:8px; height:8px; border-radius:50%; background:var(--accent); flex-shrink:0;
-  }
-  .dl-option-note{ font-size:11.5px; color:var(--ink-soft); font-weight:500; }
+  .dl-option-left{ display:flex; align-items:center; gap:10px; font-weight:700; font-size:14.5px; }
+  .dl-option-left .dot{ width:8px; height:8px; border-radius:50%; background:var(--green); flex-shrink:0; }
+  .dl-option-note{ font-size:11.5px; color:var(--label-2); font-weight:500; }
   .dl-go{
-    background:var(--accent); color:#fff; border:none; border-radius:999px;
-    padding:8px 16px; font-family:inherit; font-weight:700; font-size:12.5px;
-    cursor:pointer; flex-shrink:0; transition:background .15s;
-    -webkit-tap-highlight-color:transparent;
+    background:var(--blue); color:#fff; border:none; border-radius:999px;
+    padding:8px 18px; font-family:var(--sys); font-weight:700; font-size:13px;
+    cursor:pointer; flex-shrink:0;
   }
-  .dl-go:hover{ background:var(--accent-dark); }
+  .dl-go:active{ background:var(--blue-dark); }
 
-  /* ---------- Suggestion modal ---------- */
+  /* ---------- Suggestion sheet form ---------- */
   .sg-field{ margin-bottom:14px; }
   .sg-field label{
-    display:block; font-size:12px; font-weight:700; color:var(--ink-soft);
+    display:block; font-size:12px; font-weight:700; color:var(--label-2);
     text-transform:uppercase; letter-spacing:.04em; margin-bottom:6px;
   }
   .sg-field input, .sg-field textarea{
-    width:100%; border:1px solid var(--border); border-radius:10px;
-    padding:11px 13px; font-family:inherit; font-size:14px; color:var(--ink);
-    background:var(--bg); outline:none; resize:vertical;
-    transition:border-color .15s, box-shadow .15s;
+    width:100%; border:none; border-radius:12px;
+    padding:12px 13px; font-family:var(--sys); font-size:16px; color:var(--label);
+    background:var(--surface); outline:none; resize:vertical;
+    box-shadow:0 1px 2px rgba(0,0,0,.05);
   }
-  .sg-field input:focus, .sg-field textarea:focus{
-    border-color:var(--accent); box-shadow:0 0 0 3px var(--accent-soft);
-  }
+  .sg-field input:focus, .sg-field textarea:focus{ outline:2px solid var(--blue); }
   .sg-submit{
-    width:100%; background:var(--violet); color:#fff; border:none;
-    border-radius:12px; padding:13px 16px; font-family:inherit; font-weight:700;
-    font-size:14px; cursor:pointer; transition:background .15s, transform .1s;
-    -webkit-tap-highlight-color:transparent;
+    width:100%; background:var(--blue); color:#fff; border:none;
+    border-radius:14px; padding:14px 16px; font-family:var(--sys); font-weight:700;
+    font-size:16px; cursor:pointer;
   }
-  .sg-submit:hover{ background:#5A4BC7; }
-  .sg-submit:active{ transform:scale(.98); }
-  .sg-note{ font-size:12px; color:var(--ink-soft); margin:10px 0 0; text-align:center; }
+  .sg-submit:active{ background:var(--blue-dark); }
+  .sg-note{ font-size:12px; color:var(--label-2); margin:10px 0 0; text-align:center; }
 
-  /* ---------- Back to top ---------- */
-  .top-btn{
-    position:fixed; right:20px; bottom:20px; z-index:60;
-    width:44px; height:44px; border-radius:50%;
-    background:var(--ink); color:#fff; border:none; cursor:pointer;
-    display:flex; align-items:center; justify-content:center;
-    box-shadow:0 8px 20px rgba(0,0,0,.18);
-    opacity:0; pointer-events:none; transform:translateY(8px);
-    transition:opacity .2s, transform .2s;
-    -webkit-tap-highlight-color:transparent;
-  }
-  .top-btn.show{ opacity:1; pointer-events:auto; transform:translateY(0); }
-
-  /* ---------- Footer ---------- */
-  footer{
-    margin-top:52px;
-    border-top:1px solid var(--border);
-    padding:28px 20px 40px;
-  }
-  footer .inner{
-    max-width:1180px; margin:0 auto;
-    display:flex; justify-content:space-between; align-items:center;
-    flex-wrap:wrap; gap:12px;
-    font-size:13px; color:var(--ink-soft);
-  }
-
-  @media (max-width:640px){
-    .hero{padding:28px 20px;}
-    .hero h1{font-size:23px;}
-    .hero-glyph{font-size:100px;}
-    .search-form{display:flex; max-width:none;}
-    .grid{grid-template-columns:repeat(auto-fill, minmax(110px,1fr)); gap:10px;}
-    .icon{font-size:20px;}
+  @media (max-width:420px){
+    .large-title{ font-size:28px; }
+    .grid{ grid-template-columns:repeat(auto-fill, minmax(68px,1fr)); gap:16px 6px; }
+    .featured-name{ font-size:19px; }
   }
 </style>
 </head>
 <body>
 
-  <div class="topbar">
-    <div class="topbar-inner">
-      <div class="brand">
-        <div class="brand-mark">AP</div>
-        ApkProjects
+  <div class="navbar">
+    <div class="navbar-inner">
+      <div class="navbar-title-row">
+        <span class="navbar-title">ApkProjects</span>
       </div>
-      <form class="search-form" id="searchForm">
-        <input type="text" placeholder="Buscar juegos y apps…" id="searchInput" aria-label="Buscar juegos y apps">
-        <button class="search-btn" type="submit" aria-label="Buscar">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>
-        </button>
-      </form>
+      <h1 class="large-title">Catálogo</h1>
+      <div class="search-wrap">
+        <div class="search-field" id="searchField">
+          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>
+          <input type="text" placeholder="Buscar" id="searchInput" aria-label="Buscar juegos y apps">
+          <button class="search-clear" id="searchClear" aria-label="Borrar" type="button">
+            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M18 6 6 18M6 6l12 12"/></svg>
+          </button>
+        </div>
+        <button class="cancel-btn" id="cancelBtn" type="button">Cancelar</button>
+      </div>
     </div>
-    <div class="categories" id="categoryBar">
-      <div class="chip active" data-cat="all">Todos</div>
-      <div class="chip" data-cat="accion">Acción</div>
-      <div class="chip" data-cat="aventura">Aventura</div>
-      <div class="chip" data-cat="arcade">Arcade</div>
-      <div class="chip" data-cat="deportes">Deportes</div>
-      <div class="chip" data-cat="apps">Apps</div>
-      <div class="chip suggest" id="suggestChip">💡 Sugerencias</div>
+    <div class="segwrap">
+      <div class="segmented" id="categoryBar">
+        <button class="seg-btn active" data-cat="all" type="button">Todos</button>
+        <button class="seg-btn" data-cat="accion" type="button">Acción</button>
+        <button class="seg-btn" data-cat="aventura" type="button">Aventura</button>
+        <button class="seg-btn" data-cat="arcade" type="button">Arcade</button>
+        <button class="seg-btn" data-cat="deportes" type="button">Deportes</button>
+        <button class="seg-btn" data-cat="apps" type="button">Apps</button>
+      </div>
     </div>
   </div>
 
-  <!-- AD SLOT: banner superior (Adsterra)
-       Los anuncios se cargan más abajo, en el script principal,
-       dentro de iframes aislados (así no se pisan entre sí). Solo
-       cambia las claves ('key') y medidas ahí si creas otros banners. -->
+  <!-- AD SLOT: banner superior (Adsterra) -->
   <div class="ad-slot">
     <div class="ad-card">
-      <div class="ad-card-label"><span class="spark"></span>Publicidad<span class="spark"></span></div>
+      <div class="ad-card-label">Publicidad</div>
       <div class="ad-container ad-mobile" id="adSlotTopMobile"></div>
       <div class="ad-container ad-desktop" id="adSlotTopDesktop"></div>
     </div>
   </div>
 
-  <div class="hero-wrap">
-    <div class="hero">
-      <div class="hero-badge"><span class="dot"></span> Descargas activas hoy</div>
-      <h1>Descarga tus juegos favoritos, sin vueltas</h1>
-      <p>Catálogo de juegos y apps actualizado constantemente. Enlaces directos, sin registros ni esperas.</p>
-      <div class="hero-stats" id="heroStats">
-        <div><strong id="statTotal">0</strong><span>Juegos disponibles</span></div>
-        <div><strong id="statCats">5</strong><span>Categorías</span></div>
-        <div><strong>100%</strong><span>Descarga directa</span></div>
-      </div>
-      <div class="hero-actions">
-        <button class="hero-suggest-btn" id="heroSuggestBtn" type="button">💡 Sugerir un juego o app</button>
-      </div>
-      <div class="hero-glyph">🎮</div>
-    </div>
-  </div>
+  <div class="featured-wrap" id="featuredWrap"></div>
 
   <div class="section">
     <div class="section-head">
-      <h2>🔥 Catálogo</h2>
-      <button class="see-all" id="seeAllBtn" type="button">Ver todos</button>
+      <h2>Todo el catálogo</h2>
     </div>
     <p class="result-count" id="resultCount"></p>
     <div class="grid" id="gameGrid">
       <!-- ==========================================================
-           EMPTY STATE — se muestra automáticamente si games[] está vacío.
-
            CÓMO AGREGAR UN JUEGO
-           Edita el array "games" al final del archivo (dentro de la
-           etiqueta <script>) y agrega un objeto con este formato:
+           Edita el array "games" al final del archivo (dentro del
+           <script>) y agrega un objeto con este formato:
 
            {
              title: "Nombre del juego",
              category: "accion",        // accion, aventura, arcade, deportes o apps
-             rating: 4.5,                // 0 a 5 (aparece dentro del detalle)
+             rating: 4.5,
              size: "85 MB",
-             color: "#2563EB",           // color de fondo del ícono — solo se usa si NO hay portada
-             initials: "NJ",             // 1-2 letras — solo se usan si NO hay portada
-             cover: "",                  // URL o ruta de la imagen de portada (ver instrucciones abajo)
-             description: "Breve descripción del juego (1-2 frases).",
+             color: "#2563EB",          // color del ícono si NO hay portada
+             initials: "NJ",            // iniciales si NO hay portada
+             cover: "img/tuimagen.png", // ruta o URL de la portada
+             description: "Breve descripción.",
              downloads: [
-               { label: "Mediafire", note: "Servidor directo", url: "https://www.mediafire.com/..." },
-               { label: "Mega",      note: "Alternativa",      url: "https://mega.nz/..." }
+               { label: "Mediafire", note: "Servidor directo", url: "https://www.mediafire.com/..." }
              ]
            }
 
-           NO hace falta ordenarlos tú mismo: el catálogo se ordena
-           SOLO alfabéticamente sin importar en qué orden los escribas
-           en el array.
-
-           En la tarjeta principal solo se ve la portada y el nombre.
-           Al hacer click se abre una ventana con la descripción,
-           calificación y todos los métodos de descarga que agregues
-           dentro de "downloads" (puedes poner uno o varios).
+           Se ordenan solos alfabéticamente, no importa el orden aquí.
          =========================================================== -->
     </div>
   </div>
 
-  <!-- AD SLOT: entre secciones (Adsterra)
-       Este funciona bien con un banner de 300x250 (Medium Rectangle),
-       igual en móvil y desktop. Pega aquí el código de Adsterra. -->
-  <div class="ad-slot">
+  <!-- AD SLOT: entre secciones (Adsterra) -->
+  <div class="ad-slot" style="margin-top:26px;">
     <div class="ad-card">
-      <div class="ad-card-label"><span class="spark"></span>Publicidad<span class="spark"></span></div>
+      <div class="ad-card-label">Publicidad</div>
       <div class="ad-container" id="adSlotMiddle">
         <!-- Pega aquí tu script de Adsterra 300x250 -->
       </div>
     </div>
   </div>
 
-  <footer>
-    <div class="inner">
-      <span>© 2026 ApkProjects. Todos los enlaces de descarga son externos.</span>
-      <span>apkprojects.xyz</span>
-    </div>
-  </footer>
-
-  <button class="top-btn" id="topBtn" aria-label="Volver arriba" type="button">
-    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="m18 15-6-6-6 6"/></svg>
-  </button>
-
-  <!-- Detail modal -->
-  <div class="overlay" id="overlay">
-    <div class="modal" id="modal" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
-      <button class="modal-close" id="modalClose" aria-label="Cerrar" type="button">
-        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M18 6 6 18M6 6l12 12"/></svg>
+  <!-- Bottom tab bar -->
+  <div class="tabbar">
+    <div class="tabbar-inner">
+      <button class="tab-btn active" id="tabHome" type="button">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 10.5 12 3l9 7.5"/><path d="M5 9.5V21h14V9.5"/></svg>
+        Inicio
       </button>
-      <div class="modal-top">
-        <div class="modal-icon" id="modalIcon"></div>
-        <div class="modal-title">
-          <h3 id="modalTitle"></h3>
-          <div class="modal-meta" id="modalMeta"></div>
-          <span class="modal-tag" id="modalTag"></span>
-        </div>
-      </div>
-      <p class="modal-desc" id="modalDesc"></p>
-      <p class="dl-label">Métodos de descarga</p>
-      <div class="dl-list" id="modalDownloads"></div>
+      <button class="tab-btn" id="tabSearch" type="button">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>
+        Buscar
+      </button>
+      <button class="tab-btn" id="tabTop" type="button">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m18 15-6-6-6 6"/></svg>
+        Arriba
+      </button>
+      <button class="tab-btn" id="tabSuggest" type="button">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>
+        Sugerir
+      </button>
     </div>
   </div>
 
-  <!-- Suggestion modal -->
-  <div class="overlay" id="suggestOverlay">
-    <div class="modal" id="suggestModal" role="dialog" aria-modal="true" aria-labelledby="suggestModalTitle">
-      <button class="modal-close" id="suggestModalClose" aria-label="Cerrar" type="button">
-        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M18 6 6 18M6 6l12 12"/></svg>
-      </button>
-      <div class="modal-top">
-        <div class="modal-icon" style="background:var(--violet)">💡</div>
-        <div class="modal-title">
-          <h3 id="suggestModalTitle">Sugerir un juego o app</h3>
-          <div class="modal-meta">¿Falta algo en el catálogo? Cuéntanos.</div>
+  <!-- Detail sheet -->
+  <div class="overlay" id="overlay">
+    <div class="sheet" id="sheet" role="dialog" aria-modal="true" aria-labelledby="sheetTitle">
+      <div class="sheet-handle"></div>
+      <div class="sheet-inner">
+        <button class="sheet-close" id="sheetClose" aria-label="Cerrar" type="button">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6"><path d="M18 6 6 18M6 6l12 12"/></svg>
+        </button>
+        <div class="sheet-top">
+          <div class="sheet-icon" id="sheetIcon"></div>
+          <div class="sheet-title">
+            <h3 id="sheetTitle"></h3>
+            <div class="sheet-meta" id="sheetMeta"></div>
+            <span class="sheet-tag" id="sheetTag"></span>
+          </div>
         </div>
+        <p class="sheet-desc" id="sheetDesc"></p>
+        <p class="dl-label">Métodos de descarga</p>
+        <div class="dl-list" id="sheetDownloads"></div>
       </div>
-      <form id="suggestForm">
-        <div class="sg-field">
-          <label for="sgName">Nombre del juego o app</label>
-          <input type="text" id="sgName" placeholder="Ej: Subway Surfers" required>
+    </div>
+  </div>
+
+  <!-- Suggestion sheet -->
+  <div class="overlay" id="suggestOverlay">
+    <div class="sheet" id="suggestSheet" role="dialog" aria-modal="true" aria-labelledby="suggestTitle">
+      <div class="sheet-handle"></div>
+      <div class="sheet-inner">
+        <button class="sheet-close" id="suggestClose" aria-label="Cerrar" type="button">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6"><path d="M18 6 6 18M6 6l12 12"/></svg>
+        </button>
+        <div class="sheet-top">
+          <div class="sheet-icon" style="background:linear-gradient(135deg,var(--purple),var(--blue))">💡</div>
+          <div class="sheet-title">
+            <h3 id="suggestTitle">Sugerir un juego o app</h3>
+            <div class="sheet-meta">¿Falta algo en el catálogo? Cuéntanos.</div>
+          </div>
         </div>
-        <div class="sg-field">
-          <label for="sgDetails">Detalles (opcional)</label>
-          <textarea id="sgDetails" rows="3" placeholder="Versión, enlace de referencia, plataforma, etc."></textarea>
-        </div>
-        <div class="sg-field">
-          <label for="sgContact">Tu correo (opcional)</label>
-          <input type="email" id="sgContact" placeholder="para avisarte cuando esté disponible">
-        </div>
-        <button type="submit" class="sg-submit">Enviar sugerencia</button>
-        <p class="sg-note">Se abrirá tu app de correo con la sugerencia lista para enviar.</p>
-      </form>
+        <form id="suggestForm">
+          <div class="sg-field">
+            <label for="sgName">Nombre del juego o app</label>
+            <input type="text" id="sgName" placeholder="Ej: Subway Surfers" required>
+          </div>
+          <div class="sg-field">
+            <label for="sgDetails">Detalles (opcional)</label>
+            <textarea id="sgDetails" rows="3" placeholder="Versión, enlace de referencia, plataforma, etc."></textarea>
+          </div>
+          <div class="sg-field">
+            <label for="sgContact">Tu correo (opcional)</label>
+            <input type="email" id="sgContact" placeholder="para avisarte cuando esté disponible">
+          </div>
+          <button type="submit" class="sg-submit">Enviar sugerencia</button>
+          <p class="sg-note">Se abrirá tu app de correo con la sugerencia lista para enviar.</p>
+        </form>
+      </div>
     </div>
   </div>
 
 <script>
   // ======================================================
-  // AGREGA TUS JUEGOS AQUÍ. Ver instrucciones completas en el
-  // comentario dentro del <div class="grid" id="gameGrid"> arriba.
-  // No hace falta ordenarlos: se ordenan solos alfabéticamente.
+  // AGREGA TUS JUEGOS AQUÍ. Se ordenan solos alfabéticamente.
   // ======================================================
   const games = [
     {
@@ -694,34 +561,35 @@
       color: "#65EB2A",
       initials: "",
       cover: "img/Minecraft.png",
-      description: "Minecraft es un videojuego de mundo abierto y tipo sandbox (caja de arena) donde los jugadores pueden explorar, extraer recursos, construir y sobrevivir en un entorno tridimensional formado por bloques con texturas pixeladas",
+      description: "Minecraft es un videojuego de mundo abierto y tipo sandbox (caja de arena) donde los jugadores pueden explorar, extraer recursos, construir y sobrevivir en un entorno tridimensional formado por bloques con texturas pixeladas.",
       downloads: [
         { label: "Mediafire", note: "Servidor directo", url: "https://www.mediafire.com/file/gqukw2mw1qz6syn/minecraft-26-40-apkprojects.apk/file" },
-        { label: "Mega (No disponible) ",      note: "Alternativa",      url: "https://mega.nz/" }      
+        { label: "Mega (No disponible)", note: "Alternativa", url: "https://mega.nz/" }
       ]
     },
     {
-      title: "Geometry dash",
-      category: "Arcade",
+      title: "Geometry Dash",
+      category: "arcade",
       rating: 4.8,
       size: "175 MB",
       color: "#65EB2A",
       initials: "",
       cover: "img/Geometry.png",
-      description: "juego de plataformas y acción rítmica",
+      description: "Juego de plataformas y acción rítmica.",
       downloads: [
-        { label: "Mediafire", note: "Servidor directo", url: "https://www.mediafire.com/file/rlr008reqjawyi6/Geometry+dash+2.2-apkprojects.xyz.apk/file" },
-        { label: "Mega (No disponible) ",      note: "Alternativa",      url: "xvideos.com" }      
+        { label: "Mediafire", note: "Servidor directo", url: "https://www.mediafire.com/file/rlr008reqjawyi6/Geometry+dash+2.2-apkprojects.xyz.apk/file" }
       ]
-    },    
-    
+    },
   ];
 
   const grid = document.getElementById('gameGrid');
   const categoryBar = document.getElementById('categoryBar');
   const searchInput = document.getElementById('searchInput');
-  const searchForm = document.getElementById('searchForm');
+  const searchField = document.getElementById('searchField');
+  const searchClear = document.getElementById('searchClear');
+  const cancelBtn = document.getElementById('cancelBtn');
   const resultCount = document.getElementById('resultCount');
+  const featuredWrap = document.getElementById('featuredWrap');
   let activeCat = 'all';
 
   function starString(rating){
@@ -729,15 +597,26 @@
     return '★'.repeat(full) + '☆'.repeat(5-full);
   }
 
-  function iconMarkup(g, size){
-    return g.cover
-      ? `<img src="${g.cover}" alt="${g.title}" loading="lazy">`
-      : g.initials;
+  function iconMarkup(g){
+    return g.cover ? `<img src="${g.cover}" alt="${g.title}" loading="lazy">` : (g.initials || g.title.slice(0,2).toUpperCase());
+  }
+
+  function renderFeatured(){
+    if(!games.length){ featuredWrap.innerHTML = ''; return; }
+    const top = games.slice().sort((a,b) => b.rating - a.rating)[0];
+    featuredWrap.innerHTML = `
+      <div class="featured-label">Destacado</div>
+      <div class="featured-card" id="featuredCard" data-title="${top.title.replace(/"/g,'&quot;')}">
+        <div class="featured-icon" ${top.cover ? '' : `style="background:${top.color}"`}>${iconMarkup(top)}</div>
+        <div class="featured-eyebrow">Mejor calificado</div>
+        <div class="featured-name">${top.title}</div>
+        <div class="featured-sub">${(top.description||'').slice(0,80)}${(top.description||'').length>80?'…':''}</div>
+      </div>`;
+    document.getElementById('featuredCard').addEventListener('click', () => openSheet(top));
   }
 
   function render(){
     const term = searchInput.value.trim().toLowerCase();
-    // Siempre orden alfabético, sin importar el orden en el array.
     let filtered = games
       .filter(g => (activeCat === 'all' || g.category === activeCat) && g.title.toLowerCase().includes(term))
       .slice()
@@ -752,41 +631,41 @@
         <div class="empty">
           <div class="empty-mark">AP</div>
           <h3>${games.length ? 'No encontramos nada con esa búsqueda' : 'Todavía no hay juegos aquí'}</h3>
-          <p>${games.length ? 'Prueba con otra palabra o quita los filtros de categoría, o <strong>sugiere</strong> el juego que buscas.' : 'Agrega tu primer juego editando el array <code>games</code> al final del archivo HTML.'}</p>
+          <p>${games.length ? 'Prueba con otra palabra, quita filtros, o usa "Sugerir" para pedirlo.' : 'Agrega tu primer juego editando el array <code>games</code> al final del archivo HTML.'}</p>
         </div>`;
       return;
     }
 
     grid.innerHTML = filtered.map((g, i) => `
-      <button class="card" style="animation-delay:${Math.min(i,12)*25}ms" data-title="${g.title.replace(/"/g,'&quot;')}" type="button">
-        <div class="icon" ${g.cover ? '' : `style="background:${g.color}"`}>${iconMarkup(g)}</div>
-        <h3>${g.title}</h3>
+      <button class="app-tile" style="animation-delay:${Math.min(i,14)*20}ms" data-title="${g.title.replace(/"/g,'&quot;')}" type="button">
+        <div class="app-icon" ${g.cover ? '' : `style="background:${g.color}"`}>${iconMarkup(g)}</div>
+        <span class="name">${g.title}</span>
       </button>
     `).join('');
   }
 
-  // ---------- Modal ----------
+  // ---------- Detail sheet ----------
   const overlay = document.getElementById('overlay');
-  const modalIcon = document.getElementById('modalIcon');
-  const modalTitle = document.getElementById('modalTitle');
-  const modalMeta = document.getElementById('modalMeta');
-  const modalTag = document.getElementById('modalTag');
-  const modalDesc = document.getElementById('modalDesc');
-  const modalDownloads = document.getElementById('modalDownloads');
+  const sheetIcon = document.getElementById('sheetIcon');
+  const sheetTitle = document.getElementById('sheetTitle');
+  const sheetMeta = document.getElementById('sheetMeta');
+  const sheetTag = document.getElementById('sheetTag');
+  const sheetDesc = document.getElementById('sheetDesc');
+  const sheetDownloads = document.getElementById('sheetDownloads');
 
-  function openModal(game){
-    modalIcon.innerHTML = iconMarkup(game);
-    modalIcon.style.background = game.cover ? 'transparent' : game.color;
-    modalTitle.textContent = game.title;
-    modalMeta.innerHTML = `<span class="stars">${starString(game.rating||0)}</span> ${ (game.rating||0).toFixed(1) } · ${game.size||''}`;
-    modalTag.textContent = game.category;
-    modalDesc.textContent = game.description || 'Sin descripción todavía.';
+  function openSheet(game){
+    sheetIcon.innerHTML = iconMarkup(game);
+    sheetIcon.style.background = game.cover ? 'transparent' : game.color;
+    sheetTitle.textContent = game.title;
+    sheetMeta.innerHTML = `<span class="stars">${starString(game.rating||0)}</span> ${ (game.rating||0).toFixed(1) } · ${game.size||''}`;
+    sheetTag.textContent = game.category;
+    sheetDesc.textContent = game.description || 'Sin descripción todavía.';
 
     const options = (game.downloads && game.downloads.length)
       ? game.downloads
       : (game.link ? [{label:'Descargar', note:'Enlace directo', url:game.link}] : []);
 
-    modalDownloads.innerHTML = options.length
+    sheetDownloads.innerHTML = options.length
       ? options.map(d => `
         <div class="dl-option">
           <div class="dl-option-left"><span class="dot"></span>${d.label}${d.note ? `<span class="dl-option-note">&nbsp;· ${d.note}</span>` : ''}</div>
@@ -795,41 +674,37 @@
       : `<p class="dl-option-note">Todavía no hay enlaces de descarga para este juego.</p>`;
 
     overlay.classList.add('show');
-    document.body.classList.add('modal-open');
+    document.body.classList.add('sheet-open');
   }
-
-  function closeModal(){
+  function closeSheet(){
     overlay.classList.remove('show');
-    document.body.classList.remove('modal-open');
+    document.body.classList.remove('sheet-open');
   }
 
   grid.addEventListener('click', (e) => {
-    const card = e.target.closest('.card');
-    if(!card) return;
-    const game = games.find(g => g.title === card.dataset.title);
-    if(game) openModal(game);
+    const tile = e.target.closest('.app-tile');
+    if(!tile) return;
+    const game = games.find(g => g.title === tile.dataset.title);
+    if(game) openSheet(game);
   });
+  document.getElementById('sheetClose').addEventListener('click', closeSheet);
+  overlay.addEventListener('click', (e) => { if(e.target === overlay) closeSheet(); });
 
-  document.getElementById('modalClose').addEventListener('click', closeModal);
-  overlay.addEventListener('click', (e) => { if(e.target === overlay) closeModal(); });
-
-  // ---------- Suggestion modal ----------
+  // ---------- Suggestion sheet ----------
   const suggestOverlay = document.getElementById('suggestOverlay');
   const suggestForm = document.getElementById('suggestForm');
   const SUGGEST_EMAIL = 'contacto@apkprojects.xyz'; // <-- cambia esto por tu correo real
 
   function openSuggest(){
     suggestOverlay.classList.add('show');
-    document.body.classList.add('modal-open');
+    document.body.classList.add('sheet-open');
   }
   function closeSuggest(){
     suggestOverlay.classList.remove('show');
-    document.body.classList.remove('modal-open');
+    document.body.classList.remove('sheet-open');
   }
-
-  document.getElementById('suggestChip').addEventListener('click', openSuggest);
-  document.getElementById('heroSuggestBtn').addEventListener('click', openSuggest);
-  document.getElementById('suggestModalClose').addEventListener('click', closeSuggest);
+  document.getElementById('tabSuggest').addEventListener('click', openSuggest);
+  document.getElementById('suggestClose').addEventListener('click', closeSuggest);
   suggestOverlay.addEventListener('click', (e) => { if(e.target === suggestOverlay) closeSuggest(); });
 
   suggestForm.addEventListener('submit', (e) => {
@@ -845,53 +720,63 @@
   });
 
   document.addEventListener('keydown', (e) => {
-    if(e.key === 'Escape'){ closeModal(); closeSuggest(); }
+    if(e.key === 'Escape'){ closeSheet(); closeSuggest(); }
   });
 
-  // ---------- Filters / search ----------
+  // ---------- Segmented category control ----------
   categoryBar.addEventListener('click', (e) => {
-    const chip = e.target.closest('.chip');
-    if(!chip || chip.id === 'suggestChip') return;
-    categoryBar.querySelectorAll('.chip').forEach(c => c.classList.remove('active'));
-    chip.classList.add('active');
-    activeCat = chip.dataset.cat;
+    const btn = e.target.closest('.seg-btn');
+    if(!btn) return;
+    categoryBar.querySelectorAll('.seg-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    activeCat = btn.dataset.cat;
     render();
   });
 
-  searchForm.addEventListener('submit', (e) => {
-    e.preventDefault();
+  // ---------- iOS-style search (focus -> Cancel appears) ----------
+  searchInput.addEventListener('input', () => {
+    searchField.classList.toggle('has-text', searchInput.value.length > 0);
     render();
-    document.getElementById('gameGrid').scrollIntoView({behavior:'smooth', block:'start'});
   });
-  searchInput.addEventListener('input', render);
-
-  document.getElementById('seeAllBtn').addEventListener('click', () => {
+  searchInput.addEventListener('focus', () => cancelBtn.classList.add('show'));
+  searchClear.addEventListener('click', () => {
     searchInput.value = '';
-    activeCat = 'all';
-    categoryBar.querySelectorAll('.chip').forEach(c => c.classList.remove('active'));
-    categoryBar.querySelector('[data-cat="all"]').classList.add('active');
+    searchField.classList.remove('has-text');
     render();
-    document.getElementById('gameGrid').scrollIntoView({behavior:'smooth', block:'start'});
+    searchInput.focus();
+  });
+  cancelBtn.addEventListener('click', () => {
+    searchInput.value = '';
+    searchField.classList.remove('has-text');
+    cancelBtn.classList.remove('show');
+    searchInput.blur();
+    render();
   });
 
-  // Back-to-top button
-  const topBtn = document.getElementById('topBtn');
+  // ---------- Bottom tab bar ----------
+  const tabs = [document.getElementById('tabHome'), document.getElementById('tabSearch'), document.getElementById('tabTop')];
+  function setActiveTab(el){ tabs.forEach(t => t.classList.remove('active')); if(el) el.classList.add('active'); }
+
+  document.getElementById('tabHome').addEventListener('click', () => {
+    window.scrollTo({top:0, behavior:'smooth'});
+    setActiveTab(document.getElementById('tabHome'));
+  });
+  document.getElementById('tabSearch').addEventListener('click', () => {
+    window.scrollTo({top:0, behavior:'smooth'});
+    setTimeout(() => searchInput.focus(), 300);
+    setActiveTab(document.getElementById('tabSearch'));
+  });
+  document.getElementById('tabTop').addEventListener('click', () => {
+    window.scrollTo({top:0, behavior:'smooth'});
+  });
+
   window.addEventListener('scroll', () => {
-    topBtn.classList.toggle('show', window.scrollY > 480);
+    if(window.scrollY < 40) setActiveTab(document.getElementById('tabHome'));
   });
-  topBtn.addEventListener('click', () => window.scrollTo({top:0, behavior:'smooth'}));
-
-  document.getElementById('statTotal').textContent = games.length;
 
   // ======================================================
-  // ANUNCIOS ADSTERRA — carga aislada en iframe.
-  // Cada anuncio corre dentro de su propio iframe para que su
-  // variable "atOptions" no choque con la de los demás anuncios
-  // de la página (esa mezcla es la causa típica de que solo
-  // funcione uno de varios banners).
-  //
-  // Para agregar/cambiar un banner, edita loadAdsterraAd(...) con:
-  // el id del contenedor, la key de Adsterra, ancho y alto.
+  // ANUNCIOS ADSTERRA — carga aislada en iframe (sin cambios
+  // respecto a como los tenías, solo movidos al nuevo diseño).
   // ======================================================
   function loadAdsterraAd(containerId, key, width, height){
     const container = document.getElementById(containerId);
@@ -919,6 +804,7 @@
   loadAdsterraAd('adSlotTopDesktop', '76a4887bf5246065c1644d5ff3ee96ae', 728, 90);
   loadAdsterraAd('adSlotMiddle', 'f49c2e7ae12570d06b9c194497928af0', 300, 250);
 
+  renderFeatured();
   render();
 </script>
 
