@@ -833,8 +833,11 @@
     const bucket = await getBucket();
     if(!bucket) return fallback;
     try{
-      const res = await fetch(`https://kvdb.io/${bucket}/${key}`);
+      // cache:'no-store' + timestamp evitan que el navegador (o algún proxy)
+      // devuelva una respuesta vieja en caché en vez de ir siempre al servidor.
+      const res = await fetch(`https://kvdb.io/${bucket}/${key}?_=${Date.now()}`, { cache:'no-store' });
       if(res.status === 404) return fallback;
+      if(!res.ok) return fallback;
       const text = await res.text();
       if(!text) return fallback;
       return JSON.parse(text);
@@ -847,11 +850,15 @@
     const bucket = await getBucket();
     if(!bucket) return false;
     try{
-      await fetch(`https://kvdb.io/${bucket}/${key}`, {
+      const res = await fetch(`https://kvdb.io/${bucket}/${key}`, {
         method:'POST',
-        body: JSON.stringify(value)
+        body: JSON.stringify(value),
+        cache:'no-store'
       });
-      return true;
+      // Antes esto devolvía true sin fijarse en la respuesta del servidor,
+      // así que un guardado que en realidad fallaba (ej. error del servidor)
+      // se mostraba en pantalla como exitoso pero desaparecía al recargar.
+      return res.ok;
     }catch(e){
       return false;
     }
@@ -1167,12 +1174,20 @@
     const list = await loadSuggestions();
     list.unshift({ name, details, ts: Date.now() });
     const trimmed = list.slice(0, 50); // evita que la lista crezca sin límite
-    await kvSet('suggestions', trimmed);
+    const ok = await kvSet('suggestions', trimmed);
 
-    bumpMySuggestCount();
-    renderSuggestions(trimmed);
-    updateSuggestLimitUI();
-    suggestForm.reset();
+    if(ok){
+      bumpMySuggestCount();
+      renderSuggestions(trimmed);
+      updateSuggestLimitUI();
+      suggestForm.reset();
+    } else {
+      // No se confirmó el guardado: no limpiamos el formulario ni contamos
+      // el intento, así el usuario puede volver a intentarlo.
+      suggestSubmitBtn.disabled = false;
+      suggestSubmitBtn.textContent = 'Publicar sugerencia';
+      suggestLimitMsg.textContent = 'No se pudo publicar la sugerencia (falló la conexión con el almacén compartido). Intenta de nuevo en unos segundos.';
+    }
   });
 
   document.addEventListener('keydown', (e) => {
