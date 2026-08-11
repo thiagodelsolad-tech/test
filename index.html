@@ -496,31 +496,7 @@
     transition:background .12s ease, transform .12s ease;
   }
   .sg-submit:active{ background:var(--blue-dark); transform:scale(.985); }
-  .sg-submit:disabled{ background:var(--label-3); cursor:not-allowed; transform:none; }
   .sg-note{ font-size:12px; color:var(--label-2); margin:10px 0 0; text-align:center; line-height:1.5; }
-
-  /* ---------- Sugerencias públicas (comunidad) ---------- */
-  .suggest-divider{
-    height:1px; background:var(--separator); margin:22px 0 18px;
-  }
-  .suggest-list{ display:flex; flex-direction:column; gap:8px; }
-  .suggest-item{
-    background:var(--surface); border-radius:12px; padding:10px 12px;
-    box-shadow:0 1px 2px rgba(0,0,0,.05);
-    display:flex; flex-direction:column; gap:2px;
-  }
-  .suggest-item strong{ font-size:13.5px; font-weight:700; }
-  .suggest-item span{ font-size:12px; color:var(--label-2); line-height:1.4; }
-  .suggest-empty{
-    font-size:13px; color:var(--label-2); text-align:center;
-    padding:14px 10px; margin:0;
-  }
-  .kvdb-setup-note{
-    display:none; font-size:11px; color:var(--orange); background:rgba(255,149,0,.1);
-    border:1px dashed var(--orange); border-radius:10px; padding:8px 10px;
-    margin:10px 0 0; line-height:1.5;
-  }
-  .kvdb-setup-note code{ background:rgba(0,0,0,.06); padding:1px 5px; border-radius:4px; }
 
   @media (max-width:420px){
     .large-title{ font-size:28px; }
@@ -699,26 +675,25 @@
           <div class="sheet-icon" style="background:linear-gradient(135deg,var(--purple),var(--blue))">💡</div>
           <div class="sheet-title">
             <h3 id="suggestTitle">Sugerir un juego o app</h3>
-            <div class="sheet-meta">Tu sugerencia se publica para que todos la vean.</div>
+            <div class="sheet-meta">¿Falta algo en el catálogo? Cuéntanos.</div>
           </div>
         </div>
         <form id="suggestForm">
           <div class="sg-field">
             <label for="sgName">Nombre del juego o app</label>
-            <input type="text" id="sgName" placeholder="Ej: Subway Surfers" required maxlength="60">
+            <input type="text" id="sgName" placeholder="Ej: Subway Surfers" required>
           </div>
           <div class="sg-field">
             <label for="sgDetails">Detalles (opcional)</label>
-            <textarea id="sgDetails" rows="3" placeholder="Versión, enlace de referencia, plataforma, etc." maxlength="220"></textarea>
+            <textarea id="sgDetails" rows="3" placeholder="Versión, enlace de referencia, plataforma, etc."></textarea>
           </div>
-          <button type="submit" class="sg-submit">Publicar sugerencia</button>
-          <p class="sg-note" id="suggestLimitMsg">Puedes publicar hasta 2 sugerencias desde este dispositivo.</p>
-          <p class="kvdb-setup-note" id="kvdbSetupNote"></p>
+          <div class="sg-field">
+            <label for="sgContact">Tu correo (opcional)</label>
+            <input type="email" id="sgContact" placeholder="para avisarte cuando esté disponible">
+          </div>
+          <button type="submit" class="sg-submit">Enviar sugerencia</button>
+          <p class="sg-note">Se abrirá tu app de correo con la sugerencia lista para enviar.</p>
         </form>
-
-        <div class="suggest-divider"></div>
-        <p class="dl-label">Sugerencias de la comunidad</p>
-        <div class="suggest-list" id="suggestList"></div>
       </div>
     </div>
   </div>
@@ -755,6 +730,19 @@
         { label: "Mediafire", note: "Servidor directo", url: "https://www.mediafire.com/file/rlr008reqjawyi6/Geometry+dash+2.2-apkprojects.xyz.apk/file" }
       ]
     },
+    {
+      title: "Balatro",
+      category: "arcade",
+      rating: 4.8,
+      size: "67 MB",
+      color: "#65EB2A",
+      initials: "",
+      cover: "img/Balatro.png",
+      description: "Juego de cartas.",
+      downloads: [
+        { label: "Mediafire", note: "Servidor directo", url: "https://www.mediafire.com/file/gkkbj6qa62dsbs9/balatro_apkprojects.apk/file" }
+      ]
+    },    
   ];
 
   const grid = document.getElementById('gameGrid');
@@ -776,9 +764,19 @@
     return g.cover ? `<img src="${g.cover}" alt="${g.title}" loading="lazy">` : (g.initials || g.title.slice(0,2).toUpperCase());
   }
 
-  function escapeHtml(str){
-    return (str || '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-  }
+  // ---------- Corazones: valoración REAL y COMPARTIDA entre todos los usuarios ----------
+  // Cada juego arranca en 0. Los conteos se guardan en un contador público
+  // (Abacus) para que TODOS los visitantes vean el mismo número — no cada
+  // quien el suyo. Solo se guarda localmente si YA votaste, para no dejarte
+  // votar dos veces desde el mismo navegador.
+  //
+  // IMPORTANTE: esto usa un servicio gratuito de terceros (abacus.jasoncameron.dev).
+  // Es suficiente para un contador de "me gusta" simple, pero si más adelante
+  // quieres algo 100% bajo tu control (y con mejor protección anti-trampas),
+  // lo ideal es un backend propio (Firebase/Supabase). Puedo ayudarte con eso
+  // cuando quieras.
+  const HEARTS_NAMESPACE = 'apkprojects-thiagodelsolad'; // cámbialo por algo único si quieres tu propio espacio
+  const VOTED_KEY = 'apkprojects_voted_v1';
 
   function loadStore(key){
     try{
@@ -790,122 +788,41 @@
     try{ localStorage.setItem(key, JSON.stringify(obj)); }catch(e){}
   }
 
-  // ======================================================
-  // ALMACÉN COMPARTIDO (kvdb.io) — para corazones y sugerencias
-  // ======================================================
-  // kvdb.io es un servicio gratuito de terceros de clave-valor, sin cuenta.
-  // Todo lo que se guarda aquí lo ven TODOS los visitantes del sitio (no
-  // solo quien lo escribió) — a diferencia de localStorage, que es por
-  // navegador.
-  //
-  // CONFIGURACIÓN (una sola vez):
-  // Deja KVDB_BUCKET vacío la primera vez que publiques el sitio. En cuanto
-  // alguien abra la pestaña "Sugerir", el sitio va a crear automáticamente
-  // un espacio compartido y te va a mostrar su código ahí mismo, dentro de
-  // esa misma ficha (en naranja). Copia ese código, pégalo aquí abajo en
-  // KVDB_BUCKET, y vuelve a subir el archivo. Desde ese momento, todos los
-  // corazones y sugerencias quedan compartidos entre todos tus visitantes
-  // para siempre.
-  //
-  // Nota honesta: es un servicio externo gratuito. Si algún día deja de
-  // funcionar, los corazones/sugerencias no se sincronizarán hasta que se
-  // reemplace por otro backend (por ejemplo Firebase) — puedo ayudarte con
-  // eso cuando quieras.
-  const KVDB_BUCKET = 'LJWR1k4oAX25LadcEYbfn6';
-  const KVDB_SETUP_EMAIL = 'thiagodelsolad@gmail.com'; // solo se usa si KVDB_BUCKET queda vacío
-
-  let bucketPromise = null;
-  function getBucket(){
-    if(KVDB_BUCKET) return Promise.resolve(KVDB_BUCKET);
-    if(bucketPromise) return bucketPromise;
-    bucketPromise = fetch('https://kvdb.io/', {
-        method:'POST',
-        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-        body: 'email=' + encodeURIComponent(KVDB_SETUP_EMAIL)
-      })
-      .then(res => res.text())
-      .then(id => id.trim() || null)
-      .catch(() => null);
-    return bucketPromise;
-  }
-
-  async function kvGet(key, fallback){
-    const bucket = await getBucket();
-    if(!bucket){ console.warn('[kvdb] sin bucket disponible'); return fallback; }
-    try{
-      const res = await fetch(`https://kvdb.io/${bucket}/${key}?_=${Date.now()}`, { cache:'no-store' });
-      console.log('[kvdb] GET', key, '→ status', res.status);
-      if(res.status === 404) return fallback;
-      if(!res.ok) return fallback;
-      const text = await res.text();
-      if(!text) return fallback;
-      return JSON.parse(text);
-    }catch(e){
-      console.error('[kvdb] error leyendo', key, e);
-      return fallback;
-    }
-  }
-
-  async function kvSet(key, value){
-    const bucket = await getBucket();
-    if(!bucket){ console.warn('[kvdb] sin bucket disponible al guardar'); return false; }
-    try{
-      const res = await fetch(`https://kvdb.io/${bucket}/${key}`, {
-        method:'POST',
-        body: JSON.stringify(value),
-        cache:'no-store'
-      });
-      const bodyText = await res.text().catch(() => '');
-      console.log('[kvdb] POST', key, '→ status', res.status, bodyText ? ('· respuesta: ' + bodyText) : '');
-      return res.ok;
-    }catch(e){
-      console.error('[kvdb] error guardando', key, e);
-      return false;
-    }
-  }
-
-  let kvdbSetupShown = false;
-  async function maybeShowSetupNote(){
-    if(KVDB_BUCKET || kvdbSetupShown) return;
-    const bucket = await getBucket();
-    const note = document.getElementById('kvdbSetupNote');
-    if(note && bucket){
-      kvdbSetupShown = true;
-      note.style.display = 'block';
-      note.innerHTML = `⚠️ Configuración pendiente: copia <code>${bucket}</code> en <code>KVDB_BUCKET</code> dentro del código para que esto se vea igual para todos tus visitantes.`;
-    }
-  }
-
-  // ---------- Corazones: valoración REAL y compartida entre todos los usuarios ----------
-  const VOTED_KEY = 'apkprojects_voted_v1';
   let votedData = loadStore(VOTED_KEY);
-  let heartsCache = {}; // slug -> conteo, viene del almacén compartido
+  let heartsCache = {}; // último valor conocido de cada juego (compartido, viene del servidor)
 
-  function heartSlug(title){
-    return title.toLowerCase().trim().replace(/\s+/g, '-');
+  function heartKey(title){
+    return encodeURIComponent(title.toLowerCase().trim().replace(/\s+/g, '-'));
   }
   function hasVoted(title){ return !!votedData[title]; }
-  function heartsFor(title){ return heartsCache[heartSlug(title)] || 0; }
+  function heartsFor(title){ return heartsCache[title] || 0; }
 
-  async function loadAllHearts(){
-    const stored = await kvGet('hearts', {});
-    heartsCache = (stored && typeof stored === 'object') ? stored : {};
-    return heartsCache;
+  // Trae el conteo real (compartido por todos) de un juego desde el servidor
+  async function fetchHeartCount(title){
+    try{
+      const res = await fetch(`https://abacus.jasoncameron.dev/get/${HEARTS_NAMESPACE}/${heartKey(title)}`);
+      const data = await res.json();
+      heartsCache[title] = data.value || 0;
+    }catch(e){
+      heartsCache[title] = heartsFor(title);
+    }
+    return heartsCache[title];
   }
 
+  // Da un corazón: suma +1 en el servidor compartido (no solo local)
   async function giveHeart(title){
     if(hasVoted(title)) return heartsFor(title);
-    const slug = heartSlug(title);
-    const current = await kvGet('hearts', {});
-    current[slug] = (current[slug] || 0) + 1;
-    const ok = await kvSet('hearts', current);
-    heartsCache = current;
-    if(ok){
-      votedData[title] = true;
-      saveStore(VOTED_KEY, votedData);
+    try{
+      const res = await fetch(`https://abacus.jasoncameron.dev/hit/${HEARTS_NAMESPACE}/${heartKey(title)}`);
+      const data = await res.json();
+      heartsCache[title] = data.value;
+    }catch(e){
+      heartsCache[title] = heartsFor(title) + 1; // respaldo si falla la red
     }
+    votedData[title] = true;
+    saveStore(VOTED_KEY, votedData);
     renderTopRatedPage();
-    return heartsFor(title);
+    return heartsCache[title];
   }
 
   const HEART_SVG = '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 21s-6.7-4.35-9.3-8.1C1 10.1 1.6 6.6 4.6 5.2c2.2-1 4.6-.2 5.9 1.6L12 8.4l1.5-1.6c1.3-1.8 3.7-2.6 5.9-1.6 3 1.4 3.6 4.9 1.9 7.7C18.7 16.65 12 21 12 21z"/></svg>';
@@ -923,6 +840,7 @@
   async function renderTopRatedPage(){
     if(!topRatedGrid) return;
 
+    // Mientras llegan los datos del servidor compartido, mostramos un estado de carga
     topRatedGrid.innerHTML = `
       <div class="empty">
         <div class="empty-mark">❤</div>
@@ -930,7 +848,7 @@
         <p>Consultando los votos de todos los usuarios.</p>
       </div>`;
 
-    await loadAllHearts();
+    await Promise.all(games.map(g => fetchHeartCount(g.title)));
 
     const ranked = games
       .map(g => ({ g, h: heartsFor(g.title) }))
@@ -1055,7 +973,7 @@
     document.body.classList.add('sheet-open');
 
     // Refresca el conteo real (compartido) por si cambió desde la última vez
-    loadAllHearts().then(() => {
+    fetchHeartCount(game.title).then(() => {
       if(currentGameTitle === game.title) updateHeartUI(game.title);
     });
   }
@@ -1087,68 +1005,21 @@
       setTimeout(() => heartBtn.classList.remove('bump'), 200);
       return;
     }
-    // UI optimista: se ve al toque, y se confirma con el almacén compartido
+    // UI optimista: se ve al toque, y se confirma con el servidor compartido
     heartBtn.classList.add('voted', 'bump');
     setTimeout(() => heartBtn.classList.remove('bump'), 220);
     const count = await giveHeart(currentGameTitle);
     heartCountBadge.textContent = count;
   });
 
-  // ---------- Sugerencias PÚBLICAS (visibles para todos, máx. 2 por dispositivo) ----------
-  const SUGGEST_LIMIT = 2;
-  const SUGGEST_COUNT_KEY = 'apkprojects_suggest_count_v1';
+  // ---------- Suggestion sheet ----------
   const suggestOverlay = document.getElementById('suggestOverlay');
   const suggestForm = document.getElementById('suggestForm');
-  const suggestList = document.getElementById('suggestList');
-  const suggestSubmitBtn = suggestForm.querySelector('.sg-submit');
-  const suggestLimitMsg = document.getElementById('suggestLimitMsg');
+  const SUGGEST_EMAIL = 'thiagodelsolad@gmail.com'; // <-- correo de contacto para sugerencias
 
-  function mySuggestCount(){
-    return parseInt(localStorage.getItem(SUGGEST_COUNT_KEY) || '0', 10) || 0;
-  }
-  function bumpMySuggestCount(){
-    localStorage.setItem(SUGGEST_COUNT_KEY, String(mySuggestCount() + 1));
-  }
-
-  function updateSuggestLimitUI(){
-    const remaining = SUGGEST_LIMIT - mySuggestCount();
-    if(remaining <= 0){
-      suggestSubmitBtn.disabled = true;
-      suggestSubmitBtn.textContent = 'Ya usaste tus 2 sugerencias';
-      suggestLimitMsg.textContent = 'Alcanzaste el máximo de sugerencias públicas por dispositivo.';
-    } else {
-      suggestSubmitBtn.disabled = false;
-      suggestSubmitBtn.textContent = 'Publicar sugerencia';
-      suggestLimitMsg.textContent = `Puedes publicar ${remaining} sugerencia${remaining===1?'':'s'} más desde este dispositivo.`;
-    }
-  }
-
-  async function loadSuggestions(){
-    const list = await kvGet('suggestions', []);
-    return Array.isArray(list) ? list : [];
-  }
-
-  function renderSuggestions(list){
-    if(!list.length){
-      suggestList.innerHTML = `<p class="suggest-empty">Todavía no hay sugerencias públicas. ¡Sé el primero!</p>`;
-      return;
-    }
-    suggestList.innerHTML = list.map(s => `
-      <div class="suggest-item">
-        <strong>${escapeHtml(s.name)}</strong>
-        ${s.details ? `<span>${escapeHtml(s.details)}</span>` : ''}
-      </div>
-    `).join('');
-  }
-
-  async function openSuggest(){
+  function openSuggest(){
     suggestOverlay.classList.add('show');
     document.body.classList.add('sheet-open');
-    updateSuggestLimitUI();
-    suggestList.innerHTML = `<p class="suggest-empty">Cargando sugerencias…</p>`;
-    maybeShowSetupNote();
-    const list = await loadSuggestions();
-    renderSuggestions(list);
   }
   function closeSuggest(){
     suggestOverlay.classList.remove('show');
@@ -1158,36 +1029,16 @@
   document.getElementById('suggestClose').addEventListener('click', closeSuggest);
   suggestOverlay.addEventListener('click', (e) => { if(e.target === suggestOverlay) closeSuggest(); });
 
-  suggestForm.addEventListener('submit', async (e) => {
+  suggestForm.addEventListener('submit', (e) => {
     e.preventDefault();
-    if(mySuggestCount() >= SUGGEST_LIMIT){
-      updateSuggestLimitUI();
-      return;
-    }
     const name = document.getElementById('sgName').value.trim();
     const details = document.getElementById('sgDetails').value.trim();
-    if(!name) return;
-
-    suggestSubmitBtn.disabled = true;
-    suggestSubmitBtn.textContent = 'Publicando…';
-
-    const list = await loadSuggestions();
-    list.unshift({ name, details, ts: Date.now() });
-    const trimmed = list.slice(0, 50); // evita que la lista crezca sin límite
-    const ok = await kvSet('suggestions', trimmed);
-
-    if(ok){
-      bumpMySuggestCount();
-      renderSuggestions(trimmed);
-      updateSuggestLimitUI();
-      suggestForm.reset();
-    } else {
-      // No se confirmó el guardado: no limpiamos el formulario ni contamos
-      // el intento, así el usuario puede volver a intentarlo.
-      suggestSubmitBtn.disabled = false;
-      suggestSubmitBtn.textContent = 'Publicar sugerencia';
-      suggestLimitMsg.textContent = 'No se pudo publicar la sugerencia (falló la conexión con el almacén compartido). Intenta de nuevo en unos segundos.';
-    }
+    const contact = document.getElementById('sgContact').value.trim();
+    const subject = `Sugerencia de juego/app: ${name}`;
+    const body = `Juego/app sugerido: ${name}\n\nDetalles: ${details || '(sin detalles)'}\n\nCorreo de contacto: ${contact || '(no proporcionado)'}`;
+    window.location.href = `mailto:${SUGGEST_EMAIL}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+    suggestForm.reset();
+    closeSuggest();
   });
 
   document.addEventListener('keydown', (e) => {
