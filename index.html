@@ -831,35 +831,35 @@
 
   async function kvGet(key, fallback){
     const bucket = await getBucket();
-    if(!bucket) return fallback;
+    if(!bucket){ console.warn('[kvdb] sin bucket disponible'); return fallback; }
     try{
-      // cache:'no-store' + timestamp evitan que el navegador (o algún proxy)
-      // devuelva una respuesta vieja en caché en vez de ir siempre al servidor.
       const res = await fetch(`https://kvdb.io/${bucket}/${key}?_=${Date.now()}`, { cache:'no-store' });
+      console.log('[kvdb] GET', key, '→ status', res.status);
       if(res.status === 404) return fallback;
       if(!res.ok) return fallback;
       const text = await res.text();
       if(!text) return fallback;
       return JSON.parse(text);
     }catch(e){
+      console.error('[kvdb] error leyendo', key, e);
       return fallback;
     }
   }
 
   async function kvSet(key, value){
     const bucket = await getBucket();
-    if(!bucket) return false;
+    if(!bucket){ console.warn('[kvdb] sin bucket disponible al guardar'); return false; }
     try{
       const res = await fetch(`https://kvdb.io/${bucket}/${key}`, {
         method:'POST',
         body: JSON.stringify(value),
         cache:'no-store'
       });
-      // Antes esto devolvía true sin fijarse en la respuesta del servidor,
-      // así que un guardado que en realidad fallaba (ej. error del servidor)
-      // se mostraba en pantalla como exitoso pero desaparecía al recargar.
+      const bodyText = await res.text().catch(() => '');
+      console.log('[kvdb] POST', key, '→ status', res.status, bodyText ? ('· respuesta: ' + bodyText) : '');
       return res.ok;
     }catch(e){
+      console.error('[kvdb] error guardando', key, e);
       return false;
     }
   }
