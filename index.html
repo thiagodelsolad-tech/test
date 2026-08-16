@@ -56,7 +56,7 @@
     border-bottom:1px solid rgba(255,255,255,.06);
   }
   .nav-inner{
-    max-width:1180px; margin:0 auto;
+    max-width:1000px; margin:0 auto;
     display:flex; align-items:center; justify-content:space-between;
     padding:13px 24px; gap:12px;
   }
@@ -78,36 +78,56 @@
 
   .nav-links{ display:flex; align-items:center; gap:6px; }
   .nav-link{
+    position:relative;
     background:none; border:none; cursor:pointer;
     color:#fff; font-family:var(--sys); font-size:14px; font-weight:600;
     letter-spacing:.02em;
     padding:9px 13px; border-radius:8px;
-    transition:opacity .15s ease, background .15s ease;
+    transition:opacity .15s ease, background .2s ease, transform .15s ease;
     white-space:nowrap; opacity:.88;
   }
-  .nav-link:hover, .nav-link.active{ opacity:1; background:rgba(255,255,255,.06); }
+  .nav-link::after{
+    content:""; position:absolute; left:13px; right:13px; bottom:3px; height:2px;
+    background:var(--green); border-radius:2px; transform:scaleX(0); transform-origin:left;
+    transition:transform .22s cubic-bezier(.4,0,.2,1);
+  }
+  .nav-link:hover{ opacity:1; background:rgba(255,255,255,.06); transform:translateY(-1px); }
+  .nav-link:hover::after, .nav-link.active::after{ transform:scaleX(1); }
+  .nav-link:active{ transform:translateY(0) scale(.96); }
   .nav-cta{
     background:var(--green); color:#04170D; margin-left:2px; opacity:1;
+    box-shadow:0 0 0 0 rgba(61,220,100,.5);
+    animation:ctaPulse 2.6s ease-in-out infinite;
   }
-  .nav-cta:hover{ background:var(--green-dark); color:#04170D; }
+  .nav-cta::after{ display:none; }
+  .nav-cta:hover{ background:var(--green-dark); color:#04170D; transform:translateY(-2px) scale(1.03); }
+  @keyframes ctaPulse{
+    0%,100%{ box-shadow:0 0 0 0 rgba(61,220,100,.35); }
+    50%{ box-shadow:0 0 0 6px rgba(61,220,100,0); }
+  }
   .nav-viral{ color:var(--green); opacity:1; font-weight:700; }
+  .nav-viral::after{ background:var(--green); }
 
   .nav-dropdown{ position:relative; }
   .dropdown-menu{
     position:absolute; top:calc(100% + 8px); left:0;
     background:var(--surface); border:1px solid var(--border);
     border-radius:12px; padding:6px; min-width:170px;
-    display:none; flex-direction:column; gap:2px;
+    display:flex; flex-direction:column; gap:2px;
     box-shadow:0 12px 30px -12px rgba(0,0,0,.6);
     z-index:90;
+    opacity:0; transform:translateY(-8px) scale(.97);
+    pointer-events:none;
+    transition:opacity .18s ease, transform .18s cubic-bezier(.34,1.4,.64,1);
   }
-  .nav-dropdown.open .dropdown-menu{ display:flex; }
+  .nav-dropdown.open .dropdown-menu{ opacity:1; transform:translateY(0) scale(1); pointer-events:auto; }
   .dropdown-menu button{
     background:none; border:none; text-align:left; cursor:pointer;
     color:var(--label-2); font-family:var(--sys); font-size:14px; font-weight:600;
     padding:9px 10px; border-radius:8px;
+    transition:background .12s ease, color .12s ease, transform .12s ease;
   }
-  .dropdown-menu button:hover{ background:var(--bg-2); color:var(--label); }
+  .dropdown-menu button:hover{ background:var(--bg-2); color:var(--label); transform:translateX(3px); }
 
   @media (max-width:860px){
     .nav-toggle{ display:flex; }
@@ -154,22 +174,40 @@
   .hero-deco-dot{ position:absolute; border-radius:50%; background:rgba(61,220,100,.35); pointer-events:none; }
   @media (max-width:760px){ .hero-deco{ display:none; } }
 
-  .hero-inner{ position:relative; z-index:1; max-width:720px; margin:0 auto; }
-  .hero-emoji{ font-size:34px; margin:0 0 6px; line-height:1; }
+  .hero-inner{ position:relative; z-index:1; max-width:680px; margin:0 auto; }
+  @keyframes heroUp{ from{ opacity:0; transform:translateY(16px); } to{ opacity:1; transform:translateY(0); } }
+  .hero-emoji{
+    font-size:34px; margin:0 0 6px; line-height:1;
+    display:inline-block; animation:heroUp .6s ease both, flameFlicker 2.4s ease-in-out .6s infinite;
+  }
+  @keyframes flameFlicker{
+    0%,100%{ transform:scale(1) rotate(0deg); }
+    30%{ transform:scale(1.08) rotate(-3deg); }
+    60%{ transform:scale(.96) rotate(3deg); }
+  }
   .hero-title{
     font-size:clamp(30px,6vw,48px); font-weight:800; letter-spacing:-.02em;
     line-height:1.15; margin:0 0 16px; color:#fff;
+    animation:heroUp .6s ease .08s both;
   }
   .hero-sub{
     font-size:16px; color:var(--label-2); line-height:1.5; margin:0 auto 28px;
     max-width:520px;
+    animation:heroUp .6s ease .16s both;
   }
   .hero-search{
     display:flex; align-items:center; gap:8px;
-    background:#EDEEF2; border:none;
+    background:#EDEEF2; border:2px solid transparent;
     border-radius:999px; padding:6px 6px 6px 20px;
     max-width:600px; height:56px; margin:0 auto;
     box-shadow:0 18px 40px -18px rgba(0,0,0,.6);
+    animation:heroUp .6s ease .24s both;
+    transition:box-shadow .2s ease, border-color .2s ease, transform .2s ease;
+  }
+  .hero-search:focus-within{
+    border-color:var(--green);
+    box-shadow:0 18px 40px -18px rgba(0,0,0,.6), 0 0 0 5px rgba(61,220,100,.18);
+    transform:translateY(-1px);
   }
   .hero-search input{
     flex:1; border:none; background:transparent; outline:none;
@@ -180,21 +218,24 @@
     width:42px; height:42px; border-radius:50%; border:none; cursor:pointer;
     background:var(--green); color:#04170D; font-size:16px;
     display:flex; align-items:center; justify-content:center; flex-shrink:0;
-    transition:background .12s ease, transform .12s ease;
+    transition:background .12s ease, transform .18s cubic-bezier(.34,1.56,.64,1);
   }
-  .hero-search button:active{ background:var(--green-dark); transform:scale(.94); }
+  .hero-search button:hover{ transform:scale(1.08) rotate(8deg); }
+  .hero-search button:active{ background:var(--green-dark); transform:scale(.9); }
 
   .social-row{
     position:relative; z-index:1;
     display:flex; align-items:center; justify-content:center; gap:12px;
     margin-top:22px;
+    animation:heroUp .6s ease .32s both;
   }
   .social-row a{
     width:34px; height:34px; border-radius:50%;
     display:flex; align-items:center; justify-content:center;
-    color:#fff; transition:transform .15s ease, filter .15s ease;
+    color:#fff; transition:transform .22s cubic-bezier(.34,1.56,.64,1), filter .15s ease, box-shadow .2s ease;
   }
-  .social-row a:hover{ transform:translateY(-2px); filter:brightness(1.1); }
+  .social-row a:hover{ transform:translateY(-4px) scale(1.12); filter:brightness(1.15); box-shadow:0 10px 18px -8px rgba(0,0,0,.6); }
+  .social-row a:active{ transform:translateY(-1px) scale(.96); }
   .social-row svg{ width:17px; height:17px; }
   .social-fb{ background:#1877F2; }
   .social-x{ background:#000; border:1px solid #333; }
@@ -204,7 +245,7 @@
   .social-tg{ background:#26A5E4; }
 
   /* ---------- Ad card ---------- */
-  .ad-slot{ max-width:1180px; margin:26px auto 0; padding:0 20px; }
+  .ad-slot{ max-width:1000px; margin:26px auto 0; padding:0 20px; }
   .ad-card{
     position:relative; border-radius:var(--radius-lg);
     background:var(--surface); border:1px solid var(--border);
@@ -240,7 +281,9 @@
   }
 
   /* ---------- Sections ---------- */
-  .section{ max-width:1180px; margin:0 auto; padding:38px 20px 4px; }
+  .section{ max-width:1000px; margin:0 auto; padding:38px 20px 4px; }
+  .section.reveal{ opacity:0; transform:translateY(18px); transition:opacity .55s ease, transform .55s cubic-bezier(.22,1,.36,1); }
+  .section.reveal.in-view{ opacity:1; transform:translateY(0); }
   .section-head{
     display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap;
     gap:12px; margin-bottom:16px;
@@ -259,8 +302,10 @@
     flex-shrink:0; border:1px solid var(--border); background:var(--surface);
     color:var(--label-2); font-family:var(--sys); font-size:13px; font-weight:600;
     padding:7px 14px; border-radius:999px; cursor:pointer;
-    transition:background .15s ease, color .15s ease, border-color .15s ease;
+    transition:background .18s ease, color .18s ease, border-color .18s ease, transform .18s cubic-bezier(.34,1.56,.64,1);
   }
+  .chip:hover{ transform:translateY(-2px); border-color:var(--label-3); }
+  .chip:active{ transform:translateY(0) scale(.95); }
   .chip.active{ background:var(--green); border-color:var(--green); color:#04170D; }
 
   /* ---------- Featured row (Aplicaciones destacadas) ---------- */
@@ -275,16 +320,23 @@
     display:flex; align-items:center; gap:13px;
     background:var(--surface); border:1px solid var(--border);
     border-radius:var(--radius-md); padding:14px;
-    cursor:pointer; transition:border-color .15s ease, transform .15s ease;
+    cursor:pointer;
+    transition:border-color .2s ease, transform .22s cubic-bezier(.34,1.2,.64,1), box-shadow .22s ease;
     text-align:left;
+    animation:cardIn .4s ease both;
   }
-  .feat-card:hover{ border-color:var(--label-3); }
-  .feat-card:active{ transform:scale(.98); }
+  .feat-card:hover{
+    border-color:var(--green); transform:translateY(-5px);
+    box-shadow:0 16px 30px -16px rgba(61,220,100,.35);
+  }
+  .feat-card:hover .feat-icon{ transform:scale(1.06); border-color:var(--green); }
+  .feat-card:active{ transform:translateY(-1px) scale(.98); }
   .feat-icon{
     width:68px; height:68px; border-radius:50%; flex-shrink:0;
     display:flex; align-items:center; justify-content:center;
     font-weight:800; font-size:17px; color:#fff; overflow:hidden;
     border:2px solid var(--border);
+    transition:transform .22s ease, border-color .22s ease;
   }
   .feat-icon img{ width:100%; height:100%; object-fit:cover; }
   .feat-info{ min-width:0; }
@@ -305,17 +357,22 @@
     background:var(--surface); border:1px solid var(--border);
     border-radius:var(--radius-md); overflow:hidden; cursor:pointer;
     display:flex; flex-direction:column;
-    animation:cardIn .3s ease both;
-    transition:border-color .15s ease, transform .15s ease;
+    animation:cardIn .35s cubic-bezier(.22,1,.36,1) both;
+    transition:border-color .2s ease, transform .22s cubic-bezier(.34,1.2,.64,1), box-shadow .22s ease;
     text-align:left; padding:14px;
   }
-  @keyframes cardIn{ from{opacity:0; transform:translateY(6px);} to{opacity:1; transform:translateY(0);} }
-  .game-card:hover{ border-color:var(--label-3); }
-  .game-card:active{ transform:scale(.98); }
+  @keyframes cardIn{ from{opacity:0; transform:translateY(10px) scale(.97);} to{opacity:1; transform:translateY(0) scale(1);} }
+  .game-card:hover{
+    border-color:var(--green); transform:translateY(-6px);
+    box-shadow:0 18px 32px -18px rgba(61,220,100,.4);
+  }
+  .game-card:hover .game-cover{ transform:scale(1.06) rotate(-1deg); }
+  .game-card:active{ transform:translateY(-2px) scale(.98); }
   .game-cover{
     width:64px; height:64px; border-radius:18px; margin-bottom:10px;
     display:flex; align-items:center; justify-content:center;
     font-weight:800; font-size:20px; color:#fff; overflow:hidden;
+    transition:transform .25s ease;
   }
   .game-cover img{ width:100%; height:100%; object-fit:cover; }
   .game-title{
@@ -445,9 +502,16 @@
     transition:transform .18s cubic-bezier(.34,1.56,.64,1), background .18s ease; position:relative;
   }
   .heart-btn svg{ width:24px; height:24px; color:var(--red); transition:color .18s ease; }
+  .heart-btn:hover{ transform:scale(1.06); }
   .heart-btn.voted{ background:var(--red); border-color:var(--red); }
   .heart-btn.voted svg{ color:#fff; }
-  .heart-btn.bump{ transform:scale(1.22); }
+  .heart-btn.bump{ animation:heartBump .45s cubic-bezier(.34,1.56,.64,1); }
+  @keyframes heartBump{
+    0%{ transform:scale(1); }
+    35%{ transform:scale(1.35) rotate(-6deg); }
+    60%{ transform:scale(.92) rotate(4deg); }
+    100%{ transform:scale(1) rotate(0); }
+  }
   .heart-count-badge{
     font-size:10px; font-weight:800; color:#fff;
     position:absolute; bottom:-6px; left:50%; transform:translateX(-50%);
@@ -562,13 +626,13 @@
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>
         </button>
       </form>
-      <div class="social-row">
-        <a class="social-fb" href="#" aria-label="Facebook" onclick="return false;"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M22 12a10 10 0 1 0-11.6 9.9v-7H7.9V12h2.5V9.8c0-2.5 1.5-3.9 3.8-3.9 1.1 0 2.2.2 2.2.2v2.5h-1.3c-1.2 0-1.6.8-1.6 1.6V12h2.8l-.4 2.9h-2.4v7A10 10 0 0 0 22 12Z"/></svg></a>
-        <a class="social-x" href="#" aria-label="X" onclick="return false;"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M18.9 3H22l-7.2 8.2L23.2 21h-6.6l-5.2-6.6L5.4 21H2.3l7.7-8.8L1.2 3h6.8l4.7 6.1L18.9 3Z"/></svg></a>
-        <a class="social-ig" href="#" aria-label="Instagram" onclick="return false;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="5"/><circle cx="12" cy="12" r="4"/><circle cx="17.5" cy="6.5" r="1"/></svg></a>
-        <a class="social-yt" href="#" aria-label="YouTube" onclick="return false;"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M10 15.5v-7l6 3.5-6 3.5Z"/></svg></a>
-        <a class="social-pin" href="#" aria-label="Pinterest" onclick="return false;"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2a10 10 0 0 0-3.6 19.3c0-.8 0-1.8.2-2.6l1.4-6s-.3-.7-.3-1.7c0-1.6.9-2.8 2.1-2.8 1 0 1.5.7 1.5 1.6 0 1-.6 2.5-1 3.9-.2 1.1.6 2 1.7 2 2 0 3.5-2.1 3.5-5.2 0-2.7-2-4.6-4.7-4.6-3.2 0-5.1 2.4-5.1 4.9 0 1 .4 2 .8 2.6.1.1.1.2.1.3l-.3 1.3c0 .2-.2.3-.4.2-1.4-.6-2.2-2.6-2.2-4.2 0-3.4 2.5-6.5 7.1-6.5 3.7 0 6.6 2.6 6.6 6.2 0 3.7-2.3 6.7-5.6 6.7-1.1 0-2.1-.6-2.5-1.2l-.7 2.6c-.2 1-.9 2.2-1.3 3A10 10 0 1 0 12 2Z"/></svg></a>
-        <a class="social-tg" href="#" aria-label="Telegram" onclick="return false;"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M21.9 4.3 2.6 11.9c-1.3.5-1.3 1.2-.2 1.6l4.9 1.5 1.9 5.8c.2.6.5.8.9.8.4 0 .6-.2.8-.4l2.6-2.5 5 3.7c.9.5 1.6.3 1.8-.9L23.6 5.5c.3-1.4-.5-2-1.7-1.2Z"/></svg></a>
+      <div class="social-row" id="socialRow">
+        <a class="social-fb" data-social="facebook" aria-label="Facebook" target="_blank" rel="noopener"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M22 12a10 10 0 1 0-11.6 9.9v-7H7.9V12h2.5V9.8c0-2.5 1.5-3.9 3.8-3.9 1.1 0 2.2.2 2.2.2v2.5h-1.3c-1.2 0-1.6.8-1.6 1.6V12h2.8l-.4 2.9h-2.4v7A10 10 0 0 0 22 12Z"/></svg></a>
+        <a class="social-x" data-social="x" aria-label="X" target="_blank" rel="noopener"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M18.9 3H22l-7.2 8.2L23.2 21h-6.6l-5.2-6.6L5.4 21H2.3l7.7-8.8L1.2 3h6.8l4.7 6.1L18.9 3Z"/></svg></a>
+        <a class="social-ig" data-social="instagram" aria-label="Instagram" target="_blank" rel="noopener"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="5"/><circle cx="12" cy="12" r="4"/><circle cx="17.5" cy="6.5" r="1"/></svg></a>
+        <a class="social-yt" data-social="youtube" aria-label="YouTube" target="_blank" rel="noopener"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M10 15.5v-7l6 3.5-6 3.5Z"/></svg></a>
+        <a class="social-pin" data-social="pinterest" aria-label="Pinterest" target="_blank" rel="noopener"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2a10 10 0 0 0-3.6 19.3c0-.8 0-1.8.2-2.6l1.4-6s-.3-.7-.3-1.7c0-1.6.9-2.8 2.1-2.8 1 0 1.5.7 1.5 1.6 0 1-.6 2.5-1 3.9-.2 1.1.6 2 1.7 2 2 0 3.5-2.1 3.5-5.2 0-2.7-2-4.6-4.7-4.6-3.2 0-5.1 2.4-5.1 4.9 0 1 .4 2 .8 2.6.1.1.1.2.1.3l-.3 1.3c0 .2-.2.3-.4.2-1.4-.6-2.2-2.6-2.2-4.2 0-3.4 2.5-6.5 7.1-6.5 3.7 0 6.6 2.6 6.6 6.2 0 3.7-2.3 6.7-5.6 6.7-1.1 0-2.1-.6-2.5-1.2l-.7 2.6c-.2 1-.9 2.2-1.3 3A10 10 0 1 0 12 2Z"/></svg></a>
+        <a class="social-tg" data-social="telegram" aria-label="Telegram" target="_blank" rel="noopener"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M21.9 4.3 2.6 11.9c-1.3.5-1.3 1.2-.2 1.6l4.9 1.5 1.9 5.8c.2.6.5.8.9.8.4 0 .6-.2.8-.4l2.6-2.5 5 3.7c.9.5 1.6.3 1.8-.9L23.6 5.5c.3-1.4-.5-2-1.7-1.2Z"/></svg></a>
       </div>
     </div>
   </header>
@@ -584,13 +648,13 @@
 
   <div id="viewHome">
     <!-- Aplicaciones destacadas -->
-    <section class="section" id="destacadosSection">
+    <section class="section reveal" id="destacadosSection">
       <div class="section-head"><h2>Aplicaciones destacadas</h2></div>
       <div class="feat-row" id="featRow"></div>
     </section>
 
     <!-- Catálogo / Actualizaciones recientes -->
-    <section class="section" id="catalogSection">
+    <section class="section reveal" id="catalogSection">
       <div class="section-head">
         <h2>Actualizaciones recientes</h2>
         <div class="chip-row" id="categoryBar">
@@ -643,7 +707,7 @@
 
   <!-- Página: Mejores valorados -->
   <div id="viewTopRated" style="display:none;">
-    <section class="section">
+    <section class="section reveal">
       <div class="section-head">
         <h2>Mejores valorados</h2>
         <button class="back-link" id="backHome" type="button">← Volver al catálogo</button>
@@ -739,46 +803,71 @@
   // ======================================================
   const games = [
     {
-      title: "Minecraft 26.44.3",
+      title: "juegoindie",
       category: "aventura",
       rating: 4.8,
-      size: "1098 MB",
+      size: "683 MB",
+      version: "",
+      date: "",
       color: "#65EB2A",
       initials: "",
-      cover: "img/Minecraft.png",
-      description: "Minecraft es un videojuego de mundo abierto y tipo sandbox (caja de arena) donde los jugadores pueden explorar, extraer recursos, construir y sobrevivir en un entorno tridimensional formado por bloques con texturas pixeladas.",
+      cover: "img/Mi.png",
+      description: "Mi67 es un videojuego de mundo abierto y tipo sandbox (caja de arena) donde los jugadores pueden explorar, extraer recursos, construir y sobrevivir en un entorno tridimensional formado por bloques con texturas pixeladas.",
       downloads: [
-        { label: "Mediafire", note: "Servidor directo", url: "https://www.mediafire.com/file/2r645tvz5opzx5o/minecraft-1.26.44.3-apkprojects.apk/file" },
+        { label: "Mediafire", note: "Servidor directo", url: "https://www.mediafire.com/file/gqukw2mw1qz6syn/indigame-26-40-apkprojects.apk/file" },
         { label: "Mega (No disponible)", note: "Alternativa", url: "https://mega.nz/" }
       ]
     },
     {
-      title: "Geometry Dash",
+      title: "Geometrindie",
       category: "arcade",
       rating: 4.8,
       size: "175 MB",
+      version: "",
+      date: "",
       color: "#65EB2A",
       initials: "",
-      cover: "img/Geometry.png",
+      cover: "img/Geo.png",
       description: "Juego de plataformas y acción rítmica.",
       downloads: [
-        { label: "Mediafire", note: "Servidor directo", url: "https://www.mediafire.com/file/rlr008reqjawyi6/Geometry+dash+2.2-apkprojects.xyz.apk/file" }
+        { label: "Mediafire", note: "Servidor directo", url: "https://www.mediafire.com/file/rlr008reqjawyi6/Geometry+indieapkprojects.xyz.apk/file" }
       ]
     },
     {
-      title: "Balatro",
+      title: "Ba",
       category: "arcade",
       rating: 4.8,
       size: "67 MB",
+      version: "",
+      date: "",
       color: "#65EB2A",
       initials: "",
-      cover: "img/Balatro.png",
+      cover: "img/Bal.png",
       description: "Juego de cartas.",
       downloads: [
-        { label: "Mediafire", note: "Servidor directo", url: "https://www.mediafire.com/file/gkkbj6qa62dsbs9/balatro_apkprojects.apk/file" }
+        { label: "Mediafire", note: "Servidor directo", url: "https://www.mediafire.com/file/gkkbj6qa62dsbs9/b_apkprojects.apk/file" }
       ]
-    },    
+    },
   ];
+
+  // ======================================================
+  // TUS REDES SOCIALES — pon aquí tus enlaces reales.
+  // El botón de cualquier red que dejes vacía ("") se OCULTA
+  // automáticamente, en vez de mostrar un enlace roto.
+  // ======================================================
+  const SOCIAL_LINKS = {
+    facebook: "",
+    x: "",
+    instagram: "",
+    youtube: "",
+    pinterest: "",
+    telegram: ""
+  };
+  document.querySelectorAll('#socialRow a[data-social]').forEach(a => {
+    const url = SOCIAL_LINKS[a.dataset.social];
+    if(url){ a.href = url; }
+    else{ a.style.display = 'none'; }
+  });
 
   const grid = document.getElementById('gameGrid');
   const categoryBar = document.getElementById('categoryBar');
@@ -1220,12 +1309,23 @@
   loadAdsterraAd('adSlotTopDesktop', '76a4887bf5246065c1644d5ff3ee96ae', 728, 90);
   loadAdsterraAd('adSlotMiddle', 'f49c2e7ae12570d06b9c194497928af0', 300, 250);
 
+  // ---------- Animación de aparición de secciones al hacer scroll ----------
+  const revealObserver = new IntersectionObserver((entries) => {
+    entries.forEach(entry => {
+      if(entry.isIntersecting){
+        entry.target.classList.add('in-view');
+        revealObserver.unobserve(entry.target);
+      }
+    });
+  }, { threshold: 0.12, rootMargin: '0px 0px -60px 0px' });
+  document.querySelectorAll('.section.reveal').forEach(el => revealObserver.observe(el));
+
   renderFeatured();
   render();
 </script>
 
   <!-- Popunder Adsterra -->
-  
+  <script src="https://pl30708723.effectivecpmnetwork.com/d3/b0/f7/d3b0f74ea824c697046c92444a6f2f11.js"></script>
 
   <!-- Social Bar Adsterra -->
   <script src="https://pl30711227.effectivecpmnetwork.com/57/a0/7b/57a07b3edfdffdaed7dbab2e39c8c41e.js"></script>
