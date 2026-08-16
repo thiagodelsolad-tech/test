@@ -130,30 +130,44 @@
   .dropdown-menu button:hover{ background:var(--bg-2); color:var(--label); transform:translateX(3px); }
 
   @media (max-width:860px){
-    .nav-toggle{ display:flex; }
-    .nav-links{
-      position:fixed; top:0; right:0; bottom:0; z-index:95;
-      width:min(78vw,320px);
-      background:var(--surface);
-      border-left:1px solid var(--border);
-      flex-direction:column; align-items:stretch;
-      padding:calc(16px + var(--safe-t)) 14px 16px;
-      transform:translateX(100%);
-      transition:transform .28s cubic-bezier(.32,.72,0,1);
-      gap:2px;
-    }
-    .nav-links.show{ transform:translateX(0); }
-    .nav-link{ text-align:left; width:100%; color:var(--label-2); }
-    .nav-link:hover, .nav-link.active{ color:var(--label); }
-    .nav-dropdown{ width:100%; }
-    .dropdown-menu{ position:static; border:none; background:var(--bg-2); margin:2px 0 6px 8px; display:none; box-shadow:none; }
-    .nav-dropdown.open .dropdown-menu{ display:flex; }
-    .nav-scrim{
-      display:none; position:fixed; inset:0; z-index:90;
-      background:rgba(0,0,0,.5);
-    }
-    .nav-scrim.show{ display:block; }
+    .nav-toggle{ display:none; }
+    .nav-links{ display:none; }
+    .nav-scrim{ display:none; }
   }
+
+  /* ---------- Botón flotante "Sugerir" (todas las pantallas) ---------- */
+  .fab{
+    position:fixed; right:20px; bottom:24px; z-index:97;
+    width:56px; height:56px; border-radius:50%; border:none; cursor:pointer;
+    background:var(--green); color:#04170D;
+    display:flex; align-items:center; justify-content:center;
+    box-shadow:0 12px 26px -8px rgba(61,220,100,.55);
+    animation:fabIn .5s cubic-bezier(.34,1.4,.64,1) .4s both, fabFloat 3.2s ease-in-out 1s infinite;
+    transition:transform .2s cubic-bezier(.34,1.56,.64,1), box-shadow .2s ease;
+  }
+  .fab svg{ width:23px; height:23px; }
+  .fab:hover{ transform:scale(1.08); box-shadow:0 16px 30px -8px rgba(61,220,100,.65); }
+  .fab:active{ transform:scale(.92); }
+  @keyframes fabIn{
+    from{ opacity:0; transform:scale(.4) translateY(20px); }
+    to{ opacity:1; transform:scale(1) translateY(0); }
+  }
+  @keyframes fabFloat{
+    0%,100%{ transform:translateY(0); }
+    50%{ transform:translateY(-5px); }
+  }
+  @media (max-width:860px){ .fab{ right:16px; bottom:18px; width:52px; height:52px; } }
+
+  /* ---------- Enlace "ver valorados" junto a Destacadas ---------- */
+  .viral-link{
+    background:none; border:none; cursor:pointer;
+    display:inline-flex; align-items:center; gap:5px;
+    color:var(--green); font-family:var(--sys); font-size:13px; font-weight:700;
+    padding:6px 4px; transition:transform .18s ease, opacity .18s ease;
+  }
+  .viral-link:hover{ transform:translateX(3px); opacity:.85; }
+  .viral-link svg{ width:14px; height:14px; transition:transform .18s ease; }
+  .viral-link:hover svg{ transform:translateX(3px); }
 
   /* ---------- Hero ---------- */
   .hero{
@@ -447,7 +461,14 @@
     position:absolute; right:14px; top:14px; width:30px; height:30px; border-radius:50%;
     background:var(--surface); border:1px solid var(--border); cursor:pointer;
     display:flex; align-items:center; justify-content:center; color:var(--label-2);
+    transition:transform .2s cubic-bezier(.34,1.56,.64,1), background .15s ease, color .15s ease;
   }
+  .sheet-close:hover{ transform:rotate(90deg); background:var(--red); color:#fff; }
+  .sheet-icon{ animation:sheetIconIn .35s cubic-bezier(.34,1.4,.64,1) .1s both; }
+  @keyframes sheetIconIn{ from{ opacity:0; transform:scale(.7) rotate(-8deg); } to{ opacity:1; transform:scale(1) rotate(0); } }
+  .dl-option{ animation:cardIn .3s ease both; }
+  .dl-option:nth-child(2){ animation-delay:.06s; }
+  .dl-option:nth-child(3){ animation-delay:.12s; }
   .sheet-inner{ position:relative; padding:6px 20px 4px; }
   .sheet-top{ display:flex; gap:14px; align-items:center; margin:14px 0 18px; }
   .sheet-icon{
@@ -649,7 +670,13 @@
   <div id="viewHome">
     <!-- Aplicaciones destacadas -->
     <section class="section reveal" id="destacadosSection">
-      <div class="section-head"><h2>Aplicaciones destacadas</h2></div>
+      <div class="section-head">
+        <h2>Aplicaciones destacadas</h2>
+        <button class="viral-link" id="viralLink" type="button">
+          Ver mejores valorados
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="m9 6 6 6-6 6"/></svg>
+        </button>
+      </div>
       <div class="feat-row" id="featRow"></div>
     </section>
 
@@ -723,6 +750,11 @@
       <a href="#" id="footerSuggest">Sugerir un juego o app</a>
     </p>
   </footer>
+
+  <!-- Botón flotante: Sugerir -->
+  <button class="fab" id="fabSuggest" type="button" aria-label="Sugerir un juego o app">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>
+  </button>
 
   <!-- Detail sheet -->
   <div class="overlay" id="overlay">
@@ -806,7 +838,7 @@
       title: "Minecraft 26.40",
       category: "aventura",
       rating: 4.8,
-      size: "683 MB",
+      size: "1100 MB",
       color: "#65EB2A",
       initials: "",
       cover: "img/Minecraft.png",
@@ -843,6 +875,7 @@
       ]
     },    
   ];
+
   // ======================================================
   // TUS REDES SOCIALES — pon aquí tus enlaces reales.
   // El botón de cualquier red que dejes vacía ("") se OCULTA
@@ -1009,8 +1042,8 @@
   function renderFeatured(){
     if(!games.length){ featRow.innerHTML = ''; return; }
     const top = games.slice().sort((a,b) => b.rating - a.rating).slice(0,6);
-    featRow.innerHTML = top.map(g => `
-      <button class="feat-card" data-title="${g.title.replace(/"/g,'&quot;')}" type="button">
+    featRow.innerHTML = top.map((g, i) => `
+      <button class="feat-card" style="animation-delay:${i*60}ms" data-title="${g.title.replace(/"/g,'&quot;')}" type="button">
         <div class="feat-icon" ${g.cover ? '' : `style="background:${g.color}"`}>${iconMarkup(g)}</div>
         <div class="feat-info">
           <p class="feat-name">${g.title}</p>
@@ -1185,6 +1218,12 @@
     render();
     document.getElementById('catalogSection').scrollIntoView({behavior:'smooth', block:'start'});
   }
+  function resetHome(){
+    activeCat = 'all';
+    categoryBar.querySelectorAll('.chip').forEach(b => b.classList.toggle('active', b.dataset.cat === 'all'));
+    showView('home');
+    render();
+  }
   categoryBar.addEventListener('click', (e) => {
     const btn = e.target.closest('.chip');
     if(!btn) return;
@@ -1269,9 +1308,16 @@
   });
   document.getElementById('brandHome').addEventListener('click', (e) => {
     e.preventDefault();
-    setCategory('all');
+    resetHome();
     window.scrollTo({top:0, behavior:'smooth'});
   });
+  document.getElementById('viralLink').addEventListener('click', () => {
+    showView('toprated');
+    window.scrollTo({top:0, behavior:'smooth'});
+  });
+
+  // ---------- Botón flotante: Sugerir ----------
+  document.getElementById('fabSuggest').addEventListener('click', openSuggest);
 
   // ======================================================
   // ANUNCIOS ADSTERRA — carga aislada en iframe (sin cambios).
@@ -1318,7 +1364,7 @@
 </script>
 
   <!-- Popunder Adsterra -->
-  <script src="https://pl30708723.effectivecpmnetwork.com/d3/b0/f7/d3b0f74ea824c697046c92444a6f2f11.js"></script>
+  
 
   <!-- Social Bar Adsterra -->
   <script src="https://pl30711227.effectivecpmnetwork.com/57/a0/7b/57a07b3edfdffdaed7dbab2e39c8c41e.js"></script>
