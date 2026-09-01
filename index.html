@@ -258,41 +258,6 @@
   .social-pin{ background:#8C0F1B; }
   .social-tg{ background:#26A5E4; }
 
-  /* ---------- Ad card ---------- */
-  .ad-slot{ max-width:1000px; margin:26px auto 0; padding:0 20px; }
-  .ad-card{
-    position:relative; border-radius:var(--radius-lg);
-    background:var(--surface); border:1px solid var(--border);
-    padding:16px 12px 14px; overflow:hidden;
-  }
-  .ad-card-label{
-    position:absolute; top:12px; left:12px;
-    display:inline-flex; align-items:center; gap:5px;
-    font-size:9.5px; font-weight:800; color:var(--label-2);
-    background:rgba(255,255,255,.06);
-    text-transform:uppercase; letter-spacing:.06em;
-    padding:4px 9px 4px 7px; border-radius:999px; z-index:2;
-  }
-  .ad-card-label::before{
-    content:""; width:6px; height:6px; border-radius:50%; background:#FBBF24;
-    flex-shrink:0; animation:adPulse 1.8s ease-in-out infinite;
-  }
-  @keyframes adPulse{
-    0%,100%{ box-shadow:0 0 0 0 rgba(251,191,36,.5); }
-    50%{ box-shadow:0 0 0 4px rgba(251,191,36,0); }
-  }
-  .ad-container{
-    min-height:50px; display:flex; align-items:center; justify-content:center;
-    overflow:hidden; border-radius:13px; background:var(--bg-2);
-    margin-top:24px; position:relative;
-  }
-  .ad-mobile{ display:flex; }
-  .ad-desktop{ display:none; }
-  #adSlotMiddle{ min-height:250px; }
-  @media (min-width:640px){
-    .ad-mobile{ display:none; }
-    .ad-desktop{ display:flex; min-height:90px; }
-  }
 
   /* ---------- Sections ---------- */
   .section{ max-width:1000px; margin:0 auto; padding:38px 20px 4px; }
@@ -658,14 +623,6 @@
     </div>
   </header>
 
-  <!-- AD SLOT: banner superior (Adsterra) -->
-  <div class="ad-slot">
-    <div class="ad-card">
-      <div class="ad-card-label">Publicidad</div>
-      <div class="ad-container ad-mobile" id="adSlotTopMobile"></div>
-      <div class="ad-container ad-desktop" id="adSlotTopDesktop"></div>
-    </div>
-  </div>
 
   <div id="viewHome">
     <!-- Aplicaciones destacadas -->
@@ -721,15 +678,6 @@
       </div>
     </section>
 
-    <!-- AD SLOT: entre secciones (Adsterra) -->
-    <div class="ad-slot" style="margin-top:26px;">
-      <div class="ad-card">
-        <div class="ad-card-label">Publicidad</div>
-        <div class="ad-container" id="adSlotMiddle">
-          <!-- Pega aquí tu script de Adsterra 300x250 -->
-        </div>
-      </div>
-    </div>
   </div>
 
   <!-- Página: Mejores valorados -->
@@ -1319,34 +1267,6 @@
   // ---------- Botón flotante: Sugerir ----------
   document.getElementById('fabSuggest').addEventListener('click', openSuggest);
 
-  // ======================================================
-  // ANUNCIOS ADSTERRA — carga aislada en iframe (sin cambios).
-  // ======================================================
-  function loadAdsterraAd(containerId, key, width, height){
-    const container = document.getElementById(containerId);
-    if(!container || !key) return;
-    const iframe = document.createElement('iframe');
-    iframe.title = 'Publicidad';
-    iframe.style.border = '0';
-    iframe.style.width = width + 'px';
-    iframe.style.height = height + 'px';
-    iframe.style.maxWidth = '100%';
-    iframe.scrolling = 'no';
-    container.appendChild(iframe);
-    const doc = iframe.contentWindow.document;
-    doc.open();
-    doc.write(
-      '<!DOCTYPE html><html><head><style>html,body{margin:0;padding:0;overflow:hidden;background:transparent;}</style></head><body>' +
-      '<script>atOptions={"key":"' + key + '","format":"iframe","height":' + height + ',"width":' + width + ',"params":{}};<\/script>' +
-      '<script src="https://www.highperformanceformat.com/' + key + '/invoke.js"><\/script>' +
-      '</body></html>'
-    );
-    doc.close();
-  }
-
-  loadAdsterraAd('adSlotTopMobile', '0c552db9603823b8354d2c686ebe16d7', 320, 50);
-  loadAdsterraAd('adSlotTopDesktop', '76a4887bf5246065c1644d5ff3ee96ae', 728, 90);
-  loadAdsterraAd('adSlotMiddle', 'f49c2e7ae12570d06b9c194497928af0', 300, 250);
 
   // ---------- Animación de aparición de secciones al hacer scroll ----------
   const revealObserver = new IntersectionObserver((entries) => {
@@ -1363,11 +1283,6 @@
   render();
 </script>
 
-  <!-- Popunder Adsterra -->
-  
-
-  <!-- Social Bar Adsterra -->
-  <script src="https://pl30711227.effectivecpmnetwork.com/57/a0/7b/57a07b3edfdffdaed7dbab2e39c8c41e.js"></script>
 
 </body>
 </html>
