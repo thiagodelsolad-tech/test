@@ -1308,40 +1308,50 @@
   }, { threshold: 0.12, rootMargin: '0px 0px -60px 0px' });
   document.querySelectorAll('.section.reveal').forEach(el => revealObserver.observe(el));
 
-
-  // ---------- Pageview / telemetría del sitio ----------
-  // Envía una sola confirmación de carga al Worker.
-  // Si la URL trae ?pc=...&session=...&cycle=..., los conserva para correlación QA.
-  const PAGEVIEW_ENDPOINT = 'https://webautomation-telemetry.thiagodelsolad.workers.dev/pageview';
-
-  function registrarPageView(){
-    try{
-      const params = new URLSearchParams(window.location.search);
-      const cycleValue = Number(params.get('cycle'));
-
-      const payload = {
-        path: window.location.pathname,
-        url: window.location.href,
-        timestamp: new Date().toISOString(),
-        pc: (params.get('pc') || '').trim(),
-        session: (params.get('session') || '').trim(),
-        cycle: Number.isInteger(cycleValue) && cycleValue >= 0 ? cycleValue : 0
-      };
-
-      fetch(PAGEVIEW_ENDPOINT, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify(payload),
-        keepalive: true
-      }).catch(() => {});
-    }catch(e){}
-  }
-
   renderFeatured();
   render();
-  registrarPageView();
+
+  // ---------- Pageview correlacionado para sesiones QA ----------
+  // Solo reporta cuando la URL incluye pc + session.
+  (async function() {
+    try {
+      const urlParams = new URLSearchParams(window.location.search);
+
+      const pc = urlParams.get('pc');
+      const session = urlParams.get('session');
+      const cycle = urlParams.get('cycle');
+
+      // Si la visita viene con los parámetros de automatización, reportamos el pageview real.
+      if (pc && session) {
+        const telemetryEndpoint = "https://webautomation-telemetry.thiagodelsolad.workers.dev/pageview";
+        const parsedCycle = cycle ? parseInt(cycle, 10) : 0;
+
+        const response = await fetch(telemetryEndpoint, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json"
+          },
+          body: JSON.stringify({
+            path: window.location.pathname,
+            url: window.location.href,
+            pc: pc,
+            session: session,
+            cycle: Number.isFinite(parsedCycle) ? parsedCycle : 0,
+            timestamp: new Date().toISOString()
+          }),
+          keepalive: true
+        });
+
+        if (!response.ok) {
+          throw new Error(`HTTP ${response.status}`);
+        }
+
+        console.log("Pageview real registrado para:", pc, "Ciclo:", cycle);
+      }
+    } catch (err) {
+      console.error("Error al registrar pageview:", err);
+    }
+  })();
 </script>
 
 
