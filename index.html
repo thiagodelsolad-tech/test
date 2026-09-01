@@ -63,7 +63,8 @@
 
       function renderQAEnvironment(sessionData) {
         window.QA_Session = sessionData || window.QA_Session;
-        revealPage("qa-ready");
+        window.__QA_FAIL_CLOSED__ = false; // Asegura que no se bloqueen servicios ni anuncios
+        revealPage("qa-fallback-allowed"); // Unificado con el comportamiento permisivo del fallback
       }
 
       function renderFallbackAllowedState() {
@@ -1455,3 +1456,4 @@
 
 </body>
 </html>
+```[cite: 1]
