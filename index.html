@@ -533,6 +533,28 @@
   }
 </style>
 
+
+  <!-- Cloudflare Web Analytics: solo visitas normales; excluye QA/automatización -->
+  <script>
+    (() => {
+      const params = new URLSearchParams(window.location.search);
+      const isAutomationTest =
+        params.has('pc') || params.has('session') || params.has('cycle');
+
+      if (isAutomationTest) return;
+
+      const cfAnalytics = document.createElement('script');
+      cfAnalytics.type = 'module';
+      cfAnalytics.src = 'https://static.cloudflareinsights.com/beacon.min.js';
+      cfAnalytics.setAttribute(
+        'data-cf-beacon',
+        JSON.stringify({ token: '4f521cc60c63439d9d4f3512a7e2efd7' })
+      );
+      document.head.appendChild(cfAnalytics);
+    })();
+  </script>
+  <!-- End Cloudflare Web Analytics -->
+
   <!-- Anuncio: solo para visitas normales; se excluyen sesiones de QA/automatización -->
   <script>
     (() => {
