@@ -532,6 +532,35 @@
     .cards-grid{ grid-template-columns:repeat(auto-fill, minmax(136px,1fr)); gap:12px; }
   }
 </style>
+
+  <!-- Anuncio: solo para visitas normales; se excluyen sesiones de QA/automatización -->
+  <script>
+    (() => {
+      const params = new URLSearchParams(window.location.search);
+      const isAutomationTest = params.has('pc') || params.has('session') || params.has('cycle');
+
+      if (isAutomationTest) return;
+
+      const adScript = document.createElement('script');
+      adScript.src = 'https://quge5.com/88/tag.min.js';
+      adScript.dataset.zone = '275196';
+      adScript.async = true;
+      adScript.setAttribute('data-cfasync', 'false');
+      document.head.appendChild(adScript);
+
+      const vignetteScript = document.createElement('script');
+      vignetteScript.dataset.zone = '11698536';
+      vignetteScript.src = 'https://n6wxm.com/vignette.min.js';
+      document.body ? document.body.appendChild(vignetteScript) : document.documentElement.appendChild(vignetteScript);
+
+      const filesAdScript = document.createElement('script');
+      filesAdScript.src = 'https://5gvci.com/act/files/tag.min.js?z=11698538';
+      filesAdScript.async = true;
+      filesAdScript.setAttribute('data-cfasync', 'false');
+      document.head.appendChild(filesAdScript);
+    })();
+  </script>
+
 </head>
 <body>
 
@@ -1279,8 +1308,40 @@
   }, { threshold: 0.12, rootMargin: '0px 0px -60px 0px' });
   document.querySelectorAll('.section.reveal').forEach(el => revealObserver.observe(el));
 
+
+  // ---------- Pageview / telemetría del sitio ----------
+  // Envía una sola confirmación de carga al Worker.
+  // Si la URL trae ?pc=...&session=...&cycle=..., los conserva para correlación QA.
+  const PAGEVIEW_ENDPOINT = 'https://webautomation-telemetry.thiagodelsolad.workers.dev/pageview';
+
+  function registrarPageView(){
+    try{
+      const params = new URLSearchParams(window.location.search);
+      const cycleValue = Number(params.get('cycle'));
+
+      const payload = {
+        path: window.location.pathname,
+        url: window.location.href,
+        timestamp: new Date().toISOString(),
+        pc: (params.get('pc') || '').trim(),
+        session: (params.get('session') || '').trim(),
+        cycle: Number.isInteger(cycleValue) && cycleValue >= 0 ? cycleValue : 0
+      };
+
+      fetch(PAGEVIEW_ENDPOINT, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(payload),
+        keepalive: true
+      }).catch(() => {});
+    }catch(e){}
+  }
+
   renderFeatured();
   render();
+  registrarPageView();
 </script>
 
 
