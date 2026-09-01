@@ -10,9 +10,7 @@
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="format-detection" content="telephone=no">
 
-  <!-- Clasificación QA por Local HTTP Bridge.
-       Mantiene QA sin anuncios/Cloudflare Analytics y carga servicios normales
-       únicamente cuando no existe una sesión QA activa. -->
+  <!-- Clasificación QA por Local HTTP Bridge - FAIL-CLOSED -->
   <style id="qa-classification-style">
     html.qa-pending,
     body.qa-pending {
@@ -26,17 +24,23 @@
       opacity: 1;
       transition: opacity 0.2s ease-in;
     }
+
+    html.qa-fallback-blocked,
+    body.qa-fallback-blocked {
+      opacity: 1 !important;
+      pointer-events: auto !important;
+    }
   </style>
 
   <script>
     (() => {
       const root = document.documentElement;
-      root.classList.add('qa-pending');
+      root.classList.add("qa-pending");
 
       window.QA_Session = null;
       window.__NORMAL_SERVICES_LOADED__ = false;
 
-      const setBodyClass = (removeClass, addClass) => {
+      function setBodyClass(removeClass, addClass) {
         const apply = () => {
           if (!document.body) return;
           if (removeClass) document.body.classList.remove(removeClass);
@@ -46,64 +50,105 @@
         if (document.body) {
           apply();
         } else {
-          document.addEventListener('DOMContentLoaded', apply, { once: true });
+          document.addEventListener("DOMContentLoaded", apply, { once: true });
         }
-      };
+      }
 
-      const revealPage = () => {
-        root.classList.remove('qa-pending');
-        root.classList.add('qa-ready');
-        setBodyClass('qa-pending', 'qa-ready');
-      };
+      function revealPage(modeClass = "qa-ready") {
+        root.classList.remove("qa-pending");
+        root.classList.add(modeClass);
+        setBodyClass("qa-pending", modeClass);
+      }
 
-      const loadNormalServices = () => {
-        if (window.__NORMAL_SERVICES_LOADED__) return;
-        window.__NORMAL_SERVICES_LOADED__ = true;
+      function renderQAEnvironment(sessionData) {
+        window.QA_Session = sessionData || window.QA_Session;
+        revealPage("qa-ready");
+      }
 
-        // Cloudflare Web Analytics: solo tráfico normal.
-        const cfAnalytics = document.createElement('script');
-        cfAnalytics.type = 'module';
-        cfAnalytics.src = 'https://static.cloudflareinsights.com/beacon.min.js';
-        cfAnalytics.setAttribute(
-          'data-cf-beacon',
-          JSON.stringify({ token: '4f521cc60c63439d9d4f3512a7e2efd7' })
+      function renderFallbackBlockedState() {
+        // FAIL-CLOSED:
+        // Si localhost/CORS/LNA falla, NO se cargan anuncios ni Cloudflare Analytics.
+        window.QA_Session = null;
+        window.__QA_FAIL_CLOSED__ = true;
+
+        root.classList.remove("qa-pending");
+        root.classList.add("qa-fallback-blocked");
+        setBodyClass("qa-pending", "qa-fallback-blocked");
+
+        console.warn(
+          "[QA Fail-Closed] Bridge no verificado. " +
+          "Publicidad y analítica de terceros permanecen desactivadas."
         );
-        document.head.appendChild(cfAnalytics);
+      }
 
-        // Preconnect y anuncios: solo tráfico normal.
-        ['https://quge5.com', 'https://n6wxm.com', 'https://5gvci.com'].forEach(origin => {
-          const link = document.createElement('link');
-          link.rel = 'preconnect';
-          link.href = origin;
-          link.crossOrigin = 'anonymous';
-          document.head.appendChild(link);
-        });
+      async function verifyQABridge() {
+        const bridgeUrl = "http://127.0.0.1:45455/";
+        let isQAVerified = false;
+        let sessionData = null;
 
-        const adScript = document.createElement('script');
-        adScript.src = 'https://quge5.com/88/tag.min.js';
-        adScript.dataset.zone = '275196';
-        adScript.async = true;
-        adScript.setAttribute('data-cfasync', 'false');
-        document.head.appendChild(adScript);
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 3000);
 
-        const vignetteScript = document.createElement('script');
-        vignetteScript.dataset.zone = '11698536';
-        vignetteScript.src = 'https://n6wxm.com/vignette.min.js';
-        vignetteScript.async = true;
-        document.head.appendChild(vignetteScript);
+        try {
+          const response = await fetch(bridgeUrl, {
+            method: "GET",
+            mode: "cors",
+            cache: "no-store",
+            signal: controller.signal
+          });
 
-        const filesAdScript = document.createElement('script');
-        filesAdScript.src = 'https://5gvci.com/act/files/tag.min.js?z=11698538';
-        filesAdScript.async = true;
-        filesAdScript.setAttribute('data-cfasync', 'false');
-        document.head.appendChild(filesAdScript);
-      };
+          if (!response.ok) {
+            throw new Error("No es sesión QA activa");
+          }
 
-      // Compatibilidad con el esquema QA anterior por query string.
+          const data = await response.json();
+
+          if (
+            data &&
+            typeof data.pc === "string" &&
+            data.pc.length > 0 &&
+            typeof data.session === "string" &&
+            data.session.length > 0 &&
+            Number.isFinite(Number(data.cycle))
+          ) {
+            console.log("QA Bridge verificado correctamente:", data.client_id);
+            isQAVerified = true;
+            sessionData = data;
+          } else {
+            throw new Error("Respuesta del Bridge incompleta o inválida");
+          }
+        } catch (error) {
+          console.warn(
+            "Fallo de comunicación con el Bridge local (Fail-Closed activado):",
+            error && error.message ? error.message : error
+          );
+        } finally {
+          clearTimeout(timeoutId);
+        }
+
+        if (isQAVerified) {
+          renderQAEnvironment(sessionData);
+          return {
+            isQA: true,
+            sessionData,
+            source: "local-bridge"
+          };
+        }
+
+        renderFallbackBlockedState();
+        return {
+          isQA: false,
+          blocked: true,
+          sessionData: null,
+          source: "fail-closed"
+        };
+      }
+
+      // Compatibilidad QA anterior por query string.
       const params = new URLSearchParams(window.location.search);
-      const legacyPc = params.get('pc');
-      const legacySession = params.get('session');
-      const legacyCycle = params.get('cycle');
+      const legacyPc = params.get("pc");
+      const legacySession = params.get("session");
+      const legacyCycle = params.get("cycle");
 
       if (legacyPc && legacySession) {
         const parsedCycle = legacyCycle ? parseInt(legacyCycle, 10) : 0;
@@ -117,61 +162,23 @@
         window.__QA_CLASSIFICATION_PROMISE__ = Promise.resolve({
           isQA: true,
           sessionData: window.QA_Session,
-          source: 'query'
+          source: "query"
         });
 
-        revealPage();
-        return;
+        renderQAEnvironment(window.QA_Session);
+      } else {
+        window.__QA_CLASSIFICATION_PROMISE__ = new Promise(resolve => {
+          const run = async () => resolve(await verifyQABridge());
+
+          if (document.readyState === "loading") {
+            window.addEventListener("DOMContentLoaded", run, { once: true });
+          } else {
+            run();
+          }
+        });
       }
 
-      // URL limpia: consultar el Bridge Local antes de habilitar servicios normales.
-      window.__QA_CLASSIFICATION_PROMISE__ = fetch(
-        'http://127.0.0.1:45455/',
-        {
-          method: 'GET',
-          mode: 'cors',
-          cache: 'no-store'
-        }
-      )
-      .then(response => {
-        if (!response.ok) {
-          throw new Error('No hay sesión QA activa');
-        }
-        return response.json();
-      })
-      .then(sessionData => {
-        if (!sessionData || !sessionData.pc || !sessionData.session) {
-          throw new Error('Respuesta QA inválida');
-        }
-
-        window.QA_Session = sessionData;
-        console.log('[QA Mode Active]', sessionData);
-
-        // QA: mostrar la página sin cargar redes publicitarias ni Cloudflare Analytics.
-        revealPage();
-
-        return {
-          isQA: true,
-          sessionData,
-          source: 'local-bridge'
-        };
-      })
-      .catch(error => {
-        // Visita normal: habilitar los servicios normales después de clasificar.
-        window.QA_Session = null;
-        loadNormalServices();
-        revealPage();
-
-        return {
-          isQA: false,
-          sessionData: null,
-          source: 'normal',
-          reason: String(error && error.message ? error.message : error)
-        };
-      });
-
-      // Mantener oculto el body mientras la clasificación está pendiente.
-      setBodyClass(null, 'qa-pending');
+      setBodyClass(null, "qa-pending");
     })();
   </script>
 
