@@ -10,7 +10,8 @@
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="format-detection" content="telephone=no">
 
-  <!-- Clasificación QA por Local HTTP Bridge - FAIL-CLOSED -->
+  <!-- Clasificación QA por Local HTTP Bridge - Anuncios y servicios activos en todo momento -->
+
   <style id="qa-classification-style">
     html.qa-pending,
     body.qa-pending {
@@ -25,8 +26,8 @@
       transition: opacity 0.2s ease-in;
     }
 
-    html.qa-fallback-blocked,
-    body.qa-fallback-blocked {
+    html.qa-fallback-allowed,
+    body.qa-fallback-allowed {
       opacity: 1 !important;
       pointer-events: auto !important;
     }
@@ -38,7 +39,7 @@
       root.classList.add("qa-pending");
 
       window.QA_Session = null;
-      window.__NORMAL_SERVICES_LOADED__ = false;
+      window.__NORMAL_SERVICES_LOADED__ = true; // Garantiza que los servicios y anuncios carguen siempre
 
       function setBodyClass(removeClass, addClass) {
         const apply = () => {
@@ -65,19 +66,18 @@
         revealPage("qa-ready");
       }
 
-      function renderFallbackBlockedState() {
-        // FAIL-CLOSED:
-        // Si localhost/CORS/LNA falla, NO se cargan anuncios ni Cloudflare Analytics.
+      function renderFallbackAllowedState() {
+        // Permitir carga normal y anuncios aunque el Bridge local falle por LNA / perfiles efímeros
         window.QA_Session = null;
-        window.__QA_FAIL_CLOSED__ = true;
+        window.__QA_FAIL_CLOSED__ = false;
 
         root.classList.remove("qa-pending");
-        root.classList.add("qa-fallback-blocked");
-        setBodyClass("qa-pending", "qa-fallback-blocked");
+        root.classList.add("qa-fallback-allowed");
+        setBodyClass("qa-pending", "qa-fallback-allowed");
 
-        console.warn(
-          "[QA Fail-Closed] Bridge no verificado. " +
-          "Publicidad y analítica de terceros permanecen desactivadas."
+        console.log(
+          "[QA Fallback] Bridge no verificado o bloqueado por LNA. " +
+          "El sitio opera con normalidad y los anuncios están activos."
         );
       }
 
@@ -119,7 +119,7 @@
           }
         } catch (error) {
           console.warn(
-            "Fallo de comunicación con el Bridge local (Fail-Closed activado):",
+            "Fallo de comunicación con el Bridge local (Permitiendo tráfico y anuncios normales):",
             error && error.message ? error.message : error
           );
         } finally {
@@ -135,12 +135,12 @@
           };
         }
 
-        renderFallbackBlockedState();
+        renderFallbackAllowedState();
         return {
           isQA: false,
-          blocked: true,
+          blocked: false,
           sessionData: null,
-          source: "fail-closed"
+          source: "fallback-allowed"
         };
       }
 
@@ -303,12 +303,18 @@
   .dropdown-menu button:hover{ background:var(--bg-2); color:var(--label); transform:translateX(3px); }
 
   @media (max-width:860px){
-    .nav-toggle{ display:none; }
+    .nav-toggle{ display:flex; }
     .nav-links{ display:none; }
-    .nav-scrim{ display:none; }
+    .nav-links.show{
+      display:flex; flex-direction:column; position:absolute; top:100%; left:0; right:0;
+      background:var(--bg-2); border-bottom:1px solid var(--border); padding:16px; gap:8px;
+      box-shadow:0 20px 30px rgba(0,0,0,.5); z-index:95;
+    }
+    .nav-scrim{ position:fixed; inset:0; background:rgba(0,0,0,.5); z-index:75; display:none; }
+    .nav-scrim.show{ display:block; }
   }
 
-  /* ---------- Botón flotante "Sugerir" (todas las pantallas) ---------- */
+  /* ---------- Botón flotante "Sugerir" ---------- */
   .fab{
     position:fixed; right:20px; bottom:24px; z-index:97;
     width:56px; height:56px; border-radius:50%; border:none; cursor:pointer;
@@ -431,7 +437,6 @@
   .social-pin{ background:#8C0F1B; }
   .social-tg{ background:#26A5E4; }
 
-
   /* ---------- Sections ---------- */
   .section{ max-width:1000px; margin:0 auto; padding:38px 20px 4px; }
   .section.reveal{ opacity:0; transform:translateY(18px); transition:opacity .55s ease, transform .55s cubic-bezier(.22,1,.36,1); }
@@ -460,7 +465,7 @@
   .chip:active{ transform:translateY(0) scale(.95); }
   .chip.active{ background:var(--green); border-color:var(--green); color:#04170D; }
 
-  /* ---------- Featured row (Aplicaciones destacadas) ---------- */
+  /* ---------- Featured row ---------- */
   .feat-row{
     display:flex; gap:16px; overflow-x:auto; scroll-snap-type:x proximity;
     scrollbar-width:none; padding-bottom:6px;
@@ -705,10 +710,12 @@
     .cards-grid{ grid-template-columns:repeat(auto-fill, minmax(136px,1fr)); gap:12px; }
   }
 </style>
+
 </head>
 <body>
 
   <!-- Navbar -->
+
   <div class="navbar">
     <div class="nav-inner">
       <a class="brand" href="#top" id="brandHome">
@@ -751,6 +758,7 @@
   <div class="nav-scrim" id="navScrim"></div>
 
   <!-- Hero -->
+
   <header class="hero" id="top">
     <!-- decoraciones -->
     <svg class="hero-deco hero-deco-left" viewBox="0 0 220 220" xmlns="http://www.w3.org/2000/svg">
@@ -775,27 +783,27 @@
     <span class="hero-deco-dot" style="width:10px;height:10px;left:22%;top:18%;background:rgba(255,255,255,.4);"></span>
     <span class="hero-deco-dot" style="width:6px;height:6px;left:78%;top:70%;"></span>
 
-    <div class="hero-inner">
-      <p class="hero-emoji">🔥</p>
-      <h1 class="hero-title">Lo mejor en<br>Apps y Juegos para Android</h1>
-      <p class="hero-sub">Descubre las mejores aplicaciones y los juegos más divertidos para Android.</p>
-      <form class="hero-search" id="heroSearchForm">
-        <input type="search" placeholder="Busca tu juego favorito..." id="searchInput" aria-label="Buscar juegos y apps">
-        <button type="submit" aria-label="Buscar">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>
-        </button>
-      </form>
-      <div class="social-row" id="socialRow">
-        <a class="social-fb" data-social="facebook" aria-label="Facebook" target="_blank" rel="noopener"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M22 12a10 10 0 1 0-11.6 9.9v-7H7.9V12h2.5V9.8c0-2.5 1.5-3.9 3.8-3.9 1.1 0 2.2.2 2.2.2v2.5h-1.3c-1.2 0-1.6.8-1.6 1.6V12h2.8l-.4 2.9h-2.4v7A10 10 0 0 0 22 12Z"/></svg></a>
-        <a class="social-x" data-social="x" aria-label="X" target="_blank" rel="noopener"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M18.9 3H22l-7.2 8.2L23.2 21h-6.6l-5.2-6.6L5.4 21H2.3l7.7-8.8L1.2 3h6.8l4.7 6.1L18.9 3Z"/></svg></a>
-        <a class="social-ig" data-social="instagram" aria-label="Instagram" target="_blank" rel="noopener"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="5"/><circle cx="12" cy="12" r="4"/><circle cx="17.5" cy="6.5" r="1"/></svg></a>
-        <a class="social-yt" data-social="youtube" aria-label="YouTube" target="_blank" rel="noopener"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M10 15.5v-7l6 3.5-6 3.5Z"/></svg></a>
-        <a class="social-pin" data-social="pinterest" aria-label="Pinterest" target="_blank" rel="noopener"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2a10 10 0 0 0-3.6 19.3c0-.8 0-1.8.2-2.6l1.4-6s-.3-.7-.3-1.7c0-1.6.9-2.8 2.1-2.8 1 0 1.5.7 1.5 1.6 0 1-.6 2.5-1 3.9-.2 1.1.6 2 1.7 2 2 0 3.5-2.1 3.5-5.2 0-2.7-2-4.6-4.7-4.6-3.2 0-5.1 2.4-5.1 4.9 0 1 .4 2 .8 2.6.1.1.1.2.1.3l-.3 1.3c0 .2-.2.3-.4.2-1.4-.6-2.2-2.6-2.2-4.2 0-3.4 2.5-6.5 7.1-6.5 3.7 0 6.6 2.6 6.6 6.2 0 3.7-2.3 6.7-5.6 6.7-1.1 0-2.1-.6-2.5-1.2l-.7 2.6c-.2 1-.9 2.2-1.3 3A10 10 0 1 0 12 2Z"/></svg></a>
-        <a class="social-tg" data-social="telegram" aria-label="Telegram" target="_blank" rel="noopener"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M21.9 4.3 2.6 11.9c-1.3.5-1.3 1.2-.2 1.6l4.9 1.5 1.9 5.8c.2.6.5.8.9.8.4 0 .6-.2.8-.4l2.6-2.5 5 3.7c.9.5 1.6.3 1.8-.9L23.6 5.5c.3-1.4-.5-2-1.7-1.2Z"/></svg></a>
-      </div>
-    </div>
-  </header>
+<div class="hero-inner">
+  <p class="hero-emoji">🔥</p>
+  <h1 class="hero-title">Lo mejor en<br>Apps y Juegos para Android</h1>
+  <p class="hero-sub">Descubre las mejores aplicaciones y los juegos más divertidos para Android.</p>
+  <form class="hero-search" id="heroSearchForm">
+    <input type="search" placeholder="Busca tu juego favorito..." id="searchInput" aria-label="Buscar juegos y apps">
+    <button type="submit" aria-label="Buscar">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>
+    </button>
+  </form>
+  <div class="social-row" id="socialRow">
+    <a class="social-fb" data-social="facebook" aria-label="Facebook" target="_blank" rel="noopener"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M22 12a10 10 0 1 0-11.6 9.9v-7H7.9V12h2.5V9.8c0-2.5 1.5-3.9 3.8-3.9 1.1 0 2.2.2 2.2.2v2.5h-1.3c-1.2 0-1.6.8-1.6 1.6V12h2.8l-.4 2.9h-2.4v7A10 10 0 0 0 22 12Z"/></svg></a>
+    <a class="social-x" data-social="x" aria-label="X" target="_blank" rel="noopener"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M18.9 3H22l-7.2 8.2L23.2 21h-6.6l-5.2-6.6L5.4 21H2.3l7.7-8.8L1.2 3h6.8l4.7 6.1L18.9 3Z"/></svg></a>
+    <a class="social-ig" data-social="instagram" aria-label="Instagram" target="_blank" rel="noopener"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="5"/><circle cx="12" cy="12" r="4"/><circle cx="17.5" cy="6.5" r="1"/></svg></a>
+    <a class="social-yt" data-social="youtube" aria-label="YouTube" target="_blank" rel="noopener"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M10 15.5v-7l6 3.5-6 3.5Z"/></svg></a>
+    <a class="social-pin" data-social="pinterest" aria-label="Pinterest" target="_blank" rel="noopener"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2a10 10 0 0 0-3.6 19.3c0-.8 0-1.8.2-2.6l1.4-6s-.3-.7-.3-1.7c0-1.6.9-2.8 2.1-2.8 1 0 1.5.7 1.5 1.6 0 1-.6 2.5-1 3.9-.2 1.1.6 2 1.7 2 2 0 3.5-2.1 3.5-5.2 0-2.7-2-4.6-4.7-4.6-3.2 0-5.1 2.4-5.1 4.9 0 1 .4 2 .8 2.6.1.1.1.2.1.3l-.3 1.3c0 .2-.2.3-.4.2-1.4-.6-2.2-2.6-2.2-4.2 0-3.4 2.5-6.5 7.1-6.5 3.7 0 6.6 2.6 6.6 6.2 0 3.7-2.3 6.7-5.6 6.7-1.1 0-2.1-.6-2.5-1.2l-.7 2.6c-.2 1-.9 2.2-1.3 3A10 10 0 1 0 12 2Z"/></svg></a>
+    <a class="social-tg" data-social="telegram" aria-label="Telegram" target="_blank" rel="noopener"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M21.9 4.3 2.6 11.9c-1.3.5-1.3 1.2-.2 1.6l4.9 1.5 1.9 5.8c.2.6.5.8.9.8.4 0 .6-.2.8-.4l2.6-2.5 5 3.7c.9.5 1.6.3 1.8-.9L23.6 5.5c.3-1.4-.5-2-1.7-1.2Z"/></svg></a>
+  </div>
+</div>
 
+  </header>
 
   <div id="viewHome">
     <!-- Aplicaciones destacadas -->
@@ -810,50 +818,27 @@
       <div class="feat-row" id="featRow"></div>
     </section>
 
-    <!-- Catálogo / Actualizaciones recientes -->
-    <section class="section reveal" id="catalogSection">
-      <div class="section-head">
-        <h2>Actualizaciones recientes</h2>
-        <div class="chip-row" id="categoryBar">
-          <button class="chip active" data-cat="all" type="button">Todos</button>
-          <button class="chip" data-cat="accion" type="button">Acción</button>
-          <button class="chip" data-cat="aventura" type="button">Aventura</button>
-          <button class="chip" data-cat="arcade" type="button">Arcade</button>
-          <button class="chip" data-cat="deportes" type="button">Deportes</button>
-          <button class="chip" data-cat="apps" type="button">Apps</button>
-        </div>
-      </div>
-      <p class="result-count" id="resultCount"></p>
-      <div class="cards-grid" id="gameGrid">
-        <!-- ==========================================================
-             CÓMO AGREGAR UN JUEGO
-             Edita el array "games" al final del archivo (dentro del
-             <script>) y agrega un objeto con este formato:
-
-             {
-               title: "Nombre del juego",
-               category: "accion",        // accion, aventura, arcade, deportes o apps
-               rating: 4.5,
-               size: "85 MB",
-               version: "1.2.3",          // opcional — se muestra en las tarjetas
-               date: "agosto 14, 2026",   // opcional — se muestra en las tarjetas
-               color: "#2563EB",          // color del ícono si NO hay portada
-               initials: "NJ",            // iniciales si NO hay portada
-               cover: "img/tuimagen.png", // ruta o URL de la portada
-               description: "Breve descripción.",
-               downloads: [
-                 { label: "Mediafire", note: "Servidor directo", url: "https://www.mediafire.com/..." }
-               ]
-             }
-
-             Se ordenan solos alfabéticamente, no importa el orden aquí.
-           =========================================================== -->
-      </div>
-    </section>
+<!-- Catálogo / Actualizaciones recientes -->
+<section class="section reveal" id="catalogSection">
+  <div class="section-head">
+    <h2>Actualizaciones recientes</h2>
+    <div class="chip-row" id="categoryBar">
+      <button class="chip active" data-cat="all" type="button">Todos</button>
+      <button class="chip" data-cat="accion" type="button">Acción</button>
+      <button class="chip" data-cat="aventura" type="button">Aventura</button>
+      <button class="chip" data-cat="arcade" type="button">Arcade</button>
+      <button class="chip" data-cat="deportes" type="button">Deportes</button>
+      <button class="chip" data-cat="apps" type="button">Apps</button>
+    </div>
+  </div>
+  <p class="result-count" id="resultCount"></p>
+  <div class="cards-grid" id="gameGrid"></div>
+</section>
 
   </div>
 
   <!-- Página: Mejores valorados -->
+
   <div id="viewTopRated" style="display:none;">
     <section class="section reveal">
       <div class="section-head">
@@ -873,11 +858,13 @@
   </footer>
 
   <!-- Botón flotante: Sugerir -->
+
   <button class="fab" id="fabSuggest" type="button" aria-label="Sugerir un juego o app">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>
   </button>
 
   <!-- Detail sheet -->
+
   <div class="overlay" id="overlay">
     <div class="sheet" id="sheet" role="dialog" aria-modal="true" aria-labelledby="sheetTitle">
       <div class="sheet-handle"></div>
@@ -897,23 +884,25 @@
         <p class="dl-label">Métodos de descarga</p>
         <div class="dl-list" id="sheetDownloads"></div>
 
-        <div class="heart-prompt" id="heartPrompt">
-          <div class="heart-card">
-            <div class="heart-card-text">
-              <strong>¿Te gustó?</strong>
-              <span>Dale un corazón para ayudar a otros a encontrarlo</span>
-            </div>
-            <button class="heart-btn" id="heartBtn" type="button" aria-label="Dar corazón">
-              <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 21s-6.7-4.35-9.3-8.1C1 10.1 1.6 6.6 4.6 5.2c2.2-1 4.6-.2 5.9 1.6L12 8.4l1.5-1.6c1.3-1.8 3.7-2.6 5.9-1.6 3 1.4 3.6 4.9 1.9 7.7C18.7 16.65 12 21 12 21z"/></svg>
-              <span class="heart-count-badge" id="heartCountBadge">0</span>
-            </button>
-          </div>
+    <div class="heart-prompt" id="heartPrompt">
+      <div class="heart-card">
+        <div class="heart-card-text">
+          <strong>¿Te gustó?</strong>
+          <span>Dale un corazón para ayudar a otros a encontrarlo</span>
         </div>
+        <button class="heart-btn" id="heartBtn" type="button" aria-label="Dar corazón">
+          <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 21s-6.7-4.35-9.3-8.1C1 10.1 1.6 6.6 4.6 5.2c2.2-1 4.6-.2 5.9 1.6L12 8.4l1.5-1.6c1.3-1.8 3.7-2.6 5.9-1.6 3 1.4 3.6 4.9 1.9 7.7C18.7 16.65 12 21 12 21z"/></svg>
+          <span class="heart-count-badge" id="heartCountBadge">0</span>
+        </button>
       </div>
     </div>
   </div>
+</div>
+
+  </div>
 
   <!-- Suggestion sheet -->
+
   <div class="overlay" id="suggestOverlay">
     <div class="sheet" id="suggestSheet" role="dialog" aria-modal="true" aria-labelledby="suggestTitle">
       <div class="sheet-handle"></div>
@@ -949,11 +938,6 @@
   </div>
 
 <script>
-  // ======================================================
-  // AGREGA TUS JUEGOS AQUÍ. Se ordenan solos alfabéticamente.
-  // Campos "version" y "date" son opcionales: si los agregas,
-  // se muestran en las tarjetas y en la ficha.
-  // ======================================================
   const games = [
     {
       title: "Minecraft 26.44.3",
@@ -963,7 +947,7 @@
       color: "#65EB2A",
       initials: "",
       cover: "img/Minecraft.png",
-      description: "Minecraft es un videojuego de mundo abierto y tipo sandbox (caja de arena) donde los jugadores pueden explorar, extraer recursos, construir y sobrevivir en un entorno tridimensional formado por bloques con texturas pixeladas.",
+      description: "Minecraft es un videojuego de mundo abierto y tipo sandbox donde los jugadores pueden explorar, extraer recursos, construir y sobrevivir en un entorno tridimensional formado por bloques con texturas pixeladas.",
       downloads: [
         { label: "Mediafire", note: "Servidor directo", url: "https://www.mediafire.com/file/wwtli86bvjq1wtw/minecraft-26-44-apkprojects.apk/file" },
         { label: "Mega (No disponible)", note: "Alternativa", url: "https://mega.nz/" }
@@ -997,11 +981,6 @@
     },    
   ];
 
-  // ======================================================
-  // TUS REDES SOCIALES — pon aquí tus enlaces reales.
-  // El botón de cualquier red que dejes vacía ("") se OCULTA
-  // automáticamente, en vez de mostrar un enlace roto.
-  // ======================================================
   const SOCIAL_LINKS = {
     facebook: "",
     x: "",
@@ -1033,7 +1012,6 @@
     return g.cover ? `<img src="${g.cover}" alt="${g.title}" loading="lazy">` : (g.initials || g.title.slice(0,2).toUpperCase());
   }
 
-  // Línea de metadatos: usa versión/fecha si existen, si no cae en el tamaño.
   function metaLine(g){
     const parts = [];
     if(g.version) parts.push(`v${g.version}`);
@@ -1042,18 +1020,7 @@
     return parts.join(' · ');
   }
 
-  // ---------- Corazones: valoración REAL y COMPARTIDA entre todos los usuarios ----------
-  // Cada juego arranca en 0. Los conteos se guardan en un contador público
-  // (Abacus) para que TODOS los visitantes vean el mismo número — no cada
-  // quien el suyo. Solo se guarda localmente si YA votaste, para no dejarte
-  // votar dos veces desde el mismo navegador.
-  //
-  // IMPORTANTE: esto usa un servicio gratuito de terceros (abacus.jasoncameron.dev).
-  // Es suficiente para un contador de "me gusta" simple, pero si más adelante
-  // quieres algo 100% bajo tu control (y con mejor protección anti-trampas),
-  // lo ideal es un backend propio (Firebase/Supabase). Puedo ayudarte con eso
-  // cuando quieras.
-  const HEARTS_NAMESPACE = 'apkprojects-thiagodelsolad'; // cámbialo por algo único si quieres tu propio espacio
+  const HEARTS_NAMESPACE = 'apkprojects-thiagodelsolad';
   const VOTED_KEY = 'apkprojects_voted_v1';
 
   function loadStore(key){
@@ -1067,7 +1034,7 @@
   }
 
   let votedData = loadStore(VOTED_KEY);
-  let heartsCache = {}; // último valor conocido de cada juego (compartido, viene del servidor)
+  let heartsCache = {};
 
   function heartKey(title){
     return encodeURIComponent(title.toLowerCase().trim().replace(/\s+/g, '-'));
@@ -1093,7 +1060,7 @@
       const data = await res.json();
       heartsCache[title] = data.value;
     }catch(e){
-      heartsCache[title] = heartsFor(title) + 1; // respaldo si falla la red
+      heartsCache[title] = heartsFor(title) + 1;
     }
     votedData[title] = true;
     saveStore(VOTED_KEY, votedData);
@@ -1103,7 +1070,6 @@
 
   const HEART_SVG = '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 21s-6.7-4.35-9.3-8.1C1 10.1 1.6 6.6 4.6 5.2c2.2-1 4.6-.2 5.9 1.6L12 8.4l1.5-1.6c1.3-1.8 3.7-2.6 5.9-1.6 3 1.4 3.6 4.9 1.9 7.7C18.7 16.65 12 21 12 21z"/></svg>';
 
-  // ---------- Página "Mejores valorados" ----------
   const topRatedGrid = document.getElementById('topRatedGrid');
 
   function rankClass(i){
@@ -1134,7 +1100,7 @@
         <div class="empty">
           <div class="empty-mark">❤</div>
           <h3>Todavía nadie ha valorado nada</h3>
-          <p>Abre un juego, descárgalo y dale un corazón desde su ficha — en cuanto reciba su primer voto, aparecerá aquí para todos.</p>
+          <p>Abre un juego, descárgalo y dale un corazón desde su ficha.</p>
         </div>`;
       return;
     }
@@ -1159,7 +1125,6 @@
     if(game) openSheet(game);
   });
 
-  // ---------- Aplicaciones destacadas ----------
   function renderFeatured(){
     if(!games.length){ featRow.innerHTML = ''; return; }
     const top = games.slice().sort((a,b) => b.rating - a.rating).slice(0,6);
@@ -1181,7 +1146,6 @@
     });
   }
 
-  // ---------- Catálogo principal ----------
   function render(){
     const term = searchInput.value.trim().toLowerCase();
     let filtered = games
@@ -1198,7 +1162,7 @@
         <div class="empty">
           <div class="empty-mark">AP</div>
           <h3>${games.length ? 'No encontramos nada con esa búsqueda' : 'Todavía no hay juegos aquí'}</h3>
-          <p>${games.length ? 'Prueba con otra palabra, quita filtros, o usa "Sugerir" para pedirlo.' : 'Agrega tu primer juego editando el array <code>games</code> al final del archivo HTML.'}</p>
+          <p>${games.length ? 'Prueba con otra palabra o categoría.' : 'Agrega tu primer juego.'}</p>
         </div>`;
       return;
     }
@@ -1213,7 +1177,6 @@
     `).join('');
   }
 
-  // ---------- Detail sheet ----------
   const overlay = document.getElementById('overlay');
   const sheetIcon = document.getElementById('sheetIcon');
   const sheetTitle = document.getElementById('sheetTitle');
@@ -1236,7 +1199,6 @@
     sheetIcon.innerHTML = iconMarkup(game);
     sheetIcon.style.background = game.cover ? 'transparent' : game.color;
     sheetTitle.textContent = game.title;
-    const metaBits = [starString(game.rating||0)];
     const extra = metaLine(game);
     sheetMeta.innerHTML = `<span class="stars">${starString(game.rating||0)}</span> ${ (game.rating||0).toFixed(1) }${extra ? ` · ${extra}` : ''}`;
     sheetTag.textContent = game.category;
@@ -1264,6 +1226,7 @@
       if(currentGameTitle === game.title) updateHeartUI(game.title);
     });
   }
+
   function closeSheet(){
     overlay.classList.remove('show');
     document.body.classList.remove('sheet-open');
@@ -1297,10 +1260,9 @@
     heartCountBadge.textContent = count;
   });
 
-  // ---------- Suggestion sheet ----------
   const suggestOverlay = document.getElementById('suggestOverlay');
   const suggestForm = document.getElementById('suggestForm');
-  const SUGGEST_EMAIL = 'thiagodelsolad@gmail.com'; // <-- correo de contacto para sugerencias
+  const SUGGEST_EMAIL = 'thiagodelsolad@gmail.com';
 
   function openSuggest(){
     suggestOverlay.classList.add('show');
@@ -1331,7 +1293,6 @@
     if(e.key === 'Escape'){ closeSheet(); closeSuggest(); closeMobileNav(); }
   });
 
-  // ---------- Filtro por categoría (chips + dropdowns del menú) ----------
   function setCategory(cat){
     activeCat = cat;
     categoryBar.querySelectorAll('.chip').forEach(b => b.classList.toggle('active', b.dataset.cat === cat));
@@ -1363,7 +1324,6 @@
     closeMobileNav();
   });
 
-  // ---------- Búsqueda ----------
   heroSearchForm.addEventListener('submit', (e) => {
     e.preventDefault();
     showView('home');
@@ -1372,7 +1332,6 @@
   });
   searchInput.addEventListener('input', render);
 
-  // ---------- Dropdowns de navegación (desktop) ----------
   function closeAllDropdowns(except){
     document.querySelectorAll('.nav-dropdown').forEach(dd => { if(dd !== except) dd.classList.remove('open'); });
   }
@@ -1392,7 +1351,6 @@
   });
   document.addEventListener('click', () => closeAllDropdowns());
 
-  // ---------- Menú móvil ----------
   const navToggle = document.getElementById('navToggle');
   const navLinks = document.getElementById('navLinks');
   const navScrim = document.getElementById('navScrim');
@@ -1403,7 +1361,6 @@
   });
   navScrim.addEventListener('click', closeMobileNav);
 
-  // ---------- Vista Catálogo <-> Mejores valorados ----------
   const viewHome = document.getElementById('viewHome');
   const viewTopRated = document.getElementById('viewTopRated');
   const navViral = document.getElementById('navViral');
@@ -1437,11 +1394,8 @@
     window.scrollTo({top:0, behavior:'smooth'});
   });
 
-  // ---------- Botón flotante: Sugerir ----------
   document.getElementById('fabSuggest').addEventListener('click', openSuggest);
 
-
-  // ---------- Animación de aparición de secciones al hacer scroll ----------
   const revealObserver = new IntersectionObserver((entries) => {
     entries.forEach(entry => {
       if(entry.isIntersecting){
@@ -1455,7 +1409,6 @@
   renderFeatured();
   render();
 
-  // ---------- Pageview QA correlacionado: Bridge local o query string ----------
   (async function() {
     try {
       const classification = window.__QA_CLASSIFICATION_PROMISE__
@@ -1498,9 +1451,7 @@
       console.error("Error al registrar pageview QA:", err);
     }
   })();
-
 </script>
-
 
 </body>
 </html>
