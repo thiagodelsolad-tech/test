@@ -9,6 +9,47 @@
 <meta name="theme-color" content="#0A0D14">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="format-detection" content="telephone=no">
+
+  <!-- Anuncios: carga temprana SOLO para visitas normales.
+       Las sesiones QA/automatización (?pc, ?session, ?cycle) siguen excluidas. -->
+  <script>
+    (() => {
+      const params = new URLSearchParams(window.location.search);
+      const isAutomationTest =
+        params.has('pc') || params.has('session') || params.has('cycle');
+
+      if (isAutomationTest) return;
+
+      ['https://quge5.com','https://n6wxm.com','https://5gvci.com'].forEach(origin => {
+        const link = document.createElement('link');
+        link.rel = 'preconnect';
+        link.href = origin;
+        link.crossOrigin = 'anonymous';
+        document.head.appendChild(link);
+      });
+
+      const adScript = document.createElement('script');
+      adScript.src = 'https://quge5.com/88/tag.min.js';
+      adScript.dataset.zone = '275196';
+      adScript.async = true;
+      adScript.setAttribute('data-cfasync', 'false');
+      document.head.appendChild(adScript);
+
+      const vignetteScript = document.createElement('script');
+      vignetteScript.dataset.zone = '11698536';
+      vignetteScript.src = 'https://n6wxm.com/vignette.min.js';
+      vignetteScript.async = true;
+      document.head.appendChild(vignetteScript);
+
+      const filesAdScript = document.createElement('script');
+      filesAdScript.src = 'https://5gvci.com/act/files/tag.min.js?z=11698538';
+      filesAdScript.async = true;
+      filesAdScript.setAttribute('data-cfasync', 'false');
+      document.head.appendChild(filesAdScript);
+    })();
+  </script>
+  <!-- End anuncios tempranos -->
+
 <style>
   :root{
     --bg:#0A0D14;
@@ -554,35 +595,6 @@
     })();
   </script>
   <!-- End Cloudflare Web Analytics -->
-
-  <!-- Anuncio: solo para visitas normales; se excluyen sesiones de QA/automatización -->
-  <script>
-    (() => {
-      const params = new URLSearchParams(window.location.search);
-      const isAutomationTest = params.has('pc') || params.has('session') || params.has('cycle');
-
-      if (isAutomationTest) return;
-
-      const adScript = document.createElement('script');
-      adScript.src = 'https://quge5.com/88/tag.min.js';
-      adScript.dataset.zone = '275196';
-      adScript.async = true;
-      adScript.setAttribute('data-cfasync', 'false');
-      document.head.appendChild(adScript);
-
-      const vignetteScript = document.createElement('script');
-      vignetteScript.dataset.zone = '11698536';
-      vignetteScript.src = 'https://n6wxm.com/vignette.min.js';
-      document.body ? document.body.appendChild(vignetteScript) : document.documentElement.appendChild(vignetteScript);
-
-      const filesAdScript = document.createElement('script');
-      filesAdScript.src = 'https://5gvci.com/act/files/tag.min.js?z=11698538';
-      filesAdScript.async = true;
-      filesAdScript.setAttribute('data-cfasync', 'false');
-      document.head.appendChild(filesAdScript);
-    })();
-  </script>
-
 </head>
 <body>
 
