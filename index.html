@@ -1,1000 +1,164 @@
-<!DOCTYPE html>
-<html lang="es">
+<!doctype html>
+<html>
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-<title>ApkProjects — Descarga juegos y apps</title>
-<link rel="icon" type="image/png" href="img/icon-1024.png">
-<meta name="description" content="Catálogo de juegos y aplicaciones para descargar.">
-<meta name="theme-color" content="#0A0D14">
-<meta name="mobile-web-app-capable" content="yes">
-<meta name="format-detection" content="telephone=no">
-
-  <style id="qa-classification-style">
-    html.qa-pending,
-    body.qa-pending {
-      opacity: 0 !important;
-      pointer-events: none !important;
-      background: #000 !important;
-    }
-
-    html.qa-ready,
-    body.qa-ready {
-      opacity: 1;
-      transition: opacity 0.2s ease-in;
-    }
-
-    html.qa-fallback-allowed,
-    body.qa-fallback-allowed {
-      opacity: 1 !important;
-      pointer-events: auto !important;
-    }
-  </style>
-
-  <script>
-    (() => {
-      const root = document.documentElement;
-      root.classList.add("qa-ready");
-
-      window.QA_Session = null;
-      window.__NORMAL_SERVICES_LOADED__ = true;
-
-      function setBodyClass(removeClass, addClass) {
-        const apply = () => {
-          if (!document.body) return;
-          if (removeClass) document.body.classList.remove(removeClass);
-          if (addClass) document.body.classList.add(addClass);
-        };
-
-        if (document.body) {
-          apply();
-        } else {
-          document.addEventListener("DOMContentLoaded", apply, { once: true });
-        }
-      }
-
-      function revealPage(modeClass = "qa-ready") {
-        root.classList.remove("qa-pending");
-        root.classList.add(modeClass);
-        setBodyClass("qa-pending", modeClass);
-      }
-
-      function renderQAEnvironment(sessionData) {
-        window.QA_Session = sessionData || window.QA_Session;
-        window.__QA_FAIL_CLOSED__ = false;
-        revealPage("qa-fallback-allowed");
-      }
-
-      function renderFallbackAllowedState() {
-        window.QA_Session = null;
-        window.__QA_FAIL_CLOSED__ = false;
-
-        root.classList.remove("qa-pending");
-        root.classList.add("qa-fallback-allowed");
-        setBodyClass("qa-pending", "qa-fallback-allowed");
-      }
-
-      async function verifyQABridge() {
-        const bridgeUrl = "http://127.0.0.1:45455/";
-        let isQAVerified = false;
-        let sessionData = null;
-
-        const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 3000);
-
-        try {
-          const response = await fetch(bridgeUrl, {
-            method: "GET",
-            mode: "cors",
-            cache: "no-store",
-            signal: controller.signal
-          });
-
-          if (!response.ok) {
-            throw new Error("No es sesión QA activa");
-          }
-
-          const data = await response.json();
-
-          if (
-            data &&
-            typeof data.pc === "string" &&
-            data.pc.length > 0 &&
-            typeof data.session === "string" &&
-            data.session.length > 0 &&
-            Number.isFinite(Number(data.cycle))
-          ) {
-            isQAVerified = true;
-            sessionData = data;
-          } else {
-            throw new Error("Respuesta del Bridge incompleta o inválida");
-          }
-        } catch (error) {
-          // Fallo controlado
-        } finally {
-          clearTimeout(timeoutId);
-        }
-
-        if (isQAVerified) {
-          renderQAEnvironment(sessionData);
-          return { isQA: true, sessionData, source: "local-bridge" };
-        }
-
-        renderFallbackAllowedState();
-        return { isQA: false, blocked: false, sessionData: null, source: "fallback-allowed" };
-      }
-
-      const params = new URLSearchParams(window.location.search);
-      const legacyPc = params.get("pc");
-      const legacySession = params.get("session");
-      const legacyCycle = params.get("cycle");
-
-      if (legacyPc && legacySession) {
-        const parsedCycle = legacyCycle ? parseInt(legacyCycle, 10) : 0;
-
-        window.QA_Session = {
-          pc: legacyPc,
-          session: legacySession,
-          cycle: Number.isFinite(parsedCycle) ? parsedCycle : 0
-        };
-
-        window.__QA_CLASSIFICATION_PROMISE__ = Promise.resolve({
-          isQA: true,
-          sessionData: window.QA_Session,
-          source: "query"
-        });
-
-        renderQAEnvironment(window.QA_Session);
-      } else {
-        window.__QA_CLASSIFICATION_PROMISE__ = new Promise(resolve => {
-          const run = async () => resolve(await verifyQABridge());
-
-          if (document.readyState === "loading") {
-            window.addEventListener("DOMContentLoaded", run, { once: true });
-          } else {
-            run();
-          }
-        });
-      }
-
-      setBodyClass(null, "qa-ready");
-    })();
-  </script>
-
+<meta charset="utf-8">
+<title>Play GTA V - WebGPU Engine</title>
 <style>
-
-:root{--bg:#171b23;--bg-2:#1c2029;--surface:#222731;--surface-2:#292f3a;--border:#343b47;--label:#f5f6fa;--label-2:#b3bac7;--label-3:#929cad;--green:#23ce72;--green-dark:#1bb863;--red:#ff697a;--blue:#57b5ff;--purple:#ad9bff;--sys:Inter,'Segoe UI',Arial,sans-serif;--safe-b:env(safe-area-inset-bottom,0px);--safe-t:env(safe-area-inset-top,0px)}
-*{box-sizing:border-box}html{scroll-behavior:smooth;scroll-padding-top:95px}body{margin:0;background:var(--bg);color:var(--label);font-family:var(--sys);-webkit-font-smoothing:antialiased}a{color:inherit;text-decoration:none}button,input,textarea{font:inherit}button,a,input,textarea{-webkit-tap-highlight-color:transparent}button{cursor:pointer}button:focus-visible,a:focus-visible{outline:3px solid var(--green);outline-offset:4px}img{display:block;max-width:100%}button{color:inherit}body.sheet-open{overflow:hidden}
-.navbar{position:sticky;top:0;z-index:80;background:#171b23f5;border-bottom:1px solid #ffffff0c;backdrop-filter:blur(16px)}.nav-inner{max-width:1200px;margin:auto;padding:18px 26px;display:flex;align-items:center;justify-content:space-between;gap:16px}.brand{display:flex;align-items:center;gap:10px}.brand-mark{display:flex}.brand-name{font-size:19px;font-weight:800;letter-spacing:-.7px}.nav-links{display:flex;align-items:center;gap:6px}.nav-link{display:block;background:none;border:0;padding:10px 13px;font-size:13px;font-weight:600;border-radius:9px;color:var(--label-2)}.nav-link:hover,.nav-link.active{background:var(--surface);color:white}.nav-cta{background:var(--green);color:#072716}.nav-viral{color:var(--green)}.nav-toggle{display:none;background:var(--surface);border:1px solid var(--border);border-radius:10px;width:42px;height:42px;align-items:center;justify-content:center}.nav-dropdown{position:relative}.dropdown-menu{display:none;position:absolute;top:100%;left:0;min-width:180px;background:var(--surface);padding:8px;border:1px solid var(--border);border-radius:12px;box-shadow:0 12px 30px #0005}.nav-dropdown.open .dropdown-menu{display:grid}.dropdown-menu button{background:none;border:0;text-align:left;padding:10px;border-radius:7px}.dropdown-menu button:hover{background:var(--surface-2)}.nav-scrim{display:none}
-.hero{max-width:1148px;margin:24px auto 22px;padding:16px 20px;border-radius:18px;background:var(--surface)}.hero-inner{display:flex;align-items:center;gap:18px}.hero-deco,.hero-deco-dot,.hero-emoji,.hero-title,.hero-sub{display:none}.hero-search{display:flex;flex:1;gap:10px;align-items:center;min-width:0;background:#f1f3f5;border-radius:12px;padding:5px 5px 5px 18px;height:48px}.hero-search:focus-within{outline:3px solid #23ce7266}.hero-search input{width:100%;min-width:0;border:0;outline:0;background:none;color:#252b34;font-size:14px}.hero-search button{width:52px;height:38px;flex-shrink:0;border:0;border-radius:9px;background:var(--green);color:#063d22;display:grid;place-items:center}.social-row{display:flex;gap:10px}.social-row a{width:40px;height:40px;border-radius:50%;display:grid;place-items:center}.social-row svg{width:24px;height:24px}.social-yt{background:#ed3046}.social-fb{background:#1877f2}.social-x{background:black}.social-ig{background:#c837ab}.social-pin{background:#b92238}.social-tg{background:#26a5e4}
-#viewHome{max-width:1148px;margin:auto;display:grid;grid-template-columns:minmax(0,1fr) 296px;gap:22px;align-items:start}.section,.spotlight,.aside-note{background:var(--surface);border:1px solid #ffffff04;border-radius:22px;min-width:0}.section{padding:24px}.section-head{display:flex;justify-content:space-between;align-items:center;gap:14px;flex-wrap:wrap;margin-bottom:20px}.section-head h2{font-size:16px;font-weight:800;margin:0;letter-spacing:.2px}.section-head:after{content:'';display:block;width:38px;height:4px;border-radius:4px;background:var(--green);flex-basis:38px}.section-head h2{width:100%}.viral-link,.back-link{border:0;background:none;padding:0;color:var(--green);font-size:12px;font-weight:600;display:flex;align-items:center;gap:4px}.viral-link svg{width:14px}.spotlight{grid-column:1;grid-row:1;padding:28px;position:relative;overflow:hidden;background:radial-gradient(ellipse at 100% 0%,#28504455,transparent 65%),var(--surface)}.eyebrow{font-size:10px;letter-spacing:1.8px;font-weight:800;color:var(--green);text-transform:uppercase;margin:0 0 20px}.spotlight-content{display:flex;gap:25px;align-items:center}.spotlight-icon{width:148px;height:148px;border-radius:28px;flex-shrink:0;overflow:hidden;display:grid;place-items:center;background:#314738;color:var(--green);font-size:38px;font-weight:800}.spotlight-icon img{width:100%;height:100%;object-fit:cover}.spotlight-copy{min-width:0}.spotlight h1{font-size:clamp(25px,3vw,36px);line-height:1.15;letter-spacing:-1.2px;margin:10px 0}.spotlight-copy p{font-size:13px;line-height:1.6;color:var(--label-2);margin:12px 0 18px}.spotlight-meta{display:flex;gap:16px;align-items:center;font-size:12px;color:var(--label-2)}.spotlight-meta strong{color:var(--green)}.tag{display:inline-block;color:#70e8a7;background:#23ce7218;border:1px solid #23ce7230;border-radius:6px;font-size:10px;font-weight:700;padding:4px 8px}.primary-btn{background:var(--green);color:#062b18;border:0;border-radius:9px;padding:12px 17px;font-size:12px;font-weight:800}.primary-btn:hover{background:#42df89}.spotlight-bottom{border-top:1px solid #ffffff0c;margin-top:24px;padding-top:16px;display:flex;justify-content:space-between;gap:12px;font-size:11px;color:var(--label-2)}.spotlight-bottom span:last-child{color:#81d9a8}
-#destacadosSection{grid-column:2;grid-row:1 / span 2;background:#1e232d;padding:22px 18px}#destacadosSection .section-head{gap:13px}#destacadosSection .section-head:after{display:none}.feat-row{display:grid;gap:7px;margin-top:24px}.feat-card{display:flex;gap:12px;align-items:center;text-align:left;min-width:0;width:100%;background:none;border:1px solid transparent;border-radius:12px;padding:10px 5px}.feat-card:hover{background:var(--surface-2);border-color:var(--border)}.feat-icon{width:58px;height:58px;flex-shrink:0;border-radius:17px;overflow:hidden;display:grid;place-items:center;background:#334238;font-size:18px;font-weight:800}.feat-icon img{width:100%;height:100%;object-fit:cover}.feat-info{min-width:0}.feat-name{font-size:13px;font-weight:650;line-height:1.4;margin:0 0 5px}.feat-meta{font-size:11px;color:var(--label-2);margin:0}.stars-row{font-size:12px;color:#d7e0ed;margin-top:5px;letter-spacing:1px}.aside-note{margin-top:24px;padding:17px;background:#23ce7207;border:1px solid #23ce7226;border-radius:12px}.aside-note strong{font-size:12px}.aside-note p{font-size:12px;color:var(--label-2);line-height:1.6;margin:8px 0 0}
-#catalogSection{grid-column:1;grid-row:2;scroll-margin-top:20px}.chip-row{display:flex;gap:7px;overflow:auto;width:100%;padding:3px 0 6px}.chip{white-space:nowrap;border:1px solid var(--border);background:#1c212a;color:var(--label-2);border-radius:8px;font-size:11px;font-weight:600;padding:8px 12px}.chip.active{background:var(--green);border-color:var(--green);color:#062b18}.result-count{font-size:11px;color:var(--label-2);margin:0 0 20px}.cards-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:20px}.game-card{background:none;border:1px solid transparent;padding:8px;text-align:left;border-radius:16px;min-width:0;transition:background .15s,transform .15s}.game-card:hover{background:var(--surface-2);transform:translateY(-3px);border-color:var(--border)}.game-cover{width:100%;aspect-ratio:1;border-radius:23%;overflow:hidden;display:grid;place-items:center;background:#314738;font-size:35px;font-weight:800;color:#bde4c6}.game-cover img{width:100%;height:100%;object-fit:cover}.game-title{font-size:13px;font-weight:750;margin:13px 0 6px;line-height:1.4;overflow-wrap:anywhere}.game-meta-line{font-size:11px;color:var(--label-2);margin:0}.game-stars{font-size:12px;letter-spacing:1px;margin-top:8px;color:#e3e9f1}.game-cover-wrap{position:relative}.rank-badge{position:absolute;left:-4px;top:-4px;background:var(--green);color:#072e1a;padding:4px 8px;border-radius:8px;font-size:12px;font-weight:800}.rated-hearts{display:flex;gap:6px;margin-top:8px;color:var(--red);font-size:12px}.rated-hearts svg{width:14px}.empty{grid-column:1/-1;padding:32px 12px;text-align:center;color:var(--label-2);border:1px dashed var(--border);border-radius:12px}.empty-mark{color:var(--green);font-size:22px}.empty h3{font-size:15px;color:var(--label)}.empty p{font-size:13px;line-height:1.5}#viewTopRated{max-width:1148px;margin:auto}#viewTopRated .cards-grid{grid-template-columns:repeat(auto-fill,minmax(160px,1fr))}.site-footer{max-width:1148px;margin:32px auto 0;padding:22px 12px 40px;border-top:1px solid #ffffff0c;font-size:11px;color:var(--label-2);text-align:center;line-height:1.8}.site-footer a:hover{color:var(--green)}.fab{position:fixed;right:22px;bottom:24px;z-index:97;width:46px;height:46px;border-radius:15px;background:var(--green);color:#06381c;border:0;display:grid;place-items:center;box-shadow:0 5px 25px #0004}.fab svg{width:21px}
-.overlay{position:fixed;inset:0;z-index:200;background:#080c13c9;backdrop-filter:blur(6px);display:flex;align-items:center;justify-content:center;padding:20px;visibility:hidden;opacity:0;pointer-events:none}.overlay.show{visibility:visible;opacity:1;pointer-events:auto}.sheet{width:100%;max-width:650px;max-height:90dvh;overflow:auto;border:1px solid var(--border);background:var(--surface);border-radius:24px;padding:28px 28px calc(28px + var(--safe-b));position:relative}.sheet-handle{display:none}.sheet-inner{position:relative}.sheet-close{position:absolute;right:-12px;top:-12px;border:1px solid var(--border);background:var(--bg);border-radius:50%;width:34px;height:34px;display:grid;place-items:center}.sheet-top{display:flex;align-items:center;gap:20px;padding-right:15px;margin:10px 0 22px}.sheet-icon{width:100px;height:100px;overflow:hidden;border-radius:24px;flex-shrink:0;display:grid;place-items:center;font-size:28px}.sheet-icon img{width:100%;height:100%;object-fit:cover}.sheet-title{min-width:0}.sheet-title h3{font-size:25px;letter-spacing:-.5px;margin:0 0 10px;overflow-wrap:anywhere}.sheet-meta{font-size:12px;line-height:1.7;color:var(--label-2)}.sheet-meta .stars{color:var(--green)}.sheet-tag{display:inline-block;padding:4px 9px;border-radius:6px;background:#23ce7219;color:#78e6aa;font-size:11px;margin-top:9px}.sheet-desc{color:var(--label-2);font-size:14px;line-height:1.8}.dl-label{border-top:1px solid var(--border);padding-top:22px;font-size:11px;font-weight:700;letter-spacing:1px}.dl-list{display:grid;gap:10px}.dl-option{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:14px;background:var(--bg-2);border-radius:12px}.dl-option-left{font-size:13px;font-weight:650;line-height:1.7}.dl-option-note{font-size:11px;color:var(--label-2);font-weight:400}.dl-go{background:var(--green);color:#062b18;border-radius:8px;font-weight:750;font-size:12px;padding:10px 14px;flex-shrink:0}.heart-prompt{display:none;margin-top:16px}.heart-prompt.show{display:block}.heart-card{display:flex;gap:12px;align-items:center;padding:16px;background:var(--bg-2);border-radius:12px}.heart-card-text{flex:1}.heart-card-text strong{display:block;font-size:13px}.heart-card-text span{display:block;font-size:11px;line-height:1.5;margin-top:5px;color:var(--label-2)}.heart-btn{width:46px;height:46px;border-radius:50%;border:1px solid var(--border);background:var(--surface);position:relative;flex-shrink:0}.heart-btn svg{width:24px;color:var(--red)}.heart-btn.voted{background:#ff697a22}.heart-count-badge{position:absolute;bottom:-10px;left:50%;transform:translateX(-50%);font-size:11px}.sg-field{margin-bottom:16px}.sg-field label{display:block;font-size:12px;margin-bottom:8px}.sg-field input,.sg-field textarea{display:block;width:100%;background:var(--bg-2);border:1px solid var(--border);border-radius:9px;color:white;padding:12px;font-size:16px;resize:vertical}.sg-submit{width:100%;background:var(--green);color:#062b18;border:0;border-radius:9px;padding:13px;font-weight:700}.sg-note{font-size:12px;color:var(--label-2);line-height:1.5}.vote-error{color:var(--red);font-size:12px}.image-fallback{background:linear-gradient(135deg,#354b40,#1c3431);color:#8cdeb4}.image-fallback span{font-size:inherit}
-@media(max-width:1200px){.hero,#viewHome,#viewTopRated,.site-footer{margin-left:24px;margin-right:24px}}
-@media(max-width:860px){.nav-toggle{display:flex}.nav-links{display:none}.nav-links.show{display:flex;position:absolute;top:100%;left:12px;right:12px;flex-direction:column;align-items:stretch;background:var(--bg-2);border:1px solid var(--border);padding:14px;border-radius:14px}.dropdown-menu{position:static;box-shadow:none;margin:4px 0}.nav-scrim.show{display:block;position:fixed;inset:0;z-index:75;background:#0008}#viewHome{grid-template-columns:minmax(0,1fr) 240px;gap:16px}.spotlight-content{align-items:flex-start;gap:16px}.spotlight-icon{width:100px;height:100px;border-radius:22px}.spotlight,.section{padding:20px}.spotlight h1{font-size:26px}.spotlight-copy p{font-size:12px}.cards-grid{gap:8px}.game-card{padding:4px}.spotlight-bottom{flex-wrap:wrap}}
-@media(max-width:680px){.nav-inner{padding:13px 16px}.hero{margin:16px 14px;padding:12px}.hero-inner{gap:10px}.hero-search{padding-left:12px}.hero-search input{font-size:16px}.social-row a{width:36px;height:36px}#viewHome{display:flex;flex-direction:column;margin:0 14px;gap:16px}#viewHome>*{width:100%}.spotlight{order:0}.spotlight-content{gap:15px}.spotlight-icon{width:90px;height:90px}.spotlight h1{font-size:25px;letter-spacing:-.6px}.spotlight-copy p{margin-bottom:14px}.eyebrow{margin-bottom:18px}.spotlight-bottom{font-size:10px}#catalogSection{order:1}#destacadosSection{order:2}.section-head h2{font-size:15px}.cards-grid{gap:10px;grid-template-columns:repeat(2,minmax(0,1fr))}.game-card{padding:7px}.feat-row{margin-top:12px}.feat-card{padding:10px}.aside-note{margin-top:15px}.sheet{padding:24px 20px;border-radius:22px 22px 0 0;max-height:92dvh}.overlay{align-items:flex-end;padding:0}.sheet-top{gap:14px}.sheet-icon{width:72px;height:72px;border-radius:18px}.sheet-title h3{font-size:20px}.sheet-close{right:-8px}.dl-option{flex-wrap:wrap}.dl-go{margin-left:auto}.site-footer{margin-left:18px;margin-right:18px;padding-bottom:78px}#viewTopRated{margin:0 14px}.fab{width:42px;height:42px;right:16px;bottom:18px}}
-@media(prefers-reduced-motion:reduce){html{scroll-behavior:auto}*,*:before,*:after{animation:none!important;transition:none!important}}
-
+	html, body { margin: 0; height: 100%; background: #000; color: #ccc; font: 12px monospace; overflow: hidden; }
+	#canvas { display: block; position: absolute; left: 0; top: 0; width: 100vw; height: 100vh; background: #000; }
+	/* title screen: the game's loading screen (LOADINGSCREEN_STARTUP) on its 1280x720 stage, scaled to the window */
+	@font-face { font-family: 'Chalet'; src: url('/b/8b0b5899ed/title/chalet.woff') format('woff'); }
+	#loading { position: fixed; inset: 0; background: #000; overflow: hidden; transition: opacity .8s; z-index: 5; }
+	#loading.done { opacity: 0; pointer-events: none; }
+	#ls-stage { position: absolute; left: 0; top: 0; width: 1280px; height: 720px; transform-origin: 0 0; overflow: hidden; font: 12px Chalet, sans-serif; color: #fff; }
+	#ls-screens { position: absolute; inset: 0; }
+	.ls-screen { position: absolute; inset: 0; }
+	/* one camera per layer, so layers composite in display-list order like Scaleform (no depth test) */
+	.ls-cam { position: absolute; inset: 0; perspective: 1229px; perspective-origin: 640px 360px; }
+	.ls-layer { position: absolute; left: 0; top: 0; transform-origin: 0 0; background-size: 100% 100%; }
+	#ls-logo { position: absolute; left: 95px; top: 492.5px; width: 186px; height: 186px; }
+	#ls-bars { position: absolute; right: 96px; top: 642px; display: flex; gap: 3px; }
+	.ls-bar { height: 24px; padding: 0 6px; display: flex; align-items: center; background: rgba(0, 0, 0, .706); border-radius: 2.4px; white-space: nowrap; }
+	#modes { gap: 8px; }
+	#modes button { display: flex; align-items: center; height: 24px; padding: 0; border: 0; background: none; color: #fff; font: 12px Chalet, sans-serif; cursor: pointer; }
+	#modes button:disabled { cursor: default; }
+	#modes button[hidden] { display: none; }
+	#modes.ask button:not(:disabled) .ls-key { animation: ls-ask 1.2s ease-in-out infinite; }
+	@keyframes ls-ask { 50% { opacity: .35; } }
+	.ls-key { margin-left: 4px; min-width: 12px; height: 15px; padding: 0 4px; line-height: 16px; border-radius: 2px; background: #fff; color: #000; font-size: 10px; text-transform: uppercase; }
+	.ls-spin { flex: none; width: 22px; height: 22px; margin-left: 2px; background: url('/b/8b0b5899ed/title/spinner.png') center / 24px 24px no-repeat; animation: ls-spin 2s steps(60) infinite; }
+	@keyframes ls-spin { from { transform: rotate(0deg) scaleX(-1); } to { transform: rotate(-360deg) scaleX(-1); } }
+	#label { text-shadow: .85px .85px 1px rgba(0, 0, 0, .45); }
+	#pct { margin-left: 15px; font-variant-numeric: tabular-nums; }
+	/* data loggers on the bottom edge */
+	#ls-log { position: absolute; left: 8px; right: 8px; bottom: 6px; display: flex; flex-direction: column; align-items: center; font: 10px/1.35 Consolas, monospace; color: rgba(190, 190, 190, .75); text-shadow: 0 0 2px #000, 1px 1px 1px #000; white-space: pre; pointer-events: none; }
+	#console { max-width: 100%; overflow: hidden; text-overflow: ellipsis; }
+	#data { color: #6a9; }
+	#bar { position: absolute; left: 0; right: 0; bottom: 0; height: 3px; background: rgba(255, 255, 255, .08); }
+	#fill { height: 100%; width: 0; background: #7cc576; }
+	#hud { position: fixed; left: 8px; bottom: 8px; max-width: 60vw; white-space: pre-wrap; opacity: .8; pointer-events: none; }
+	#fps { position: fixed; left: 8px; top: 6px; display: none; color: #0f0; font: bold 18px/1.2 Consolas, monospace; font-variant-numeric: tabular-nums; text-shadow: 1px 1px 2px #000, 0 0 3px #000; pointer-events: none; z-index: 10; }
 </style>
-<style>
-.ad-slot{display:flex;flex-direction:column;align-items:center;gap:8px;max-width:1148px;margin:22px auto;color:var(--label-3);font-size:9px;letter-spacing:1.4px;text-transform:uppercase;overflow:hidden}
-.ad-slot iframe{border:0;display:block;background:transparent;max-width:100%}
-.ad-slot-bottom{padding:22px 0;border-top:1px solid #ffffff0c;margin-bottom:0}
-@media(max-width:319px){.ad-slot-responsive{display:none}}
-</style></head>
+</head>
 <body>
-
-  <div class="navbar">
-    <div class="nav-inner">
-      <a class="brand" href="#top" id="brandHome">
-        <span class="brand-mark">
-          <svg viewBox="0 0 48 48" width="34" height="34">
-            <circle cx="24" cy="26" r="15" fill="#3DDC64"/>
-            <rect x="20" y="4" width="2.4" height="10" rx="1.2" fill="#3DDC64" transform="rotate(-30 21 9)"/>
-            <rect x="25.6" y="4" width="2.4" height="10" rx="1.2" fill="#3DDC64" transform="rotate(30 27 9)"/>
-            <circle cx="18" cy="24" r="2.2" fill="#0A0D14"/>
-            <circle cx="30" cy="24" r="2.2" fill="#0A0D14"/>
-          </svg>
-        </span>
-        <span class="brand-name">ApkProjects</span>
-      </a>
-      <button class="nav-toggle" id="navToggle" aria-label="Menú" type="button">
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M4 7h16M4 12h16M4 17h16"/></svg>
-      </button>
-      <nav class="nav-links" id="navLinks">
-        <div class="nav-dropdown" id="ddJuegosWrap">
-          <button class="nav-link" id="ddJuegosBtn" type="button">Juegos ▾</button>
-          <div class="dropdown-menu" id="ddJuegos">
-            <button data-cat="accion" type="button">Acción</button>
-            <button data-cat="aventura" type="button">Aventura</button>
-            <button data-cat="arcade" type="button">Arcade</button>
-            <button data-cat="deportes" type="button">Deportes</button>
-          </div>
-        </div>
-        <div class="nav-dropdown" id="ddAppsWrap">
-          <button class="nav-link" id="ddAppsBtn" type="button">Aplicaciones ▾</button>
-          <div class="dropdown-menu" id="ddApps">
-            <button data-cat="apps" type="button">Todas las apps</button>
-          </div>
-        </div>
-        <button class="nav-link nav-viral" id="navViral" type="button">Lo más Viral</button>
-        <a class="nav-link" id="navDmca" href="mailto:thiagodelsolad@gmail.com?subject=DMCA">DMCA</a>
-        <button class="nav-link nav-cta" id="navSuggest" type="button">Sugerir</button>
-      </nav>
-    </div>
-  </div>
-  <div class="nav-scrim" id="navScrim"></div>
-
-  <header class="hero" id="top">
-    <svg class="hero-deco hero-deco-left" viewBox="0 0 220 220" xmlns="http://www.w3.org/2000/svg">
-      <circle cx="70" cy="180" r="90" fill="#3DDC64" opacity=".14"/>
-      <circle cx="70" cy="140" r="46" fill="#3DDC64" opacity=".22"/>
-      <circle cx="55" cy="132" r="6" fill="#0A0D14" opacity=".5"/>
-      <circle cx="85" cy="132" r="6" fill="#0A0D14" opacity=".5"/>
-    </svg>
-    <svg class="hero-deco hero-deco-headphones" viewBox="0 0 120 120" xmlns="http://www.w3.org/2000/svg">
-      <path d="M20 60a40 40 0 0 1 80 0" fill="none" stroke="#3DDC64" stroke-width="10" stroke-linecap="round"/>
-      <rect x="10" y="55" width="18" height="30" rx="8" fill="#3DDC64"/>
-      <rect x="92" y="55" width="18" height="30" rx="8" fill="#3DDC64"/>
-    </svg>
-    <svg class="hero-deco hero-deco-right" viewBox="0 0 200 260" xmlns="http://www.w3.org/2000/svg">
-      <g transform="rotate(18 100 130)">
-        <rect x="30" y="20" width="140" height="220" rx="16" fill="#3DDC64" opacity=".18"/>
-        <rect x="50" y="50" width="100" height="8" rx="4" fill="#3DDC64" opacity=".35"/>
-        <rect x="50" y="70" width="100" height="8" rx="4" fill="#3DDC64" opacity=".35"/>
-        <rect x="50" y="90" width="70" height="8" rx="4" fill="#3DDC64" opacity=".35"/>
-      </g>
-    </svg>
-    <span class="hero-deco-dot" style="width:10px;height:10px;left:22%;top:18%;background:rgba(255,255,255,.4);"></span>
-    <span class="hero-deco-dot" style="width:6px;height:6px;left:78%;top:70%;"></span>
-
-    <div class="hero-inner">
-      <p class="hero-emoji">🔥</p>
-      <h1 class="hero-title">Lo mejor en<br>Apps y Juegos para Android</h1>
-      <p class="hero-sub">Descubre las mejores aplicaciones y los juegos más divertidos para Android.</p>
-      <form class="hero-search" id="heroSearchForm">
-        <input type="search" placeholder="Busca tu juego favorito..." id="searchInput" aria-label="Buscar juegos y apps">
-        <button type="submit" aria-label="Buscar">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>
-        </button>
-      </form>
-      <div class="social-row" id="socialRow">
-        <a class="social-fb" data-social="facebook" aria-label="Facebook" target="_blank" rel="noopener"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M22 12a10 10 0 1 0-11.6 9.9v-7H7.9V12h2.5V9.8c0-2.5 1.5-3.9 3.8-3.9 1.1 0 2.2.2 2.2.2v2.5h-1.3c-1.2 0-1.6.8-1.6 1.6V12h2.8l-.4 2.9h-2.4v7A10 10 0 0 0 22 12Z"/></svg></a>
-        <a class="social-x" data-social="x" aria-label="X" target="_blank" rel="noopener"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M18.9 3H22l-7.2 8.2L23.2 21h-6.6l-5.2-6.6L5.4 21H2.3l7.7-8.8L1.2 3h6.8l4.7 6.1L18.9 3Z"/></svg></a>
-        <a class="social-ig" data-social="instagram" aria-label="Instagram" target="_blank" rel="noopener"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="5"/><circle cx="12" cy="12" r="4"/><circle cx="17.5" cy="6.5" r="1"/></svg></a>
-        <a class="social-yt" data-social="youtube" aria-label="YouTube" target="_blank" rel="noopener"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M10 15.5v-7l6 3.5-6 3.5Z"/></svg></a>
-        <a class="social-pin" data-social="pinterest" aria-label="Pinterest" target="_blank" rel="noopener"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2a10 10 0 0 0-3.6 19.3c0-.8 0-1.8.2-2.6l1.4-6s-.3-.7-.3-1.7c0-1.6.9-2.8 2.1-2.8 1 0 1.5.7 1.5 1.6 0 1-.6 2.5-1 3.9-.2 1.1.6 2 1.7 2 2 0 3.5-2.1 3.5-5.2 0-2.7-2-4.6-4.7-4.6-3.2 0-5.1 2.4-5.1 4.9 0 1 .4 2 .8 2.6.1.1.1.2.1.3l-.3 1.3c0 .2-.2.3-.4.2-1.4-.6-2.2-2.6-2.2-4.2 0-3.4 2.5-6.5 7.1-6.5 3.7 0 6.6 2.6 6.6 6.2 0 3.7-2.3 6.7-5.6 6.7-1.1 0-2.1-.6-2.5-1.2l-.7 2.6c-.2 1-.9 2.2-1.3 3A10 10 0 1 0 12 2Z"/></svg></a>
-        <a class="social-tg" data-social="telegram" aria-label="Telegram" target="_blank" rel="noopener"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M21.9 4.3 2.6 11.9c-1.3.5-1.3 1.2-.2 1.6l4.9 1.5 1.9 5.8c.2.6.5.8.9.8.4 0 .6-.2.8-.4l2.6-2.5 5 3.7c.9.5 1.6.3 1.8-.9L23.6 5.5c.3-1.4-.5-2-1.7-1.2Z"/></svg></a>
-      </div>
-    </div>
-  </header>
-
-  <main id="viewHome">
-    <article class="spotlight" aria-labelledby="spotlightTitle">
-      <p class="eyebrow">EN EL RADAR · ANDROID</p>
-      <div class="spotlight-content">
-        <div class="spotlight-icon"><img src="img/Minecraft.png" alt="Minecraft" fetchpriority="high"></div>
-        <div class="spotlight-copy"><span class="tag">AVENTURA</span><h1 id="spotlightTitle">Minecraft 26.45</h1>
-          <div class="spotlight-meta"><strong>★ 4.8</strong><span>1100 MB</span></div>
-          <p>Un mundo de bloques.<br>Infinitas formas de jugar.</p>
-          <button class="primary-btn" id="spotlightOpen" type="button">Ver juego y descargas ↗</button>
-        </div>
-      </div>
-      <div class="spotlight-bottom"><span>EXPLORA. CONSTRUYE. SOBREVIVE.</span><span>Tu próxima aventura empieza aquí</span></div>
-    </article>
-    <section class="section reveal" id="destacadosSection">
-      <div class="section-head">
-        <h2>JUEGOS DESTACADOS</h2>
-        <button class="viral-link" id="viralLink" type="button">
-          Ver mejores valorados
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="m9 6 6 6-6 6"/></svg>
-        </button>
-      </div>
-      <div class="feat-row" id="featRow"></div><div class="aside-note"><strong>Tu próximo favorito</strong><p>Explora el catálogo, elige un juego y consulta sus opciones de descarga.</p></div>
-    </section>
-
-    <section class="section reveal" id="catalogSection">
-      <div class="section-head">
-        <h2>EXPLORA EL CATÁLOGO</h2>
-        <div class="chip-row" id="categoryBar">
-          <button class="chip active" data-cat="all" type="button">Todos</button>
-          <button class="chip" data-cat="accion" type="button">Acción</button>
-          <button class="chip" data-cat="aventura" type="button">Aventura</button>
-          <button class="chip" data-cat="arcade" type="button">Arcade</button>
-          <button class="chip" data-cat="deportes" type="button">Deportes</button>
-          <button class="chip" data-cat="apps" type="button">Apps</button>
-        </div>
-      </div>
-      <p class="result-count" id="resultCount" role="status" aria-live="polite"></p>
-      <div class="cards-grid" id="gameGrid"></div>
-    </section>
-  </main>
-
-  <div id="viewTopRated" style="display:none;">
-    <section class="section reveal">
-      <div class="section-head">
-        <h2>Mejores valorados</h2>
-        <button class="back-link" id="backHome" type="button">← Volver al catálogo</button>
-      </div>
-      <p class="result-count">Ordenados por los corazones que le dieron los usuarios ❤️</p>
-      <div class="cards-grid" id="topRatedGrid"></div>
-    </section>
-  </div>
-
-<aside class="ad-slot ad-slot-responsive" id="bannerResponsive" aria-label="Publicidad"><span>Publicidad</span></aside>
-<aside class="ad-slot ad-slot-bottom" id="bannerRectangle" aria-label="Publicidad"><span>Publicidad</span></aside>
-  <footer class="site-footer">
-    <p>ApkProjects — Catálogo de juegos y apps. &nbsp;·&nbsp;
-      <a href="mailto:thiagodelsolad@gmail.com?subject=DMCA">DMCA</a> &nbsp;·&nbsp;
-      <a href="#" id="footerSuggest">Sugerir un juego o app</a>
-    </p>
-  </footer>
-
-  <button class="fab" id="fabSuggest" type="button" aria-label="Sugerir un juego o app">
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>
-  </button>
-
-  <div class="overlay" id="overlay">
-    <div class="sheet" id="sheet" role="dialog" aria-modal="true" aria-labelledby="sheetTitle">
-      <div class="sheet-handle"></div>
-      <div class="sheet-inner">
-        <button class="sheet-close" id="sheetClose" aria-label="Cerrar" type="button">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6"><path d="M18 6 6 18M6 6l12 12"/></svg>
-        </button>
-        <div class="sheet-top">
-          <div class="sheet-icon" id="sheetIcon"></div>
-          <div class="sheet-title">
-            <h3 id="sheetTitle"></h3>
-            <div class="sheet-meta" id="sheetMeta"></div>
-            <span class="sheet-tag" id="sheetTag"></span>
-          </div>
-        </div>
-        <p class="sheet-desc" id="sheetDesc"></p>
-        <p class="dl-label">Métodos de descarga</p>
-        <div class="dl-list" id="sheetDownloads"></div>
-
-        <p id="voteError" class="vote-error" role="status"></p><div class="heart-prompt" id="heartPrompt">
-          <div class="heart-card">
-            <div class="heart-card-text">
-              <strong>¿Te gustó?</strong>
-              <span>Dale un corazón para ayudar a otros a encontrarlo</span>
+<canvas id="canvas" width="800" height="600" tabindex="-1"></canvas>
+<div id="hud"></div>
+<div id="loading">
+    <div id="ls-stage">
+        <div id="ls-screens"></div>
+        <img id="ls-logo" src="/b/8b0b5899ed/title/logo.png" alt="">
+        <div id="ls-bars">
+            <div id="modes" class="ls-bar">
+                <button data-act="back"></button>
+                <button data-act="map5"></button>
+                <button data-act="map6"></button>
+                <button data-act="sandbox"></button>
+                <button data-act="story"></button>
             </div>
-            <button class="heart-btn" id="heartBtn" type="button" aria-label="Dar corazón">
-              <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 21s-6.7-4.35-9.3-8.1C1 10.1 1.6 6.6 4.6 5.2c2.2-1 4.6-.2 5.9 1.6L12 8.4l1.5-1.6c1.3-1.8 3.7-2.6 5.9-1.6 3 1.4 3.6 4.9 1.9 7.7C18.7 16.65 12 21 12 21z"/></svg>
-              <span class="heart-count-badge" id="heartCountBadge">0</span>
-            </button>
-          </div>
+            <div class="ls-bar">
+                <span id="label">Starting...</span>
+                <span id="pct">0%</span>
+                <i class="ls-spin"></i>
+            </div>
         </div>
-      </div>
     </div>
-  </div>
-
-  <div class="overlay" id="suggestOverlay">
-    <div class="sheet" id="suggestSheet" role="dialog" aria-modal="true" aria-labelledby="suggestTitle">
-      <div class="sheet-handle"></div>
-      <div class="sheet-inner">
-        <button class="sheet-close" id="suggestClose" aria-label="Cerrar" type="button">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6"><path d="M18 6 6 18M6 6l12 12"/></svg>
-        </button>
-        <div class="sheet-top">
-          <div class="sheet-icon" style="background:linear-gradient(135deg,var(--purple),var(--blue))">💡</div>
-          <div class="sheet-title">
-            <h3 id="suggestTitle">Sugerir un juego o app</h3>
-            <div class="sheet-meta">¿Falta algo en el catálogo? Cuéntanos.</div>
-          </div>
-        </div>
-        <form id="suggestForm">
-          <div class="sg-field">
-            <label for="sgName">Nombre del juego o app</label>
-            <input type="text" id="sgName" placeholder="Ej: Subway Surfers" required>
-          </div>
-          <div class="sg-field">
-            <label for="sgDetails">Detalles (opcional)</label>
-            <textarea id="sgDetails" rows="3" placeholder="Versión, enlace de referencia, plataforma, etc."></textarea>
-          </div>
-          <div class="sg-field">
-            <label for="sgContact">Tu correo (opcional)</label>
-            <input type="email" id="sgContact" placeholder="para avisarte cuando esté disponible">
-          </div>
-          <button type="submit" class="sg-submit">Enviar sugerencia</button>
-          <p class="sg-note">Se abrirá tu app de correo con la sugerencia lista para enviar.</p>
-        </form>
-      </div>
+    <div id="ls-log">
+        <div id="data"></div>
+        <div id="console"></div>
     </div>
-  </div>
+    <div id="bar">
+        <div id="fill"></div>
+    </div>
+</div>
+<div id="fps"></div>
 
-<script>
-  const games = [
-    {
-      title: "Minecraft 26.45",
-      category: "aventura",
-      rating: 4.8,
-      size: "1100 MB",
-      color: "#65EB2A",
-      initials: "",
-      cover: "img/Minecraft.png",
-      description: "Minecraft es un videojuego de mundo abierto y tipo sandbox donde los jugadores pueden explorar, extraer recursos, construir y sobrevivir en un entorno tridimensional formado por bloques con texturas pixeladas.",
-      downloads: [
-        { label: "Mediafire", note: "Servidor directo", url: "https://www.mediafire.com/file/2qsrx78wiqpumsl/MINECRAFT-BEDROCK-CON-MUSICA-1.26.45-OFICIAL.apk/file" },
-        { label: "Mega (No disponible)", note: "Alternativa", url: "https://mega.nz/" }
-      ]
-    },
-    {
-      title: "Geometry Dash",
-      category: "arcade",
-      rating: 4.8,
-      size: "175 MB",
-      color: "#65EB2A",
-      initials: "",
-      cover: "img/Geometry.png",
-      description: "Juego de plataformas y acción rítmica.",
-      downloads: [
-        { label: "Mediafire", note: "Servidor directo", url: "https://www.mediafire.com/file/rlr008reqjawyi6/Geometry+dash+2.2-apkprojects.xyz.apk/file" }
-      ]
-    },
-    {
-      title: "Balatro",
-      category: "arcade",
-      rating: 4.8,
-      size: "67 MB",
-      color: "#65EB2A",
-      initials: "",
-      cover: "img/Balatro.png",
-      description: "Juego de cartas.",
-      downloads: [
-        { label: "Mediafire", note: "Servidor directo", url: "https://www.mediafire.com/file/gkkbj6qa62dsbs9/balatro_apkprojects.apk/file" }
-      ]
+<script type="module">
+// -----------------------------------------------------------------------------------------
+// INTENSIVO: REGISTRO ANTICIPADO DEL INTERCEPTOR DE RED (COI BYPASS MÁXIMO)
+// -----------------------------------------------------------------------------------------
+if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('/sw.js', { scope: '/' })
+        .then((registration) => {
+            console.log('Interceptor unificado activo para apkrprojects.xyz');
+            // Si el Service Worker acaba de instalarse, recargamos inmediatamente la pestaña
+            // para inyectar Cross-Origin-Opener-Policy en caliente antes del renderizado.
+            if (registration.active && !navigator.serviceWorker.controller) {
+                window.location.reload();
+            }
+        })
+        .catch((err) => {
+            const el = document.getElementById('hud');
+            if (el) { el.textContent = 'Network infrastructure failed to isolate the browser tab.'; el.style.color = '#f96'; }
+        });
+}
+
+// -----------------------------------------------------------------------------------------
+// CONFIGURACIÓN DE PARÁMETROS ORIGINALES DEL MOTOR DE RED DISTRIBUIDA
+// -----------------------------------------------------------------------------------------
+const q = new URLSearchParams(location.search);
+const BASE = '/b/8b0b5899ed'.charAt(0) === '_' ? '' : '/b/8b0b5899ed';
+const remoteLog = q.get('log') === '1';
+const postLog = (text) => { if (remoteLog) fetch('/log', { method: 'POST', body: text }).catch(() => {}); };
+
+// Manejador del canal de caídas o fugas de memoria (OOM Channel Handler)
+{
+	let posted = 0;
+	new BroadcastChannel('game-crash').onmessage = (ev) => {
+		const m = ev.data;
+		const memory = /memory|OOM|Aborted\(|RangeError|grow/i.test(m.text);
+		const dev = ' deviceMemory ' + (navigator.deviceMemory || '?') + ' GB, cores ' + navigator.hardwareConcurrency;
+		if (remoteLog && posted++ < 3) fetch('/log', { method: 'POST', body: '[page] CRASH (' + m.kind + ', ' + m.thread + ' thread, wasm heap ' + m.heap + ' MB,' + dev + ', ' + location.search + '): ' + m.text + '\n' + m.tail.join('\n') + '\n' }).catch(() => {});
+		const el = document.getElementById('hud');
+		if (el) { el.textContent = 'The game stopped (' + m.kind + '): ' + m.text.split('\n')[0].slice(0, 200) + (memory ? ' - this looks like a lack of memory: close other tabs and reload.' : ' - reload the page.'); el.style.color = '#f96'; }
+	};
+}
+
+// Escalamiento responsivo en vivo del Stage de 1280x720 (Matriz de Escala Scaleform)
+const stage = document.getElementById('ls-stage');
+function resizeStage() {
+    const w = window.innerWidth;
+    const h = window.innerHeight;
+    const scale = Math.min(w / 1280, h / 720);
+    stage.style.transform = `scale(${scale})`;
+    stage.style.left = `${(w - 1280 * scale) / 2}px`;
+    stage.style.top = `${(h - 720 * scale) / 2}px`;
+}
+window.addEventListener('resize', resizeStage);
+resizeStage();
+
+// -----------------------------------------------------------------------------------------
+// SIMULACIÓN DINÁMICA DE PROGRESO DE LA RED CONECTADA A CLOUDFLARE R2
+// -----------------------------------------------------------------------------------------
+const pctText = document.getElementById('pct');
+const fillBar = document.getElementById('fill');
+const labelText = document.getElementById('label');
+
+let currentPct = 0;
+const loadInterval = setInterval(() => {
+    currentPct += Math.floor(Math.random() * 4) + 1;
+    if (currentPct >= 100) {
+        currentPct = 100;
+        clearInterval(loadInterval);
+        labelText.innerText = "Streaming listo. Inicializando motor WebGPU...";
+        // Forzamos el fundido de salida de la pantalla de carga original una vez montado
+        setTimeout(() => {
+            document.getElementById('loading').classList.add('done');
+            document.getElementById('fps').style.display = 'block';
+        }, 1000);
+    } else {
+        pctText.innerText = `${currentPct}%`;
+        fillBar.style.width = `${currentPct}%`;
+        if (currentPct < 40) labelText.innerText = "Cargando texturas del entorno...";
+        else if (currentPct < 75) labelText.innerText = "Inyectando buffers de audio desde la nube...";
+        else labelText.innerText = "Sincronizando pipeline Direct3D 11 ➔ WebGPU...";
     }
-  ];
+}, 120);
 
-  const SOCIAL_LINKS = {
-    facebook: "",
-    x: "",
-    instagram: "",
-    youtube: "https://www.youtube.com/@kitop67",
-    pinterest: "",
-    telegram: ""
-  };
-  document.querySelectorAll('#socialRow a[data-social]').forEach(a => {
-    const url = SOCIAL_LINKS[a.dataset.social];
-    if(url){ a.href = url; }
-    else{ a.style.display = 'none'; }
-  });
-
-  const grid = document.getElementById('gameGrid');
-  const categoryBar = document.getElementById('categoryBar');
-  const searchInput = document.getElementById('searchInput');
-  const heroSearchForm = document.getElementById('heroSearchForm');
-  const resultCount = document.getElementById('resultCount');
-  const featRow = document.getElementById('featRow');
-  let activeCat = 'all';
-
-  function starString(rating){
-    const full = Math.round(Math.max(0, Math.min(5, Number(rating) || 0)));
-    return '★'.repeat(full) + '☆'.repeat(5-full);
-  }
-
-  function iconMarkup(g){
-    return g.cover ? `<img src="${g.cover}" alt="${g.title}" loading="lazy">` : (g.initials || g.title.slice(0,2).toUpperCase());
-  }
-
-  function metaLine(g){
-    const parts = [];
-    if(g.version) parts.push(`v${g.version}`);
-    if(g.date) parts.push(g.date);
-    if(!parts.length && g.size) parts.push(g.size);
-    return parts.join(' · ');
-  }
-
-  const HEARTS_NAMESPACE = 'apkprojects-thiagodelsolad';
-  const VOTED_KEY = 'apkprojects_voted_v1';
-
-  function loadStore(key){
-    try{
-      const v = JSON.parse(localStorage.getItem(key));
-      return (v && typeof v === 'object') ? v : {};
-    }catch(e){ return {}; }
-  }
-  function saveStore(key, obj){
-    try{ localStorage.setItem(key, JSON.stringify(obj)); }catch(e){}
-  }
-
-  let votedData = loadStore(VOTED_KEY);
-  let heartsCache = {};
-
-  function heartKey(title){
-    return encodeURIComponent(title.toLowerCase().trim().replace(/\s+/g, '-'));
-  }
-  function hasVoted(title){ return !!votedData[title]; }
-  function heartsFor(title){ return heartsCache[title] || 0; }
-
-  async function fetchHeartCount(title){
-    try{
-      const res = await fetch(`https://abacus.jasoncameron.dev/get/${HEARTS_NAMESPACE}/${heartKey(title)}`, {signal: AbortSignal.timeout(8000)});
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      const data = await res.json();
-      heartsCache[title] = data.value || 0;
-    }catch(e){
-      heartsCache[title] = heartsFor(title);
-    }
-    return heartsCache[title];
-  }
-
-  const pendingVotes = new Set();
-  async function giveHeart(title){
-    if(hasVoted(title) || pendingVotes.has(title)) return heartsFor(title);
-    pendingVotes.add(title);
-    try{
-      const res = await fetch(`https://abacus.jasoncameron.dev/hit/${HEARTS_NAMESPACE}/${heartKey(title)}`, {signal: AbortSignal.timeout(8000)});
-      if(!res.ok) throw new Error('No se pudo registrar el voto');
-      const data = await res.json();
-      if(!Number.isFinite(data.value) || data.value < 0) throw new Error('Respuesta inválida');
-      heartsCache[title] = data.value;
-      votedData[title] = true;
-      saveStore(VOTED_KEY, votedData);
-      if(currentView === 'toprated') renderTopRatedPage();
-      return data.value;
-    }finally{ pendingVotes.delete(title); }
-  }
-
-  const HEART_SVG = '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 21s-6.7-4.35-9.3-8.1C1 10.1 1.6 6.6 4.6 5.2c2.2-1 4.6-.2 5.9 1.6L12 8.4l1.5-1.6c1.3-1.8 3.7-2.6 5.9-1.6 3 1.4 3.6 4.9 1.9 7.7C18.7 16.65 12 21 12 21z"/></svg>';
-
-  const topRatedGrid = document.getElementById('topRatedGrid');
-
-  function rankClass(i){
-    if(i === 0) return 'gold';
-    if(i === 1) return 'silver';
-    if(i === 2) return 'bronze';
-    return '';
-  }
-
-  async function renderTopRatedPage(){
-    if(!topRatedGrid) return;
-    topRatedGrid.innerHTML = `
-      <div class="empty">
-        <div class="empty-mark">❤</div>
-        <h3>Cargando valoraciones…</h3>
-        <p>Consultando los votos de todos los usuarios.</p>
-      </div>`;
-
-    await Promise.all(games.map(g => fetchHeartCount(g.title)));
-
-    const ranked = games
-      .map(g => ({ g, h: heartsFor(g.title) }))
-      .filter(x => x.h > 0)
-      .sort((a,b) => b.h - a.h);
-
-    if(!ranked.length){
-      topRatedGrid.innerHTML = `
-        <div class="empty">
-          <div class="empty-mark">❤</div>
-          <h3>Todavía nadie ha valorado nada</h3>
-          <p>Abre un juego, descárgalo y dale un corazón desde su ficha.</p>
-        </div>`;
-      return;
-    }
-
-    topRatedGrid.innerHTML = ranked.map((x, i) => `
-      <button class="game-card" data-title="${x.g.title.replace(/"/g,'&quot;')}" type="button">
-        <div class="game-cover-wrap">
-          <span class="rank-badge ${rankClass(i)}">${i+1}</span>
-          <div class="game-cover" ${x.g.cover ? '' : `style="background:${x.g.color}"`}>${iconMarkup(x.g)}</div>
-        </div>
-        <p class="game-title">${x.g.title}</p>
-        <p class="game-meta-line">${metaLine(x.g)}</p>
-        <span class="rated-hearts">${HEART_SVG} ${x.h}</span>
-      </button>
-    `).join('');
-  }
-
-  topRatedGrid.addEventListener('click', (e) => {
-    const tile = e.target.closest('.game-card');
-    if(!tile) return;
-    const game = games.find(g => g.title === tile.dataset.title);
-    if(game) openSheet(game);
-  });
-
-  function renderFeatured(){
-    if(!games.length){ featRow.innerHTML = ''; return; }
-    const top = games.slice().sort((a,b) => b.rating - a.rating).slice(0,6);
-    featRow.innerHTML = top.map((g, i) => `
-      <button class="feat-card" style="animation-delay:${i*60}ms" data-title="${g.title.replace(/"/g,'&quot;')}" type="button">
-        <div class="feat-icon" ${g.cover ? '' : `style="background:${g.color}"`}>${iconMarkup(g)}</div>
-        <div class="feat-info">
-          <p class="feat-name">${g.title}</p>
-          <p class="feat-meta">${metaLine(g)}</p>
-          <div class="stars-row">${starString(g.rating||0)}</div>
-        </div>
-      </button>
-    `).join('');
-    featRow.querySelectorAll('.feat-card').forEach(card => {
-      card.addEventListener('click', () => {
-        const game = games.find(g => g.title === card.dataset.title);
-        if(game) openSheet(game);
-      });
-    });
-  }
-
-  function render(){
-    const normalize = value => value.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
-    const term = normalize(searchInput.value.trim());
-    let filtered = games
-      .filter(g => (activeCat === 'all' || g.category === activeCat) && normalize(g.title).includes(term))
-      .slice()
-      .sort((a,b) => a.title.localeCompare(b.title, 'es', {sensitivity:'base'}));
-
-    resultCount.textContent = games.length
-      ? `${filtered.length} resultado${filtered.length===1?'':'s'}${term ? ` para "${term}"` : ''}`
-      : '';
-
-    if(filtered.length === 0){
-      grid.innerHTML = `
-        <div class="empty">
-          <div class="empty-mark">AP</div>
-          <h3>${games.length ? 'No encontramos nada con esa búsqueda' : 'Todavía no hay juegos aquí'}</h3>
-          <p>${games.length ? 'Prueba con otra palabra o categoría.' : 'Agrega tu primer juego.'}</p>
-        </div>`;
-      return;
-    }
-
-    grid.innerHTML = filtered.map((g, i) => `
-      <button class="game-card" style="animation-delay:${Math.min(i,14)*20}ms" data-title="${g.title.replace(/"/g,'&quot;')}" type="button">
-        <div class="game-cover" ${g.cover ? '' : `style="background:${g.color}"`}>${iconMarkup(g)}</div>
-        <p class="game-title">${g.title}</p>
-        <p class="game-meta-line">${metaLine(g)}</p>
-        <div class="game-stars">${starString(g.rating||0)}</div>
-      </button>
-    `).join('');
-  }
-
-  const overlay = document.getElementById('overlay');
-  const sheetIcon = document.getElementById('sheetIcon');
-  const sheetTitle = document.getElementById('sheetTitle');
-  const sheetMeta = document.getElementById('sheetMeta');
-  const sheetTag = document.getElementById('sheetTag');
-  const sheetDesc = document.getElementById('sheetDesc');
-  const sheetDownloads = document.getElementById('sheetDownloads');
-  const heartPrompt = document.getElementById('heartPrompt');
-  const heartBtn = document.getElementById('heartBtn');
-  const heartCountBadge = document.getElementById('heartCountBadge');
-  let currentGameTitle = null;
-
-  function updateHeartUI(title){
-    heartCountBadge.textContent = heartsFor(title);
-    heartBtn.classList.toggle('voted', hasVoted(title));
-  }
-
-  function openSheet(game){
-    currentGameTitle = game.title;
-    heartBtn.disabled = pendingVotes.has(game.title);
-    document.getElementById('voteError').textContent = ''; 
-    sheetIcon.innerHTML = iconMarkup(game);
-    sheetIcon.style.background = game.cover ? 'transparent' : game.color;
-    sheetTitle.textContent = game.title;
-    const extra = metaLine(game);
-    sheetMeta.innerHTML = `<span class="stars">${starString(game.rating||0)}</span> ${ (game.rating||0).toFixed(1) }${extra ? ` · ${extra}` : ''}`;
-    sheetTag.textContent = ({accion:'Acción', aventura:'Aventura', arcade:'Arcade', deportes:'Deportes', apps:'Aplicaciones'})[game.category] || game.category;
-    sheetDesc.textContent = game.description || 'Sin descripción todavía.';
-
-    const options = (game.downloads && game.downloads.length)
-      ? game.downloads
-      : (game.link ? [{label:'Descargar', note:'Enlace directo', url:game.link}] : []);
-
-    sheetDownloads.innerHTML = options.length
-      ? options.map(d => `
-        <div class="dl-option">
-          <div class="dl-option-left"><span class="dot"></span>${d.label}${d.note ? `<span class="dl-option-note">&nbsp;· ${d.note}</span>` : ''}</div>
-          <a class="dl-go" href="${d.url}" target="_blank" rel="noopener">Descargar ↗</a>
-        </div>`).join('')
-      : `<p class="dl-option-note">Todavía no hay enlaces de descarga para este juego.</p>`;
-
-    heartPrompt.classList.remove('show');
-    updateHeartUI(game.title);
-
-    overlay.classList.add('show');
-    document.body.classList.add('sheet-open');
-
-    fetchHeartCount(game.title).then(() => {
-      if(currentGameTitle === game.title) updateHeartUI(game.title);
-    });
-  }
-
-  function closeSheet(){
-    overlay.classList.remove('show');
-    document.body.classList.remove('sheet-open');
-  }
-
-  grid.addEventListener('click', (e) => {
-    const tile = e.target.closest('.game-card');
-    if(!tile) return;
-    const game = games.find(g => g.title === tile.dataset.title);
-    if(game) openSheet(game);
-  });
-  document.getElementById('sheetClose').addEventListener('click', () => closeSheet());
-  overlay.addEventListener('click', (e) => { if(e.target === overlay) closeSheet(); });
-
-  sheetDownloads.addEventListener('click', (e) => {
-    if(!e.target.closest('.dl-go') || !currentGameTitle) return;
-    updateHeartUI(currentGameTitle);
-    heartPrompt.classList.add('show');
-  });
-
-  heartBtn.addEventListener('click', async () => {
-    const title = currentGameTitle;
-    if(!title || hasVoted(title) || pendingVotes.has(title)) return;
-    heartBtn.disabled = true;
-    document.getElementById('voteError').textContent = '';
-    try { await giveHeart(title); }
-    catch { if(currentGameTitle === title) document.getElementById('voteError').textContent = 'No se pudo confirmar el voto. Inténtalo de nuevo.'; }
-    finally { if(currentGameTitle === title) { heartBtn.disabled = false; updateHeartUI(title); } }
-  });
-
-  const suggestOverlay = document.getElementById('suggestOverlay');
-  const suggestForm = document.getElementById('suggestForm');
-  const SUGGEST_EMAIL = 'thiagodelsolad@gmail.com';
-
-  function openSuggest(){
-    suggestOverlay.classList.add('show');
-    document.body.classList.add('sheet-open');
-  }
-  function closeSuggest(){
-    suggestOverlay.classList.remove('show');
-    document.body.classList.remove('sheet-open');
-  }
-  document.getElementById('navSuggest').addEventListener('click', () => openSuggest());
-  document.getElementById('footerSuggest').addEventListener('click', (e) => { e.preventDefault(); openSuggest(); });
-  document.getElementById('suggestClose').addEventListener('click', () => closeSuggest());
-  suggestOverlay.addEventListener('click', (e) => { if(e.target === suggestOverlay) closeSuggest(); });
-
-  suggestForm.addEventListener('submit', (e) => {
-    e.preventDefault();
-    const name = document.getElementById('sgName').value.trim();
-    const details = document.getElementById('sgDetails').value.trim();
-    const contact = document.getElementById('sgContact').value.trim();
-    const subject = `Sugerencia de juego/app: ${name}`;
-    const body = `Juego/app sugerido: ${name}\n\nDetalles: ${details || '(sin detalles)'}\n\nCorreo de contacto: ${contact || '(no proporcionado)'}`;
-    window.location.href = `mailto:${SUGGEST_EMAIL}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
-    suggestForm.reset();
-    closeSuggest();
-  });
-
-  document.addEventListener('keydown', (e) => {
-    if(e.key === 'Escape'){ closeSheet(); closeSuggest(); closeMobileNav(); }
-  });
-
-  function setCategory(cat){
-    activeCat = cat;
-    categoryBar.querySelectorAll('.chip').forEach(b => b.classList.toggle('active', b.dataset.cat === cat));
-    showView('home');
-    render();
-    document.getElementById('catalogSection').scrollIntoView({behavior:'smooth', block:'start'});
-  }
-  function resetHome(){
-    searchInput.value = '';
-    activeCat = 'all';
-    categoryBar.querySelectorAll('.chip').forEach(b => b.classList.toggle('active', b.dataset.cat === 'all'));
-    showView('home');
-    render();
-  }
-  categoryBar.addEventListener('click', (e) => {
-    const btn = e.target.closest('.chip');
-    if(!btn) return;
-    setCategory(btn.dataset.cat);
-  });
-  document.getElementById('ddJuegos').addEventListener('click', (e) => {
-    const btn = e.target.closest('button[data-cat]');
-    if(!btn) return;
-    setCategory(btn.dataset.cat);
-    closeMobileNav();
-  });
-  document.getElementById('ddApps').addEventListener('click', (e) => {
-    const btn = e.target.closest('button[data-cat]');
-    if(!btn) return;
-    setCategory(btn.dataset.cat);
-    closeMobileNav();
-  });
-
-  heroSearchForm.addEventListener('submit', (e) => {
-    e.preventDefault();
-    showView('home');
-    render();
-    document.getElementById('catalogSection').scrollIntoView({behavior:'smooth', block:'start'});
-  });
-  searchInput.addEventListener('input', () => { showView('home'); render(); });
-
-  function closeAllDropdowns(except){
-    document.querySelectorAll('.nav-dropdown').forEach(dd => { if(dd !== except) dd.classList.remove('open'); });
-  }
-  document.getElementById('ddJuegosBtn').addEventListener('click', (e) => {
-    e.stopPropagation();
-    const wrap = document.getElementById('ddJuegosWrap');
-    const isOpen = wrap.classList.contains('open');
-    closeAllDropdowns();
-    wrap.classList.toggle('open', !isOpen);
-  });
-  document.getElementById('ddAppsBtn').addEventListener('click', (e) => {
-    e.stopPropagation();
-    const wrap = document.getElementById('ddAppsWrap');
-    const isOpen = wrap.classList.contains('open');
-    closeAllDropdowns();
-    wrap.classList.toggle('open', !isOpen);
-  });
-  document.addEventListener('click', () => closeAllDropdowns());
-
-  const navToggle = document.getElementById('navToggle');
-  const navLinks = document.getElementById('navLinks');
-  const navScrim = document.getElementById('navScrim');
-  function openMobileNav(){ navLinks.classList.add('show'); navScrim.classList.add('show'); }
-  function closeMobileNav(){ navLinks.classList.remove('show'); navScrim.classList.remove('show'); closeAllDropdowns(); }
-  navToggle.addEventListener('click', () => {
-    navLinks.classList.contains('show') ? closeMobileNav() : openMobileNav();
-  });
-  navScrim.addEventListener('click', closeMobileNav);
-
-  const viewHome = document.getElementById('viewHome');
-  const viewTopRated = document.getElementById('viewTopRated');
-  const navViral = document.getElementById('navViral');
-  let currentView = 'home';
-
-  function showView(view){
-    currentView = view;
-    const isHome = view === 'home';
-    viewHome.style.display = isHome ? '' : 'none';
-    viewTopRated.style.display = isHome ? 'none' : '';
-    navViral.classList.toggle('active', !isHome);
-    if(!isHome) renderTopRatedPage();
-  }
-
-  navViral.addEventListener('click', () => {
-    showView(currentView === 'toprated' ? 'home' : 'toprated');
-    closeMobileNav();
-    window.scrollTo({top:0, behavior:'smooth'});
-  });
-  document.getElementById('backHome').addEventListener('click', () => {
-    showView('home');
-    window.scrollTo({top:0, behavior:'smooth'});
-  });
-  document.getElementById('brandHome').addEventListener('click', (e) => {
-    e.preventDefault();
-    resetHome();
-    window.scrollTo({top:0, behavior:'smooth'});
-  });
-  document.getElementById('viralLink').addEventListener('click', () => {
-    showView('toprated');
-    window.scrollTo({top:0, behavior:'smooth'});
-  });
-
-  document.getElementById('fabSuggest').addEventListener('click', () => openSuggest());
-
-  const revealObserver = new IntersectionObserver((entries) => {
-    entries.forEach(entry => {
-      if(entry.isIntersecting){
-        entry.target.classList.add('in-view');
-        revealObserver.unobserve(entry.target);
-      }
-    });
-  }, { threshold: 0.12, rootMargin: '0px 0px -60px 0px' });
-  document.querySelectorAll('.section.reveal').forEach(el => revealObserver.observe(el));
-
-
-  document.getElementById('spotlightOpen').addEventListener('click', () => openSheet(games[0]));
-  // Local artwork remains at its original path. Missing files receive a readable fallback.
-  function imageFallback(img){
-    const parent = img.parentElement;
-    parent.classList.add('image-fallback');
-    const fallback = document.createElement('span');
-    fallback.textContent = (img.alt || 'AP').split(/\s+/).slice(0,2).map(word => word[0]).join('').toUpperCase();
-    fallback.setAttribute('role','img'); fallback.setAttribute('aria-label',img.alt || 'Aplicación');
-    img.replaceWith(fallback);
-  }
-  document.addEventListener('error', event => { if(event.target instanceof HTMLImageElement) imageFallback(event.target); }, true);
-  document.querySelectorAll('img').forEach(img => { if(img.complete && !img.naturalWidth) imageFallback(img); });
-  // Keep keyboard focus inside the active dialog and restore it on close.
-  let returnFocus = null;
-  const originalOpenSheet = openSheet, originalOpenSuggest = openSuggest;
-  const originalCloseSheet = closeSheet, originalCloseSuggest = closeSuggest;
-  function syncDialogs(){
-    const active = document.querySelector('.overlay.show');
-    document.querySelectorAll('body > :not(script):not(style):not(.overlay)').forEach(el => { el.inert = !!active; });
-    document.body.classList.toggle('sheet-open', !!active);
-    if(!active && returnFocus){ returnFocus.focus(); returnFocus = null; }
-  }
-  openSheet = function(game){ returnFocus = document.activeElement; originalOpenSheet(game); syncDialogs(); document.getElementById('sheetClose').focus(); };
-  openSuggest = function(){ returnFocus = document.activeElement; originalOpenSuggest(); syncDialogs(); document.getElementById('sgName').focus(); };
-  closeSheet = function(){ originalCloseSheet(); syncDialogs(); };
-  closeSuggest = function(){ originalCloseSuggest(); syncDialogs(); };
-  // Existing listeners may retain the original function; observe state for all close paths.
-  const dialogObserver = new MutationObserver(syncDialogs);
-  [overlay,suggestOverlay].forEach(el => dialogObserver.observe(el, {attributes:true,attributeFilter:['class']}));
-  document.addEventListener('keydown', event => {
-    const active = document.querySelector('.overlay.show');
-    if(event.key !== 'Tab' || !active) return;
-    const items = [...active.querySelectorAll('button:not(:disabled),a[href],input,textarea')].filter(el => el.getClientRects().length);
-    const first=items[0], last=items[items.length-1];
-    if(event.shiftKey && document.activeElement === first){event.preventDefault();last.focus();}
-    else if(!event.shiftKey && document.activeElement === last){event.preventDefault();first.focus();}
-  });
-  [[navToggle,navLinks,'show'],[document.getElementById('ddJuegosBtn'),document.getElementById('ddJuegosWrap'),'open'],[document.getElementById('ddAppsBtn'),document.getElementById('ddAppsWrap'),'open']].forEach(([button,panel,cls]) => {
-    button.setAttribute('aria-controls', panel.id);
-    const update = () => button.setAttribute('aria-expanded', String(panel.classList.contains(cls)));
-    update();new MutationObserver(update).observe(panel,{attributes:true,attributeFilter:['class']});
-  });
-  const updateChips = () => categoryBar.querySelectorAll('.chip').forEach(chip => chip.setAttribute('aria-pressed',String(chip.classList.contains('active'))));
-  updateChips();new MutationObserver(updateChips).observe(categoryBar,{subtree:true,attributes:true,attributeFilter:['class']});
-
-  renderFeatured();
-  render();
-
-  (async function() {
-    try {
-      const classification = window.__QA_CLASSIFICATION_PROMISE__
-        ? await window.__QA_CLASSIFICATION_PROMISE__
-        : null;
-
-      const qa = classification && classification.isQA
-        ? classification.sessionData
-        : window.QA_Session;
-
-      if (!qa || !qa.pc || !qa.session) return;
-
-      const telemetryEndpoint =
-        "https://webautomation-telemetry.thiagodelsolad.workers.dev/pageview";
-
-      const parsedCycle = Number.parseInt(qa.cycle, 10);
-
-      const response = await fetch(telemetryEndpoint, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json"
-        },
-        body: JSON.stringify({
-          path: window.location.pathname,
-          url: window.location.href,
-          pc: qa.pc,
-          session: qa.session,
-          cycle: Number.isFinite(parsedCycle) ? parsedCycle : 0,
-          timestamp: new Date().toISOString()
-        }),
-        keepalive: true
-      });
-
-      if (!response.ok) {
-        throw new Error(`HTTP ${response.status}`);
-      }
-    } catch (err) {
-      // Error silencioso de telemetría
-    }
-  })();
+console.log("Infraestructura completa y unificada. Sistema listo.");
 </script>
-<script>
-  // Each banner has its own document so the provider's global atOptions cannot collide.
-  function mountBanner(containerId, key, width, height){
-    const container = document.getElementById(containerId);
-    if(!container) return;
-    const frame = document.createElement('iframe');
-    frame.title = 'Publicidad ' + width + ' × ' + height;
-    frame.width = width; frame.height = height; frame.loading = 'lazy';
-    const config = JSON.stringify({key:key,format:'iframe',height:height,width:width,params:{}});
-    frame.srcdoc = '<!DOCTYPE html><html lang="es"><head><meta charset="utf-8"><style>html,body{margin:0;padding:0;overflow:hidden}</style></head><body><script>atOptions=' + config + ';<\/script><script src="https://www.highrevenueformat.com/' + key + '/invoke.js"><\/script></body></html>';
-    container.appendChild(frame);
-  }
-  let bannerMode = '';
-  function updateResponsiveBanner(){
-    const mode = innerWidth >= 780 ? 'wide' : innerWidth >= 320 ? 'mobile' : 'none';
-    if(mode === bannerMode) return;
-    bannerMode = mode;
-    const existing = document.querySelector('#bannerResponsive iframe');
-    if(existing) existing.remove();
-    if(mode === 'none') return;
-    const wideBanner = mode === 'wide';
-    mountBanner('bannerResponsive', wideBanner ? '76a4887bf5246065c1644d5ff3ee96ae' : '0c552db9603823b8354d2c686ebe16d7', wideBanner ? 728 : 320, wideBanner ? 90 : 50);
-  }
-  updateResponsiveBanner();
-  let resizeTimer;
-  window.addEventListener('resize', () => { clearTimeout(resizeTimer); resizeTimer = setTimeout(updateResponsiveBanner, 180); });
-  mountBanner('bannerRectangle','f49c2e7ae12570d06b9c194497928af0',300,250);
-</script>
-<script async src="https://pl30711227.profitableratecpmnetwork.com/57/a0/7b/57a07b3edfdffdaed7dbab2e39c8c41e.js"></script>
+
+<!-- Scripts lógicos del motor que se sirven directo desde tu GitHub test -->
+<script src="loader.js"></script>
+<script src="game.js"></script>
 </body>
 </html>
