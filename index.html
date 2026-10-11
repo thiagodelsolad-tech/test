@@ -2,75 +2,34 @@
 <html lang="es">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
 <meta name="theme-color" content="#05060a">
-<meta name="mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-capable" content="yes">
-<title>GTA V — Web Edition</title>
+<meta name="description" content="Clon web no oficial de GTA V — Proyecto educativo.">
+<title>GTA V — Web Edition (Fan Project)</title>
 
-<link rel="preconnect" href="https://gta.deloskiyt.pl" crossorigin>
 <link rel="preconnect" href="https://cdn.apkprojects.xyz" crossorigin>
-<link rel="dns-prefetch" href="https://gta.deloskiyt.pl">
 <link rel="dns-prefetch" href="https://cdn.apkprojects.xyz">
 
 <style>
-	* { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+	* { box-sizing: border-box; }
 	html, body { margin: 0; height: 100%; background: #000; color: #ccc;
 		font: 12px 'Consolas','Menlo',monospace; overflow: hidden;
-		-webkit-user-select: none; user-select: none; touch-action: none;
-		overscroll-behavior: none; }
+		-webkit-user-select: none; user-select: none; }
 	#canvas { display: block; position: absolute; left: 0; top: 0;
-		width: 100vw; height: 100vh; background: #000; touch-action: none; }
-
-	#device-select {
-		position: fixed; inset: 0; z-index: 6000;
-		background: radial-gradient(ellipse at center, #0a0618 0%, #000 100%);
-		display: flex; flex-direction: column; align-items: center; justify-content: center;
-		padding: 20px; touch-action: manipulation;
-	}
-	#device-select.hidden { display: none; }
-	#device-select .ds-title {
-		font-family: 'Arial Black', sans-serif; font-size: 54px; font-weight: 900;
-		letter-spacing: 14px; color: #fff; margin-bottom: 6px;
-		text-shadow: 0 0 20px rgba(180,120,255,0.7);
-	}
-	#device-select .ds-sub {
-		font-size: 11px; letter-spacing: 6px; color: rgba(200,200,255,0.5);
-		text-transform: uppercase; margin-bottom: 44px;
-	}
-	#device-select .ds-cards { display: flex; gap: 20px; flex-wrap: wrap; justify-content: center; }
-	#device-select .ds-card {
-		position: relative; width: 200px; padding: 28px 20px;
-		background: rgba(20,15,40,0.6);
-		border: 2px solid rgba(150,150,255,0.25);
-		border-radius: 12px; cursor: pointer;
-		display: flex; flex-direction: column; align-items: center;
-		color: #cdd6f4; font-family: 'Consolas', monospace;
-		touch-action: manipulation; -webkit-appearance: none; appearance: none;
-		transition: all 0.15s;
-	}
-	#device-select .ds-card:active { transform: scale(0.97); background: rgba(120,90,255,0.25); }
-	#device-select .ds-card.detected { border-color: #7cffb2; box-shadow: 0 0 24px rgba(124,255,178,0.25); }
-	#device-select .ds-card.detected::before {
-		content: '✓ detectado'; position: absolute; top: -10px; left: 50%; transform: translateX(-50%);
-		background: #0a0618; padding: 2px 8px; font-size: 9px; letter-spacing: 2px; color: #7cffb2;
-	}
-	#device-select .ds-icon { font-size: 48px; margin-bottom: 12px; }
-	#device-select .ds-name { font-size: 14px; font-weight: 700; letter-spacing: 2px; }
-	#device-select .ds-detail { font-size: 10px; color: rgba(180,180,220,0.6); margin-top: 8px; text-align: center; }
+		width: 100vw; height: 100vh; background: #000; }
 
 	#click-to-start {
 		position: fixed; inset: 0; z-index: 5000;
 		background: radial-gradient(ellipse at center, #0a0618 0%, #000 100%);
 		display: flex; flex-direction: column; align-items: center; justify-content: center;
-		padding: 20px; touch-action: manipulation;
+		cursor: pointer; transition: opacity 0.8s ease-out;
 	}
-	#click-to-start.hidden { display: none; }
+	#click-to-start.hidden { opacity: 0; pointer-events: none; }
 	#click-to-start .cts-logo {
 		font-family: 'Arial Black', sans-serif; font-size: 82px; font-weight: 900;
-		letter-spacing: 14px; color: #fff; margin-bottom: 12px;
-		text-shadow: 0 0 20px rgba(180,120,255,0.9);
-		animation: cts-glow 3s ease-in-out infinite;
+		letter-spacing: 14px; color: #fff;
+		text-shadow: 0 0 20px rgba(180, 120, 255, 0.9), 0 0 60px rgba(120, 180, 255, 0.5);
+		margin-bottom: 12px; animation: cts-glow 3s ease-in-out infinite; pointer-events: none;
 	}
 	@keyframes cts-glow {
 		0%, 100% { text-shadow: 0 0 20px rgba(180,120,255,0.9), 0 0 60px rgba(120,180,255,0.5); }
@@ -78,256 +37,191 @@
 	}
 	#click-to-start .cts-sub {
 		font-size: 12px; letter-spacing: 12px; text-transform: uppercase;
-		color: rgba(200,200,255,0.5); margin-bottom: 60px;
+		color: rgba(200, 200, 255, 0.5); margin-bottom: 60px; pointer-events: none;
 	}
 	#cts-button {
-		background: rgba(120,90,255,0.2); border: 2px solid #a78bfa; color: #fff;
+		background: rgba(120, 90, 255, 0.2); border: 2px solid #a78bfa; color: #fff;
 		font-family: 'Arial Black', sans-serif; font-size: 18px; letter-spacing: 4px;
 		padding: 20px 48px; border-radius: 8px; cursor: pointer;
-		animation: cts-pulse 2s ease-in-out infinite;
-		touch-action: manipulation;
+		animation: cts-pulse 2s ease-in-out infinite; transition: all 0.2s;
 	}
-	#cts-button:active { background: rgba(120,90,255,0.5); transform: scale(0.97); }
+	#cts-button:hover { background: rgba(120, 90, 255, 0.5); transform: scale(1.05); }
+	#cts-button:active { transform: scale(0.98); }
 	@keyframes cts-pulse { 0%, 100% { opacity: 0.6; } 50% { opacity: 1; } }
-	@media (max-width: 600px) {
-		#click-to-start .cts-logo { font-size: 56px; letter-spacing: 10px; }
-		#cts-button { font-size: 15px; padding: 16px 32px; }
+	#click-to-start .cts-note {
+		position: absolute; bottom: 40px; font-size: 10px; color: rgba(180, 180, 200, 0.4);
+		text-align: center; padding: 0 40px; max-width: 600px; line-height: 1.6; pointer-events: none;
 	}
 
 	#sound-toggle {
-		position: fixed; top: max(24px, env(safe-area-inset-top)); right: max(24px, env(safe-area-inset-right));
-		width: 44px; height: 44px;
-		background: rgba(0,0,0,0.65); border: 1px solid rgba(180,120,255,0.4);
+		position: fixed; top: 24px; right: 24px; width: 40px; height: 40px;
+		background: rgba(0, 0, 0, 0.65); border: 1px solid rgba(180, 120, 255, 0.4);
 		border-radius: 50%; color: #a78bfa; font-size: 18px; cursor: pointer; z-index: 100;
 		display: flex; align-items: center; justify-content: center;
-		touch-action: manipulation;
+		transition: all 0.25s; backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
 	}
-	#sound-toggle.muted { color: rgba(150,150,200,0.4); }
+	#sound-toggle:hover { background: rgba(120, 90, 255, 0.3); transform: scale(1.08); }
+	#sound-toggle.muted { color: rgba(150, 150, 200, 0.4); }
 
 	#boot-screen {
 		position: fixed; inset: 0; background: #05060a; z-index: 1000;
-		display: none; flex-direction: column; align-items: center; justify-content: center; padding: 20px;
+		display: none; flex-direction: column; align-items: center; justify-content: center;
+		transition: opacity 0.6s ease-out;
 	}
 	#boot-screen.visible { display: flex; }
+	#boot-screen.hidden { opacity: 0; pointer-events: none; }
 	#boot-screen .boot-spinner {
-		width: 64px; height: 64px; border: 3px solid rgba(120,100,255,0.15);
+		width: 64px; height: 64px; border: 3px solid rgba(120, 100, 255, 0.15);
 		border-top-color: #a78bfa; border-radius: 50%;
 		animation: boot-spin 1s linear infinite; margin-bottom: 24px;
 	}
 	@keyframes boot-spin { to { transform: rotate(360deg); } }
 	#boot-screen .boot-title {
 		font-family: 'Arial Black', sans-serif; font-size: 28px; font-weight: 900;
-		letter-spacing: 12px; color: #fff; margin-bottom: 8px;
-		text-shadow: 0 0 20px rgba(180,120,255,0.6);
+		letter-spacing: 12px; color: #fff; text-shadow: 0 0 20px rgba(180, 120, 255, 0.6); margin-bottom: 8px;
 	}
 	#boot-screen .boot-sub {
 		font-size: 10px; letter-spacing: 6px; text-transform: uppercase;
-		color: rgba(200,200,255,0.5); margin-bottom: 40px;
+		color: rgba(200, 200, 255, 0.5); margin-bottom: 40px;
 	}
 	#boot-screen .boot-status {
-		font-size: 11px; letter-spacing: 2px; color: rgba(180,180,220,0.7);
-		min-height: 16px; text-align: center;
+		font-size: 11px; letter-spacing: 2px; color: rgba(180, 180, 220, 0.7); min-height: 16px;
 	}
 	#boot-screen .boot-bar {
-		width: 240px; height: 2px; background: rgba(150,150,255,0.12);
+		width: 240px; height: 2px; background: rgba(150, 150, 255, 0.12);
 		border-radius: 1px; margin-top: 16px; overflow: hidden;
 	}
 	#boot-screen .boot-bar-fill {
 		height: 100%; width: 0%;
 		background: linear-gradient(90deg, #7c5cff, #6ac3ff);
-		transition: width 0.4s ease-out;
+		box-shadow: 0 0 10px rgba(124, 92, 255, 0.7); transition: width 0.4s ease-out;
 	}
 
-	#loading { position: fixed; inset: 0; background: #000; overflow: hidden; z-index: 5; opacity: 0; }
+	#loading { position: fixed; inset: 0; background: #000; overflow: hidden;
+		transition: opacity .8s; z-index: 5; opacity: 0; }
 	#loading.done { opacity: 0; pointer-events: none; }
 	#loading.visible { opacity: 1; }
 	#ls-stage { position: absolute; left: 0; top: 0; width: 1280px; height: 720px;
 		transform-origin: 0 0; overflow: hidden; font: 12px sans-serif; color: #fff; }
 	#ls-screens { position: absolute; inset: 0; overflow: hidden; }
+
 	.ls-screen { position: absolute; inset: 0; will-change: transform; }
 	.ls-screen .screen-bg { position: absolute; inset: 0; }
-	.screen-1 .screen-bg { background: radial-gradient(ellipse at 30% 40%, rgba(255,140,60,0.5) 0%, transparent 55%), radial-gradient(ellipse at 70% 80%, rgba(180,60,100,0.4) 0%, transparent 60%), linear-gradient(180deg, #1a0e1e 0%, #2d1220 50%, #0a0608 100%); }
-	.screen-2 .screen-bg { background: radial-gradient(ellipse at 20% 70%, rgba(0,180,220,0.5) 0%, transparent 50%), radial-gradient(ellipse at 80% 30%, rgba(120,40,200,0.4) 0%, transparent 55%), linear-gradient(180deg, #050a18 0%, #0a1428 50%, #020408 100%); }
-	.screen-3 .screen-bg { background: radial-gradient(circle at 50% 50%, rgba(255,200,100,0.35) 0%, transparent 40%), radial-gradient(ellipse at 20% 80%, rgba(200,60,60,0.4) 0%, transparent 50%), linear-gradient(180deg, #1a0e08 0%, #2a1408 60%, #0a0402 100%); }
-	.screen-4 .screen-bg { background: radial-gradient(ellipse at 70% 30%, rgba(80,255,160,0.4) 0%, transparent 50%), radial-gradient(ellipse at 30% 70%, rgba(40,100,180,0.4) 0%, transparent 55%), linear-gradient(180deg, #021a0e 0%, #051428 50%, #020204 100%); }
-	.screen-5 .screen-bg { background: radial-gradient(ellipse at 50% 20%, rgba(255,60,60,0.4) 0%, transparent 50%), radial-gradient(ellipse at 50% 90%, rgba(60,20,100,0.5) 0%, transparent 55%), linear-gradient(180deg, #1a0508 0%, #0a0518 60%, #000 100%); }
-	.screen-6 .screen-bg { background: radial-gradient(ellipse at 30% 50%, rgba(255,200,255,0.3) 0%, transparent 45%), radial-gradient(ellipse at 70% 50%, rgba(100,180,255,0.3) 0%, transparent 45%), linear-gradient(180deg, #0a0814 0%, #180a24 50%, #05030a 100%); }
-	.screen-7 .screen-bg { background: radial-gradient(ellipse at 60% 40%, rgba(255,100,200,0.4) 0%, transparent 45%), radial-gradient(ellipse at 40% 60%, rgba(100,200,255,0.4) 0%, transparent 50%), linear-gradient(180deg, #0a0416 0%, #1a0828 50%, #05020a 100%); }
-	.screen-8 .screen-bg { background: radial-gradient(ellipse at 30% 40%, rgba(255,180,60,0.4) 0%, transparent 50%), radial-gradient(ellipse at 70% 70%, rgba(200,40,120,0.4) 0%, transparent 55%), linear-gradient(180deg, #1a1008 0%, #1a0818 60%, #050205 100%); }
+
+	.screen-1 .screen-bg { background: radial-gradient(ellipse at 30% 40%, rgba(255, 140, 60, 0.5) 0%, transparent 55%), radial-gradient(ellipse at 70% 80%, rgba(180, 60, 100, 0.4) 0%, transparent 60%), linear-gradient(180deg, #1a0e1e 0%, #2d1220 50%, #0a0608 100%); }
+	.screen-2 .screen-bg { background: radial-gradient(ellipse at 20% 70%, rgba(0, 180, 220, 0.5) 0%, transparent 50%), radial-gradient(ellipse at 80% 30%, rgba(120, 40, 200, 0.4) 0%, transparent 55%), linear-gradient(180deg, #050a18 0%, #0a1428 50%, #020408 100%); }
+	.screen-3 .screen-bg { background: radial-gradient(circle at 50% 50%, rgba(255, 200, 100, 0.35) 0%, transparent 40%), radial-gradient(ellipse at 20% 80%, rgba(200, 60, 60, 0.4) 0%, transparent 50%), linear-gradient(180deg, #1a0e08 0%, #2a1408 60%, #0a0402 100%); }
+	.screen-4 .screen-bg { background: radial-gradient(ellipse at 70% 30%, rgba(80, 255, 160, 0.4) 0%, transparent 50%), radial-gradient(ellipse at 30% 70%, rgba(40, 100, 180, 0.4) 0%, transparent 55%), linear-gradient(180deg, #021a0e 0%, #051428 50%, #020204 100%); }
+	.screen-5 .screen-bg { background: radial-gradient(ellipse at 50% 20%, rgba(255, 60, 60, 0.4) 0%, transparent 50%), radial-gradient(ellipse at 50% 90%, rgba(60, 20, 100, 0.5) 0%, transparent 55%), linear-gradient(180deg, #1a0508 0%, #0a0518 60%, #000 100%); }
+	.screen-6 .screen-bg { background: radial-gradient(ellipse at 30% 50%, rgba(255, 200, 255, 0.3) 0%, transparent 45%), radial-gradient(ellipse at 70% 50%, rgba(100, 180, 255, 0.3) 0%, transparent 45%), linear-gradient(180deg, #0a0814 0%, #180a24 50%, #05030a 100%); }
+	.screen-7 .screen-bg { background: radial-gradient(ellipse at 60% 40%, rgba(255, 100, 200, 0.4) 0%, transparent 45%), radial-gradient(ellipse at 40% 60%, rgba(100, 200, 255, 0.4) 0%, transparent 50%), linear-gradient(180deg, #0a0416 0%, #1a0828 50%, #05020a 100%); }
+	.screen-8 .screen-bg { background: radial-gradient(ellipse at 30% 40%, rgba(255, 180, 60, 0.4) 0%, transparent 50%), radial-gradient(ellipse at 70% 70%, rgba(200, 40, 120, 0.4) 0%, transparent 55%), linear-gradient(180deg, #1a1008 0%, #1a0818 60%, #050205 100%); }
+
 	.screen-label {
 		position: absolute; left: 80px; bottom: 180px;
 		font-family: 'Arial Black', sans-serif; font-size: 44px; font-weight: 900;
-		letter-spacing: 8px; color: rgba(255,255,255,0.9);
-		text-shadow: 0 4px 20px rgba(0,0,0,0.9);
+		letter-spacing: 8px; color: rgba(255, 255, 255, 0.9);
+		text-shadow: 0 4px 20px rgba(0, 0, 0, 0.9);
 	}
 	.screen-label small {
 		display: block; font-size: 11px; font-weight: 400; letter-spacing: 6px;
-		margin-top: 6px; color: rgba(255,255,255,0.5);
+		margin-top: 6px; color: rgba(255, 255, 255, 0.5);
 	}
+
 	#kito-logo { position: absolute; left: 60px; top: 60px;
 		font-family: 'Arial Black',sans-serif; font-size: 52px; font-weight: 900;
 		letter-spacing: 10px; color: #fff;
-		text-shadow: 0 0 12px rgba(180,120,255,.9), 0 0 30px rgba(120,180,255,.6);
+		text-shadow: 0 0 12px rgba(180,120,255,.9), 0 0 30px rgba(120,180,255,.6), 2px 4px 0 rgba(0,0,0,.6);
 		pointer-events: none; z-index: 10; }
 	#kito-logo small { display: block; font-size: 10px; letter-spacing: 10px;
 		margin-top: 4px; color: rgba(255,255,255,.7); text-shadow: none; font-weight: 400; }
 
+	#info-toggle { position: absolute; right: 24px; top: 90px; width: 36px; height: 36px;
+		background: rgba(0,0,0,.55); border: 1px solid rgba(150,150,255,.3);
+		border-radius: 50%; color: #a78bfa; font: bold 18px/34px monospace; text-align: center;
+		cursor: pointer; backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px);
+		transition: background .2s, transform .2s; z-index: 20; }
+	#info-toggle:hover { background: rgba(120,90,255,.25); transform: scale(1.08); }
+
+	#info-panel { position: absolute; right: 24px; top: 136px; width: 340px;
+		padding: 14px 16px; background: rgba(0,0,0,.85);
+		border: 1px solid rgba(150,150,255,.18); border-radius: 6px;
+		backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
+		font-family: 'Consolas','Menlo',monospace; font-size: 10.5px; line-height: 1.5;
+		color: #cdd6f4; z-index: 19;
+		opacity: 0; pointer-events: none; transform: translateY(-8px);
+		transition: opacity .25s, transform .25s; max-height: 80vh; overflow-y: auto; }
+	#info-panel.visible { opacity: 1; pointer-events: auto; transform: translateY(0); }
+	#info-panel .row { display: flex; justify-content: space-between; gap: 12px; }
+	#info-panel .label { color: #7c8bd4; }
+	#info-panel .value { color: #fff; font-weight: 600; text-align: right; }
+	#info-panel .value.ok { color: #7cffb2; }
+	#info-panel .value.warn { color: #ffb37c; }
+	#info-panel .value.error { color: #ff7c7c; }
+	#info-panel .title { font-size: 9px; letter-spacing: 3px; text-transform: uppercase;
+		color: #a78bfa; margin-bottom: 6px; padding-bottom: 5px;
+		border-bottom: 1px solid rgba(150,150,255,.15); }
+	#info-panel hr { border: 0; border-top: 1px solid rgba(150,150,255,.1); margin: 8px 0; }
+	#info-panel .legal { font-size: 9px; color: rgba(200,200,220,.55); line-height: 1.5; text-align: justify; }
+	#info-panel .legal b { color: rgba(180,180,220,.85); font-weight: 600; }
+
 	#ls-bars { position: absolute; right: 96px; top: 642px; display: flex; gap: 3px; z-index: 15; }
 	.ls-bar { height: 24px; padding: 0 6px; display: flex; align-items: center;
-		background: rgba(0,0,0,.7); border-radius: 2.4px; white-space: nowrap; }
+		background: rgba(0,0,0,.706); border-radius: 2.4px; white-space: nowrap; }
 	#modes { gap: 8px; }
-	#modes button { display: flex; align-items: center; height: 24px; padding: 0 8px;
+	#modes button { display: flex; align-items: center; height: 24px; padding: 0;
 		border: 0; background: none; color: #fff; font: 12px sans-serif; cursor: pointer; }
 	#modes button:disabled { cursor: default; }
 	#modes button[hidden] { display: none; }
+	#modes.ask button:not(:disabled) .ls-key { animation: ls-ask 1.2s ease-in-out infinite; }
+	@keyframes ls-ask { 50% { opacity: .35; } }
+	.ls-key { margin-left: 4px; min-width: 12px; height: 15px; padding: 0 4px;
+		line-height: 16px; border-radius: 2px; background: #fff; color: #000;
+		font-size: 10px; text-transform: uppercase; }
+	.ls-spin { flex: none; width: 22px; height: 22px; margin-left: 2px;
+		background: url("data:image/svg+xml;utf8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 22 22'%3E%3Ccircle cx='11' cy='11' r='9' fill='none' stroke='rgba(255,255,255,0.2)' stroke-width='2'/%3E%3Cpath d='M11 2 A9 9 0 0 1 20 11' fill='none' stroke='%23fff' stroke-width='2' stroke-linecap='round'/%3E%3C/svg%3E") center / 22px 22px no-repeat;
+		animation: ls-spin 1s linear infinite; }
+	@keyframes ls-spin { to { transform: rotate(-360deg); } }
 	#label { text-shadow: .85px .85px 1px rgba(0,0,0,.45); }
 	#pct { margin-left: 15px; font-variant-numeric: tabular-nums; }
 
 	#ls-log { position: absolute; left: 8px; right: 8px; bottom: 6px; display: flex;
 		flex-direction: column; align-items: center; font: 10px/1.35 Consolas,monospace;
-		color: rgba(190,190,190,.75); text-shadow: 0 0 2px #000;
+		color: rgba(190,190,190,.75); text-shadow: 0 0 2px #000, 1px 1px 1px #000;
 		white-space: pre; pointer-events: none; z-index: 15; }
 	#console { max-width: 100%; overflow: hidden; text-overflow: ellipsis; }
 	#data { color: #6a9; }
+
 	#bar { position: absolute; left: 0; right: 0; bottom: 0; height: 3px;
 		background: rgba(255,255,255,.08); z-index: 15; }
 	#fill { height: 100%; width: 0;
 		background: linear-gradient(90deg, #7c5cff, #6ac3ff);
 		box-shadow: 0 0 12px rgba(124,92,255,.7); }
 
-	#hud { position: fixed; left: 8px; bottom: 8px; max-width: 90vw;
-		white-space: pre-wrap; opacity: .85; pointer-events: none;
+	#hud { position: fixed; left: 8px; bottom: 8px; max-width: 60vw;
+		white-space: pre-wrap; opacity: .8; pointer-events: none;
 		font: 11px Consolas,monospace; color: #9ad; z-index: 20; }
-
-	#mobile-modes {
-		position: fixed; inset: 0; z-index: 4500;
-		background: rgba(0,0,0,0.88);
-		backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
-		display: none; flex-direction: column; align-items: center; justify-content: center;
-		padding: 20px; gap: 14px;
-		touch-action: manipulation;
-	}
-	#mobile-modes.visible { display: flex; }
-	#mobile-modes .mm-title {
-		font-family: 'Arial Black', sans-serif; font-size: 18px; font-weight: 900;
-		letter-spacing: 4px; color: #fff; margin-bottom: 12px; text-align: center;
-		text-shadow: 0 0 12px rgba(180,120,255,0.6);
-	}
-	#mobile-modes .mm-btn {
-		width: 100%; max-width: 400px;
-		padding: 22px 24px;
-		background: rgba(20,15,40,0.7);
-		border: 2px solid rgba(150,150,255,0.35);
-		border-radius: 12px;
-		color: #fff;
-		font-family: 'Arial Black', sans-serif;
-		font-size: 16px; letter-spacing: 2px;
-		cursor: pointer; text-align: left;
-		touch-action: manipulation;
-		transition: all 0.15s;
-	}
-	#mobile-modes .mm-btn:active {
-		background: rgba(120,90,255,0.55);
-		border-color: #a78bfa;
-		transform: scale(0.98);
-	}
-	#mobile-modes .mm-btn .mm-desc {
-		display: block; font-family: 'Consolas', monospace;
-		font-size: 10px; color: rgba(200,200,255,0.55);
-		letter-spacing: 1px; margin-top: 4px; font-weight: 400;
-	}
-
-	#touch-ui { position: fixed; inset: 0; z-index: 4000; pointer-events: none; display: none; touch-action: none; }
-	#touch-ui.active { display: block; }
-	#touch-look { position: absolute; left: 50%; right: 0; top: 0; bottom: 0; z-index: 0; pointer-events: auto; touch-action: none; }
-	#touch-stick {
-		position: absolute;
-		left: max(20px, env(safe-area-inset-left));
-		bottom: max(20px, env(safe-area-inset-bottom));
-		width: 150px; height: 150px;
-		border-radius: 50%;
-		background: rgba(0,0,0,0.32);
-		border: 2px solid rgba(150,150,255,0.35);
-		z-index: 10; pointer-events: auto;
-		display: flex; align-items: center; justify-content: center;
-		touch-action: none;
-	}
-	#touch-stick-knob {
-		position: absolute; left: 50%; top: 50%;
-		width: 58px; height: 58px; border-radius: 50%;
-		background: radial-gradient(circle, rgba(180,120,255,0.8) 0%, rgba(120,90,255,0.6) 100%);
-		transform: translate(-50%, -50%);
-		pointer-events: none;
-	}
-	.touch-btn {
-		position: absolute;
-		display: flex; align-items: center; justify-content: center;
-		border-radius: 50%;
-		background: rgba(0,0,0,0.45);
-		border: 2px solid rgba(150,150,255,0.4);
-		color: rgba(255,255,255,0.92);
-		font-family: 'Arial Black', sans-serif;
-		font-weight: 900;
-		z-index: 10; pointer-events: auto;
-		user-select: none; -webkit-user-select: none;
-		touch-action: none;
-	}
-	.touch-btn.active { background: rgba(120,90,255,0.7); border-color: #a78bfa; transform: scale(0.92); }
-	.touch-btn-a, .touch-btn-b, .touch-btn-x, .touch-btn-y { width: 62px; height: 62px; font-size: 20px; }
-	.touch-btn-y { right: calc(max(20px, env(safe-area-inset-right)) + 96px); bottom: calc(max(20px, env(safe-area-inset-bottom)) + 152px); }
-	.touch-btn-x { right: calc(max(20px, env(safe-area-inset-right)) + 160px); bottom: calc(max(20px, env(safe-area-inset-bottom)) + 88px); }
-	.touch-btn-b { right: calc(max(20px, env(safe-area-inset-right)) + 32px);  bottom: calc(max(20px, env(safe-area-inset-bottom)) + 88px); }
-	.touch-btn-a { right: calc(max(20px, env(safe-area-inset-right)) + 96px); bottom: calc(max(20px, env(safe-area-inset-bottom)) + 24px); }
-	.touch-btn-lb, .touch-btn-rb { width: 76px; height: 46px; border-radius: 12px; font-size: 14px; }
-	.touch-btn-lb { left: max(16px, env(safe-area-inset-left)); top: max(16px, env(safe-area-inset-top)); }
-	.touch-btn-rb { right: max(16px, env(safe-area-inset-right)); top: max(16px, env(safe-area-inset-top)); }
-	.touch-btn-start {
-		width: 50px; height: 50px; font-size: 15px; border-radius: 12px;
-		left: 50%; top: max(16px, env(safe-area-inset-top)); transform: translateX(-50%);
-	}
-	.touch-btn-start.active { transform: translateX(-50%) scale(0.92); }
-
-	@media (orientation: portrait) {
-		#touch-stick { width: 128px; height: 128px; }
-		#touch-stick-knob { width: 50px; height: 50px; }
-		.touch-btn-a, .touch-btn-b, .touch-btn-x, .touch-btn-y { width: 56px; height: 56px; font-size: 17px; }
-		.touch-btn-y { right: calc(max(16px, env(safe-area-inset-right)) + 84px); bottom: calc(max(16px, env(safe-area-inset-bottom)) + 136px); }
-		.touch-btn-x { right: calc(max(16px, env(safe-area-inset-right)) + 142px); bottom: calc(max(16px, env(safe-area-inset-bottom)) + 78px); }
-		.touch-btn-b { right: calc(max(16px, env(safe-area-inset-right)) + 26px);  bottom: calc(max(16px, env(safe-area-inset-bottom)) + 78px); }
-		.touch-btn-a { right: calc(max(16px, env(safe-area-inset-right)) + 84px); bottom: calc(max(16px, env(safe-area-inset-bottom)) + 20px); }
-		.touch-btn-lb, .touch-btn-rb { width: 62px; height: 40px; font-size: 12px; }
-	}
+	#fps { position: fixed; left: 8px; top: 6px; display: none; color: #0f0;
+		font: bold 18px/1.2 Consolas,monospace; font-variant-numeric: tabular-nums;
+		text-shadow: 1px 1px 2px #000, 0 0 3px #000; pointer-events: none; z-index: 10; }
 </style>
 </head>
 <body>
 
 <canvas id="canvas" width="1280" height="720" tabindex="-1"></canvas>
 <div id="hud"></div>
+<div id="fps"></div>
 
-<div id="device-select">
-  <div class="ds-title">KITO</div>
-  <div class="ds-sub">Selecciona tu dispositivo</div>
-  <div class="ds-cards">
-    <button class="ds-card" data-device="pc" id="ds-pc" type="button">
-      <div class="ds-icon">💻</div>
-      <div class="ds-name">PC / Escritorio</div>
-      <div class="ds-detail">WebGPU · GPU dedicada</div>
-    </button>
-    <button class="ds-card" data-device="mobile" id="ds-mobile" type="button">
-      <div class="ds-icon">📱</div>
-      <div class="ds-name">Móvil / Tablet</div>
-      <div class="ds-detail">Exynos, Snapdragon, Helio</div>
-    </button>
+<div id="click-to-start">
+  <div class="cts-logo">KITO</div>
+  <div class="cts-sub">Web Edition</div>
+  <button id="cts-button" type="button">▶ CLIC PARA COMENZAR</button>
+  <div class="cts-note">
+    Proyecto fan-made sin ánimo de lucro · Sin afiliación con Rockstar Games o Take-Two
   </div>
 </div>
 
-<div id="click-to-start" class="hidden">
-  <div class="cts-logo">KITO</div>
-  <div class="cts-sub">Web Edition</div>
-  <button id="cts-button" type="button">▶ COMENZAR</button>
-</div>
-
-<button id="sound-toggle" title="Sonido">🔊</button>
+<button id="sound-toggle" title="Activar/desactivar sonido">🔊</button>
 
 <div id="boot-screen">
   <div class="boot-spinner"></div>
@@ -340,7 +234,42 @@
 <div id="loading">
   <div id="ls-stage">
     <div id="ls-screens"></div>
+
     <div id="kito-logo">KITO<small>WEB EDITION</small></div>
+
+    <button id="info-toggle" title="Mostrar/ocultar panel (F8)">ℹ</button>
+
+    <div id="info-panel">
+      <div class="title">Estado del sistema</div>
+      <div class="row"><span class="label">Proyecto</span><span class="value">Fan-made</span></div>
+      <div class="row"><span class="label">Build</span><span class="value" id="info-version">v30</span></div>
+      <div class="row"><span class="label">Service Worker</span><span class="value" id="info-sw">registrando…</span></div>
+
+      <hr>
+      <div class="title">Red</div>
+      <div class="row"><span class="label">Conexión</span><span class="value" id="info-net">comprobando…</span></div>
+      <div class="row"><span class="label">Velocidad</span><span class="value" id="info-speed">— MB/s</span></div>
+      <div class="row"><span class="label">Descargado</span><span class="value" id="info-bytes">0 MB</span></div>
+
+      <hr>
+      <div class="title">Hardware</div>
+      <div class="row"><span class="label">GPU</span><span class="value" id="info-gpu">detectando…</span></div>
+      <div class="row"><span class="label">Núcleos</span><span class="value" id="info-cores">—</span></div>
+      <div class="row"><span class="label">Memoria</span><span class="value" id="info-mem">— GB</span></div>
+
+      <hr>
+      <div class="title">Progreso</div>
+      <div class="row"><span class="label">Fase</span><span class="value" id="info-phase">iniciando</span></div>
+      <div class="row"><span class="label">Tiempo</span><span class="value" id="info-time">0s</span></div>
+
+      <hr>
+      <div class="title">Aviso legal</div>
+      <div class="legal">
+        Este proyecto es un <b>fan-made sin ánimo de lucro</b> con fines <b>educativos</b>.
+        No está afiliado con <b>Rockstar Games</b> ni <b>Take-Two</b>.
+      </div>
+    </div>
+
     <div id="ls-bars">
       <div id="modes" class="ls-bar">
         <button data-act="back"></button>
@@ -352,9 +281,11 @@
       <div class="ls-bar">
         <span id="label">Starting...</span>
         <span id="pct">0%</span>
+        <i class="ls-spin"></i>
       </div>
     </div>
   </div>
+
   <div id="ls-log">
     <div id="data"></div>
     <div id="console"></div>
@@ -362,31 +293,15 @@
   <div id="bar"><div id="fill"></div></div>
 </div>
 
-<div id="mobile-modes">
-  <div class="mm-title" id="mm-title">ELIGE MODO</div>
-  <div id="mm-buttons"></div>
-</div>
-
-<div id="touch-ui">
-  <div id="touch-look"></div>
-  <div id="touch-stick"><div id="touch-stick-knob"></div></div>
-  <div class="touch-btn touch-btn-lb" data-key="ShiftLeft">LB</div>
-  <div class="touch-btn touch-btn-rb" data-key="KeyF">RB</div>
-  <div class="touch-btn touch-btn-start" data-key="Escape">☰</div>
-  <div class="touch-btn touch-btn-y" data-key="KeyE">Y</div>
-  <div class="touch-btn touch-btn-x" data-btn="1">X</div>
-  <div class="touch-btn touch-btn-b" data-btn="0">B</div>
-  <div class="touch-btn touch-btn-a" data-key="Space">A</div>
-</div>
-
 <script type="module">
-console.log('[KITO] index.html cargado — v36');
+console.log('[KITO] index.html cargado — v30');
+window.addEventListener('error', (e) => {
+  console.error('[KITO] ERROR:', e.message, 'en', e.filename, ':', e.lineno);
+  const hud = document.getElementById('hud');
+  if (hud && !hud.textContent) hud.textContent = 'Error: ' + e.message;
+});
 
-const isTouchDevice = ('ontouchstart' in window) || (navigator.maxTouchPoints || 0) > 0;
-const forceTouchUI = new URLSearchParams(location.search).get('touch') === '1';
-const touchMode = isTouchDevice || forceTouchUI;
-console.log('[KITO] touchMode=' + touchMode + ' maxTouchPoints=' + navigator.maxTouchPoints);
-
+// Filtro cosmético
 (function() {
   const ignore = [
     /Bink is not available/i, /LookupVar\(.+\) failed/i,
@@ -394,6 +309,7 @@ console.log('[KITO] touchMode=' + touchMode + ' maxTouchPoints=' + navigator.max
     /Settings file missing/i, /ped HD assets/i,
     /Attempting to release NULL/i, /Failed to load resource.*favicon/i,
     /NetworkAssertf/i, /NetworkVerifyf/i, /Profile Stats Flush/i,
+    /cCommerceManager/i, /camReplayDirector/i,
     /grcResourceCache::/i, /grcDevice::/i, /writes colour output/i,
     /cloudflareinsights/i, /flip invoke buffers/i,
   ];
@@ -408,90 +324,198 @@ console.log('[KITO] touchMode=' + touchMode + ' maxTouchPoints=' + navigator.max
 })();
 
 // ============================================================
-// AUDIO CONTEXT
-// ============================================================
-let sharedAudioCtx = null;
-function initAudioCtx() {
-  if (sharedAudioCtx) return;
-  try {
-    const AC = window.AudioContext || window.webkitAudioContext;
-    if (!AC) return;
-    sharedAudioCtx = new AC({ latencyHint: 'interactive' });
-    sharedAudioCtx.resume().catch(() => {});
-    const buf = sharedAudioCtx.createBuffer(1, 1, sharedAudioCtx.sampleRate);
-    const src = sharedAudioCtx.createBufferSource();
-    src.buffer = buf; src.connect(sharedAudioCtx.destination); src.start(0);
-  } catch (e) { console.warn('[Audio]', e); }
-}
-
-// ============================================================
-// MÚSICA DE INTRO
+// PLAYLIST synthwave (4 pistas rotando)
 // ============================================================
 const AmbientAudio = (function() {
-  let playing = false, masterGain = null, schedId = null, nextT = 0, step = 0;
-  const CHORDS = [[57,60,64], [53,57,60], [48,52,55], [55,59,62]];
-  const ARP = [57,60,64,69,72,69,64,60];
-  const ROOT = [45, 41, 36, 43];
-  const BPM = 88;
+  let ctx = null, masterGain = null, playing = false;
+  let schedulerId = null, nextNoteTime = 0, step = 0, trackIndex = 0;
+  let currentTrack = null;
+  const listeners = new Set();
+
+  const TRACKS = [
+    { name: 'Neon Drive', bpm: 84, padWave: 'sawtooth', padDetune: 7, padCutoff: 1800, padGain: 0.05, bassWave: 'square', bassCutoff: 900, arpWave: 'triangle', arpGain: 0.22,
+      kickPattern: [1,0,0,0,0,0,1,0,1,0,0,0,0,0,1,0], hatPattern: [1,0,1,0,1,0,1,0,1,0,1,1,1,0,1,1],
+      arpPattern: [1,0,1,0,1,1,1,0,1,0,1,1,1,1,1,0], bassPattern: [1,0,0,0,1,0,0,1,1,0,0,0,1,0,1,0],
+      progressions: [
+        { root: 45, chord: [57,60,64], arp: [57,60,64,69,72,69,64,60] },
+        { root: 41, chord: [53,57,60], arp: [53,57,60,65,69,65,60,57] },
+        { root: 36, chord: [48,52,55], arp: [48,52,55,60,64,60,55,52] },
+        { root: 43, chord: [55,59,62], arp: [55,59,62,67,71,67,62,59] },
+      ] },
+    { name: 'Midnight Coast', bpm: 100, padWave: 'sawtooth', padDetune: 10, padCutoff: 2200, padGain: 0.045, bassWave: 'sawtooth', bassCutoff: 700, arpWave: 'square', arpGain: 0.16,
+      kickPattern: [1,0,0,1,0,0,1,0,1,0,0,1,0,0,1,0], hatPattern: [0,1,0,1,0,1,0,1,0,1,1,1,0,1,0,1],
+      arpPattern: [1,1,0,1,0,1,1,0,1,0,1,1,0,1,1,0], bassPattern: [1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,1],
+      progressions: [
+        { root: 40, chord: [52,55,59], arp: [52,55,59,64,67,64,59,55] },
+        { root: 36, chord: [48,52,55], arp: [48,52,55,60,64,60,55,52] },
+        { root: 43, chord: [55,59,62], arp: [55,59,62,67,71,67,62,59] },
+        { root: 38, chord: [50,53,57], arp: [50,53,57,62,65,62,57,53] },
+      ] },
+    { name: 'Sunset Cruise', bpm: 76, padWave: 'triangle', padDetune: 5, padCutoff: 1400, padGain: 0.07, bassWave: 'sine', bassCutoff: 500, arpWave: 'sine', arpGain: 0.24,
+      kickPattern: [1,0,0,0,0,0,0,0,1,0,0,0,0,0,0,0], hatPattern: [0,0,1,0,0,0,1,0,0,0,1,0,0,0,1,1],
+      arpPattern: [1,1,1,1,0,1,1,1,1,1,0,1,1,1,1,0], bassPattern: [1,0,0,0,0,0,0,0,1,0,0,0,0,0,0,1],
+      progressions: [
+        { root: 41, chord: [53,57,60], arp: [53,57,60,65,69,72,69,65] },
+        { root: 36, chord: [48,52,55], arp: [48,52,55,60,64,67,64,60] },
+        { root: 43, chord: [55,59,62], arp: [55,59,62,67,71,74,71,67] },
+        { root: 45, chord: [57,60,64], arp: [57,60,64,69,72,76,72,69] },
+      ] },
+    { name: 'Chase', bpm: 112, padWave: 'sawtooth', padDetune: 12, padCutoff: 2600, padGain: 0.04, bassWave: 'square', bassCutoff: 1000, arpWave: 'sawtooth', arpGain: 0.14,
+      kickPattern: [1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,1], hatPattern: [0,1,1,1,0,1,1,1,0,1,1,1,1,1,1,1],
+      arpPattern: [1,0,1,1,0,1,1,0,1,1,0,1,1,0,1,1], bassPattern: [1,1,0,1,1,0,1,1,1,1,0,1,1,0,1,1],
+      progressions: [
+        { root: 33, chord: [45,48,52], arp: [45,48,52,57,60,64,60,57] },
+        { root: 40, chord: [52,55,59], arp: [52,55,59,64,67,71,67,64] },
+        { root: 43, chord: [55,59,62], arp: [55,59,62,67,71,74,71,67] },
+        { root: 45, chord: [57,60,64], arp: [57,60,64,69,72,76,72,69] },
+      ] },
+  ];
+
   const mtof = (m) => 440 * Math.pow(2, (m - 69) / 12);
 
   function init() {
-    if (!sharedAudioCtx || masterGain) return;
-    masterGain = sharedAudioCtx.createGain();
-    masterGain.gain.value = 0;
-    masterGain.connect(sharedAudioCtx.destination);
+    if (ctx) return;
+    ctx = new (window.AudioContext || window.webkitAudioContext)({ latencyHint: 'interactive' });
+    masterGain = ctx.createGain(); masterGain.gain.value = 0;
+    const conv = ctx.createConvolver();
+    const len = ctx.sampleRate * 1.8;
+    const buf = ctx.createBuffer(2, len, ctx.sampleRate);
+    for (let ch = 0; ch < 2; ch++) {
+      const d = buf.getChannelData(ch);
+      for (let i = 0; i < len; i++) d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / len, 2.2);
+    }
+    conv.buffer = buf;
+    const wet = ctx.createGain(); wet.gain.value = 0.4;
+    const dry = ctx.createGain(); dry.gain.value = 0.85;
+    masterGain.connect(dry); dry.connect(ctx.destination);
+    masterGain.connect(conv); conv.connect(wet); wet.connect(ctx.destination);
   }
-  function note(freq, t, dur, gain) {
-    const o = sharedAudioCtx.createOscillator();
-    o.type = 'sawtooth'; o.frequency.value = freq;
-    const g = sharedAudioCtx.createGain();
-    g.gain.setValueAtTime(0, t);
-    g.gain.linearRampToValueAtTime(gain, t + 0.05);
+  function playPad(f, t, dur, c) {
+    const g = ctx.createGain(); g.gain.setValueAtTime(0, t);
+    g.gain.linearRampToValueAtTime(c.padGain, t + 0.7);
+    g.gain.linearRampToValueAtTime(c.padGain * 0.85, t + dur - 0.7);
+    g.gain.linearRampToValueAtTime(0, t + dur);
+    const filt = ctx.createBiquadFilter(); filt.type = 'lowpass'; filt.frequency.value = c.padCutoff; filt.Q.value = 0.7;
+    for (const det of [-c.padDetune, c.padDetune]) {
+      const o = ctx.createOscillator(); o.type = c.padWave; o.frequency.value = f; o.detune.value = det;
+      o.connect(g); o.start(t); o.stop(t + dur + 0.1);
+    }
+    g.connect(filt); filt.connect(masterGain);
+  }
+  function playBass(f, t, dur, c) {
+    const o = ctx.createOscillator(); o.type = c.bassWave; o.frequency.value = f;
+    const g = ctx.createGain(); g.gain.setValueAtTime(0, t);
+    g.gain.linearRampToValueAtTime(0.35, t + 0.01);
     g.gain.exponentialRampToValueAtTime(0.001, t + dur);
-    const f = sharedAudioCtx.createBiquadFilter();
-    f.type = 'lowpass'; f.frequency.value = 2000;
-    o.connect(g); g.connect(f); f.connect(masterGain);
+    const filt = ctx.createBiquadFilter(); filt.type = 'lowpass';
+    filt.frequency.setValueAtTime(c.bassCutoff * 1.4, t);
+    filt.frequency.exponentialRampToValueAtTime(c.bassCutoff * 0.35, t + dur);
+    filt.Q.value = 6;
+    o.connect(g); g.connect(filt); filt.connect(masterGain);
     o.start(t); o.stop(t + dur + 0.05);
   }
+  function playArp(f, t, dur, c) {
+    const o = ctx.createOscillator(); o.type = c.arpWave; o.frequency.value = f;
+    const g = ctx.createGain(); g.gain.setValueAtTime(0, t);
+    g.gain.linearRampToValueAtTime(c.arpGain, t + 0.005);
+    g.gain.exponentialRampToValueAtTime(0.001, t + dur);
+    o.connect(g); g.connect(masterGain); o.start(t); o.stop(t + dur + 0.02);
+  }
+  function playKick(t) {
+    const o = ctx.createOscillator(); o.type = 'sine';
+    o.frequency.setValueAtTime(150, t); o.frequency.exponentialRampToValueAtTime(38, t + 0.18);
+    const g = ctx.createGain(); g.gain.setValueAtTime(0.001, t);
+    g.gain.linearRampToValueAtTime(0.9, t + 0.005);
+    g.gain.exponentialRampToValueAtTime(0.001, t + 0.32);
+    o.connect(g); g.connect(masterGain); o.start(t); o.stop(t + 0.35);
+  }
+  function playHat(t, open, scale) {
+    const dur = open ? 0.18 : 0.045;
+    const bufSize = Math.max(1, Math.floor(ctx.sampleRate * dur));
+    const buf = ctx.createBuffer(1, bufSize, ctx.sampleRate);
+    const d = buf.getChannelData(0);
+    for (let i = 0; i < bufSize; i++) d[i] = (Math.random() * 2 - 1) * (1 - i / bufSize);
+    const src = ctx.createBufferSource(); src.buffer = buf;
+    const filt = ctx.createBiquadFilter(); filt.type = 'highpass'; filt.frequency.value = open ? 5500 : 7800;
+    const g = ctx.createGain(); g.gain.value = (open ? 0.18 : 0.12) * scale;
+    src.connect(filt); filt.connect(g); g.connect(masterGain); src.start(t);
+  }
+  function scheduleStep(s, t) {
+    const cfg = currentTrack; if (!cfg) return;
+    const stepDur = 60 / cfg.bpm / 4;
+    const bar = Math.floor(s / 16) % cfg.progressions.length;
+    const beat = s % 16;
+    const chord = cfg.progressions[bar];
+    if (beat === 0) {
+      const dur = (60 / cfg.bpm) * 4;
+      for (const n of chord.chord) playPad(mtof(n + 12), t, dur, cfg);
+    }
+    if (cfg.bassPattern[beat]) playBass(mtof(chord.root), t, stepDur * 3.5, cfg);
+    if (cfg.arpPattern[beat]) {
+      const idx = (s * 3) % chord.arp.length;
+      playArp(mtof(chord.arp[idx] + 12), t, stepDur * 1.6, cfg);
+    }
+    if (cfg.kickPattern[beat]) playKick(t);
+    if (cfg.hatPattern[beat]) playHat(t, beat === 12 || beat === 15, 1);
+  }
   function scheduler() {
-    if (!playing || !sharedAudioCtx) return;
-    const stepDur = 60 / BPM / 4;
-    while (nextT < sharedAudioCtx.currentTime + 0.15) {
-      const bar = Math.floor(step / 16) % CHORDS.length;
-      const beat = step % 16;
-      if (beat === 0) for (const n of CHORDS[bar]) note(mtof(n + 12), nextT, 1.6, 0.06);
-      if (beat % 2 === 1) note(mtof(ARP[step % ARP.length] + 12), nextT, 0.2, 0.08);
-      if (beat % 4 === 0) note(mtof(ROOT[bar]), nextT, 0.35, 0.15);
-      nextT += stepDur;
+    if (!playing || !currentTrack) return;
+    const stepDur = 60 / currentTrack.bpm / 4;
+    const now = ctx.currentTime;
+    while (nextNoteTime < now + 0.15) {
+      scheduleStep(step, nextNoteTime);
+      nextNoteTime += stepDur;
       step++;
     }
-    schedId = setTimeout(scheduler, 25);
+    schedulerId = setTimeout(scheduler, 25);
+  }
+  let trackTimer = null;
+  const TRACK_DURATION_MS = 42000;
+  function startTrack(i) {
+    trackIndex = ((i % TRACKS.length) + TRACKS.length) % TRACKS.length;
+    currentTrack = TRACKS[trackIndex];
+    step = 0; nextNoteTime = ctx.currentTime + 0.08;
+    listeners.forEach((cb) => { try { cb(currentTrack); } catch (e) {} });
+    console.log('[KITO] ♪ ' + currentTrack.name + ' — ' + currentTrack.bpm + ' BPM');
+    clearTimeout(trackTimer);
+    trackTimer = setTimeout(() => {
+      if (!playing) return;
+      const g = masterGain.gain, t = ctx.currentTime;
+      g.cancelScheduledValues(t); g.setValueAtTime(g.value, t);
+      g.linearRampToValueAtTime(0, t + 1.2);
+      setTimeout(() => {
+        if (!playing) return;
+        startTrack(trackIndex + 1);
+        const t2 = ctx.currentTime;
+        g.cancelScheduledValues(t2); g.setValueAtTime(0, t2);
+        g.linearRampToValueAtTime(0.55, t2 + 2);
+      }, 1300);
+    }, TRACK_DURATION_MS);
   }
   function start() {
     init();
-    if (!sharedAudioCtx || playing) return;
-    if (sharedAudioCtx.state === 'suspended') sharedAudioCtx.resume().catch(() => {});
-    playing = true; step = 0;
-    nextT = sharedAudioCtx.currentTime + 0.1;
-    masterGain.gain.setValueAtTime(0, sharedAudioCtx.currentTime);
-    masterGain.gain.linearRampToValueAtTime(0.5, sharedAudioCtx.currentTime + 2);
+    if (ctx.state === 'suspended') ctx.resume();
+    if (playing) return;
+    playing = true;
+    startTrack(trackIndex);
+    masterGain.gain.cancelScheduledValues(ctx.currentTime);
+    masterGain.gain.setValueAtTime(0, ctx.currentTime);
+    masterGain.gain.linearRampToValueAtTime(0.55, ctx.currentTime + 3);
     scheduler();
   }
   function stop() {
     if (!playing) return;
     playing = false;
-    if (schedId) clearTimeout(schedId);
-    if (masterGain && sharedAudioCtx) {
-      masterGain.gain.cancelScheduledValues(sharedAudioCtx.currentTime);
-      masterGain.gain.setValueAtTime(masterGain.gain.value, sharedAudioCtx.currentTime);
-      masterGain.gain.linearRampToValueAtTime(0, sharedAudioCtx.currentTime + 1.2);
-    }
+    if (schedulerId) { clearTimeout(schedulerId); schedulerId = null; }
+    if (trackTimer) { clearTimeout(trackTimer); trackTimer = null; }
+    if (!masterGain || !ctx) return;
+    masterGain.gain.cancelScheduledValues(ctx.currentTime);
+    masterGain.gain.setValueAtTime(masterGain.gain.value, ctx.currentTime);
+    masterGain.gain.linearRampToValueAtTime(0, ctx.currentTime + 1.8);
   }
-  return {
-    start, stop,
-    toggle: () => { if (playing) { stop(); return false; } else { start(); return true; } },
-    isPlaying: () => playing,
-  };
+  function toggle() { if (playing) stop(); else start(); return playing; }
+  function onTrack(cb) { listeners.add(cb); if (currentTrack) cb(currentTrack); return () => listeners.delete(cb); }
+  return { init, start, stop, toggle, isPlaying: () => playing, onTrack };
 })();
 
 const clickScreen = document.getElementById('click-to-start');
@@ -503,29 +527,30 @@ const bootStatus = document.getElementById('boot-status');
 const bootBar = document.getElementById('boot-bar-fill');
 
 let gameStarted = false;
-let audioGesture = false, audioPending = null, audioStarted = false;
-
 function startGame() {
   if (gameStarted) return;
   gameStarted = true;
   console.log('[KITO] 🚀 Arrancando...');
-  initAudioCtx();
-  audioGesture = true;
-  try { AmbientAudio.start(); soundToggle.textContent = '🔊'; soundToggle.classList.remove('muted'); }
+  try { AmbientAudio.init(); AmbientAudio.start(); soundToggle.textContent = '🔊'; soundToggle.classList.remove('muted'); }
   catch (e) { console.warn('[Audio]', e); }
   clickScreen.classList.add('hidden');
+  setTimeout(() => { try { clickScreen.remove(); } catch(e) {} }, 900);
   bootScreen.classList.add('visible');
   setBoot(5, 'Iniciando...');
   window.dispatchEvent(new Event('game-start'));
 }
 ctsButton.addEventListener('click', (e) => { e.stopPropagation(); startGame(); });
-ctsButton.addEventListener('touchend', (e) => { e.preventDefault(); e.stopPropagation(); startGame(); }, { passive: false });
-
+clickScreen.addEventListener('click', startGame);
+document.addEventListener('keydown', (e) => {
+  if (!gameStarted && (e.code === 'Space' || e.code === 'Enter' || e.code === 'Escape')) {
+    e.preventDefault(); startGame();
+  }
+}, { capture: true });
 soundToggle.addEventListener('click', (e) => {
   e.stopPropagation();
-  const on = AmbientAudio.toggle();
-  soundToggle.textContent = on ? '🔊' : '🔇';
-  soundToggle.classList.toggle('muted', !on);
+  const isPlaying = AmbientAudio.toggle();
+  if (isPlaying) { soundToggle.textContent = '🔊'; soundToggle.classList.remove('muted'); }
+  else { soundToggle.textContent = '🔇'; soundToggle.classList.add('muted'); }
 });
 
 function setBoot(pct, text) {
@@ -535,54 +560,13 @@ function setBoot(pct, text) {
 function hideBootScreen() {
   setBoot(100, 'Listo');
   setTimeout(() => {
-    bootScreen.classList.remove('visible');
+    bootScreen.classList.add('hidden');
     loadingEl.classList.add('visible');
+    setTimeout(() => { try { bootScreen.remove(); } catch(e) {} }, 700);
   }, 300);
 }
 
-(function initDeviceSelector() {
-  const sel = document.getElementById('device-select');
-  const dsPc = document.getElementById('ds-pc');
-  const dsMobile = document.getElementById('ds-mobile');
-
-  const ua = navigator.userAgent || '';
-  const isMobileUA = /Android|iPhone|iPad|iPod|Mobile|Tablet|Windows Phone/i.test(ua);
-  const smallScreen = Math.min(innerWidth, innerHeight) < 768;
-  const isMobile = isMobileUA || (isTouchDevice && smallScreen);
-  (isMobile ? dsMobile : dsPc).classList.add('detected');
-
-  let proceeded = false;
-  function proceed() {
-    if (proceeded) return;
-    proceeded = true;
-    sel.classList.add('hidden');
-    clickScreen.classList.remove('hidden');
-  }
-  const bind = (el) => {
-    el.addEventListener('click', proceed);
-    el.addEventListener('touchend', (e) => { e.preventDefault(); proceed(); }, { passive: false });
-  };
-  bind(dsPc); bind(dsMobile);
-})();
-
-(async () => {
-  if (!('serviceWorker' in navigator)) return;
-  try {
-    await navigator.serviceWorker.register('/sw.js', { scope: '/' });
-    if (!navigator.serviceWorker.controller) {
-      if (!sessionStorage.getItem('sw_reloaded_v36')) {
-        sessionStorage.setItem('sw_reloaded_v36', '1');
-        location.reload();
-      }
-    } else {
-      sessionStorage.removeItem('sw_reloaded_v36');
-    }
-  } catch (e) { console.warn('[SW]', e); }
-})();
-
-const q = new URLSearchParams(location.search);
-const BASE = '';
-
+// Sliding screens
 (function initSlidingScreens() {
   const holder = document.getElementById('ls-screens');
   if (!holder) return;
@@ -601,44 +585,45 @@ const BASE = '';
   function createScreen(def) {
     const el = document.createElement('div');
     el.className = 'ls-screen ' + def.class;
-    el.innerHTML = '<div class="screen-bg"></div><div class="screen-label">' + def.label + '<small>' + def.sub + '</small></div>';
+    el.innerHTML = `<div class="screen-bg"></div><div class="screen-label">${def.label}<small>${def.sub}</small></div>`;
     return el;
   }
   function animateIn(el, fromX) {
-    const dur = 900, start = performance.now(), toX = 0;
-    el.style.transform = 'translateX(' + fromX + 'px)';
+    const duration = 900, startTime = performance.now(), toX = 0;
+    el.style.transform = `translateX(${fromX}px)`;
     function tick() {
       if (stopped) return;
-      const t = Math.min(1, (performance.now() - start) / dur);
-      const e = cubicInOut(t);
-      el.style.transform = 'translateX(' + (fromX + (toX - fromX) * e) + 'px)';
-      const lbl = el.querySelector('.screen-label');
-      if (lbl) { lbl.style.transform = 'translateX(' + (40 * (1 - e)) + 'px)'; lbl.style.opacity = e; }
+      const t = Math.min(1, (performance.now() - startTime) / duration);
+      const eased = cubicInOut(t);
+      el.style.transform = `translateX(${fromX + (toX - fromX) * eased}px)`;
+      const label = el.querySelector('.screen-label');
+      if (label) { label.style.transform = `translateX(${40 * (1 - eased)}px)`; label.style.opacity = eased; }
       if (t < 1) requestAnimationFrame(tick);
     }
     requestAnimationFrame(tick);
   }
-  function animateOut(el, dir) {
+  function animateOut(el, direction) {
     if (!el) return;
-    const dur = 900, start = performance.now(), toX = dir * -1280;
+    const duration = 900, startTime = performance.now(), toX = direction * -1280;
     function tick() {
-      const t = Math.min(1, (performance.now() - start) / dur);
-      el.style.transform = 'translateX(' + (toX * cubicInOut(t)) + 'px)';
+      const t = Math.min(1, (performance.now() - startTime) / duration);
+      const eased = cubicInOut(t);
+      el.style.transform = `translateX(${toX * eased}px)`;
       if (t < 1) requestAnimationFrame(tick);
-      else el.remove();
+      else { try { el.remove(); } catch(e) {} }
     }
     requestAnimationFrame(tick);
   }
   function next() {
     if (stopped) return;
     alt = alt <= 0 ? 1 : -1;
-    const old = currentEl;
+    const oldEl = currentEl;
     const def = SCREENS[nextIndex];
-    const el = createScreen(def);
-    holder.appendChild(el);
-    animateIn(el, alt * 1280);
-    if (old) animateOut(old, alt);
-    currentEl = el;
+    const newEl = createScreen(def);
+    holder.appendChild(newEl);
+    animateIn(newEl, alt * 1280);
+    if (oldEl) animateOut(oldEl, alt);
+    currentEl = newEl;
     nextIndex = (nextIndex + 1) % SCREENS.length;
     setTimeout(next, 8000);
   }
@@ -646,16 +631,95 @@ const BASE = '';
   window.__stopSlidingScreens = () => { stopped = true; };
 })();
 
+const swReady = (async () => {
+  if (!('serviceWorker' in navigator)) return null;
+  try {
+    const reg = await navigator.serviceWorker.register('/sw.js', { scope: '/' });
+    if (!navigator.serviceWorker.controller) {
+      // ↓↓↓ clave Linux: coincide con CACHE = 'gta5-v30' del SW ↓↓↓
+      if (!sessionStorage.getItem('sw_reloaded_v30')) {
+        sessionStorage.setItem('sw_reloaded_v30', '1');
+        location.reload();
+        return null;
+      }
+    } else {
+      sessionStorage.removeItem('sw_reloaded_v30');
+    }
+    await navigator.serviceWorker.ready;
+    return reg;
+  } catch (e) { console.warn('[SW]', e); return null; }
+})();
+
+const q = new URLSearchParams(location.search);
+const BASE = '';
+const remoteLog = q.get('log') === '1';
+const postLog = (text) => { if (remoteLog) fetch('/log', { method: 'POST', body: text }).catch(() => {}); };
+
+const t0 = performance.now();
+const info = {
+  version: document.getElementById('info-version'),
+  sw: document.getElementById('info-sw'),
+  net: document.getElementById('info-net'),
+  speed: document.getElementById('info-speed'),
+  bytes: document.getElementById('info-bytes'),
+  gpu: document.getElementById('info-gpu'),
+  cores: document.getElementById('info-cores'),
+  mem: document.getElementById('info-mem'),
+  phase: document.getElementById('info-phase'),
+  time: document.getElementById('info-time'),
+};
+function setValue(el, text, cls) { if (!el) return; el.textContent = text; el.className = 'value' + (cls ? ' ' + cls : ''); }
+const infoPanel = document.getElementById('info-panel');
+const infoToggle = document.getElementById('info-toggle');
+infoToggle.addEventListener('click', (e) => { e.stopPropagation(); infoPanel.classList.toggle('visible'); });
+addEventListener('keydown', (e) => { if (e.code === 'F8') { e.preventDefault(); infoPanel.classList.toggle('visible'); } });
+if (navigator.hardwareConcurrency) setValue(info.cores, navigator.hardwareConcurrency);
+if (navigator.deviceMemory) setValue(info.mem, navigator.deviceMemory + ' GB');
+(async () => {
+  try {
+    if (!navigator.gpu) { setValue(info.gpu, 'sin WebGPU', 'error'); return; }
+    const adapter = await navigator.gpu.requestAdapter();
+    if (!adapter) { setValue(info.gpu, 'sin adaptador', 'error'); return; }
+    const i = adapter.info || {};
+    setValue(info.gpu, (i.description || i.vendor || 'GPU').slice(0, 24), 'ok');
+  } catch (e) { setValue(info.gpu, 'error', 'error'); }
+})();
+if (navigator.connection) {
+  const c = navigator.connection;
+  const eff = c.effectiveType || '?';
+  const cls = /4g|5g/.test(eff) ? 'ok' : /3g/.test(eff) ? 'warn' : 'error';
+  setValue(info.net, eff.toUpperCase(), cls);
+} else { setValue(info.net, '—'); }
+swReady.then((reg) => setValue(info.sw, reg ? 'activo' : 'sin SW', reg ? 'ok' : 'warn'));
+setInterval(() => { const sec = Math.floor((performance.now() - t0) / 1000); setValue(info.time, sec + 's'); }, 1000);
+
+AmbientAudio.onTrack((t) => { if (info.phase && info.phase.textContent.startsWith('♪')) setValue(info.phase, '♪ ' + t.name, 'ok'); });
+
+{
+  let posted = 0;
+  new BroadcastChannel('game-crash').onmessage = (ev) => {
+    const m = ev.data;
+    const memory = /memory|OOM|Aborted\(|RangeError|grow/i.test(m.text);
+    if (remoteLog && posted++ < 3) fetch('/log', { method: 'POST', body: '[page] CRASH (' + m.kind + '): ' + m.text + '\n' }).catch(() => {});
+    const el = document.getElementById('hud');
+    if (el) {
+      el.textContent = 'El juego se detuvo (' + m.kind + '): ' + m.text.split('\n')[0].slice(0, 200) + (memory ? ' — falta de memoria.' : ' — recarga.');
+      el.style.color = '#f96';
+    }
+    setValue(info.phase, 'error', 'error');
+  };
+}
+
 {
   const stage = document.getElementById('ls-stage');
   const fit = () => {
     const s = Math.min(innerWidth / 1280, innerHeight / 720);
     stage.style.transform = 'translate(' + (innerWidth - 1280 * s) / 2 + 'px,' + (innerHeight - 720 * s) / 2 + 'px) scale(' + s + ')';
   };
-  fit(); addEventListener('resize', fit); addEventListener('orientationchange', () => setTimeout(fit, 200));
+  fit(); addEventListener('resize', fit);
 }
 
-let startMode = q.get('mode') === 'story' ? 1 : q.get('mode') === 'sandbox' ? 2 : 0;
+let startMode = q.get('mode') === 'story' ? 1 : q.get('mode') === 'sandbox' ? (q.get('map') === 'env_test' ? 3 : 2) : 0;
 let startModeWord = null, startCommitted = false, pickingMap = false, waitingChoice = false;
 const ACTS = {
   back: ['Atrás','Backspace',['Backspace']],
@@ -668,19 +732,29 @@ const LOADING = { 1: 'Cargando Historia', 2: 'Cargando Sandbox: GTA V', 3: 'Carg
 const modesEl = document.getElementById('modes');
 const modeButtons = [...modesEl.querySelectorAll('button')];
 const isMode = (act) => act === 'story' || act === 'sandbox';
-
 const showModes = () => {
   for (const b of modeButtons) {
     const act = b.dataset.act;
     const loading = !pickingMap && (act === 'story' ? startMode === 1 : act === 'sandbox' && startMode >= 2);
-    b.textContent = loading ? LOADING[startMode] : ACTS[act][0];
+    const text = document.createElement('span');
+    const icon = document.createElement(loading ? 'i' : 'span');
+    text.textContent = loading ? LOADING[startMode] : ACTS[act][0];
+    icon.className = loading ? 'ls-spin' : 'ls-key';
+    icon.textContent = loading ? '' : ACTS[act][1];
+    b.replaceChildren(text, icon);
+    b.style.order = loading ? 1 : 0;
+    b.disabled = startCommitted;
     b.hidden = startCommitted ? !loading : pickingMap === isMode(act);
+    b.classList.toggle('chosen', loading);
   }
-  syncMobileModeOverlay();
+  if (startMode) modesEl.classList.remove('ask');
+  if (waitingChoice && !startMode) {
+    document.getElementById('label').textContent = pickingMap ? 'Elige un mapa para continuar' : 'Elige Modo Historia o Sandbox para continuar';
+  }
 };
 const choose = (m) => {
   pickingMap = false;
-  if (m !== startMode) { startMode = m; if (startModeWord) Atomics.store(startModeWord, 0, m); }
+  if (m !== startMode) { startMode = m; if (startModeWord) Atomics.store(startModeWord, 0, m); postLog('[page] start mode: ' + m); }
   showModes();
 };
 const act = (a) => {
@@ -690,135 +764,152 @@ const act = (a) => {
   else if (a === 'map6') choose(3);
   else { pickingMap = a === 'sandbox'; showModes(); }
 };
-modesEl.addEventListener('click', (e) => {
-  const b = e.target.closest('button');
-  if (b && !b.hidden) act(b.dataset.act);
-});
-
-const mobileModes = document.getElementById('mobile-modes');
-const mmTitle = document.getElementById('mm-title');
-const mmButtons = document.getElementById('mm-buttons');
-
-function rebuildMobileModes() {
-  mmButtons.innerHTML = '';
-  if (pickingMap) {
-    mmTitle.textContent = 'ELIGE MAPA';
-    addMM('map5', '🗺️', 'Mapa GTA V', 'Los Santos + Blaine County');
-    addMM('map6', '🌆', 'Mapa GTA VI', 'Vice City (experimental)');
-    addMM('back', '←', 'Atrás', 'Volver a elegir modo');
-  } else {
-    mmTitle.textContent = 'ELIGE MODO';
-    addMM('story', '📖', 'Modo Historia', 'Campaña completa');
-    addMM('sandbox', '🎮', 'Modo Sandbox', 'Elige mapa libremente');
-  }
-}
-function addMM(a, icon, label, desc) {
-  const b = document.createElement('button');
-  b.type = 'button';
-  b.className = 'mm-btn';
-  b.innerHTML = icon + ' ' + label + '<span class="mm-desc">' + desc + '</span>';
-  const h = (e) => { e.preventDefault(); e.stopPropagation(); act(a); };
-  b.addEventListener('click', h);
-  b.addEventListener('touchend', h, { passive: false });
-  mmButtons.appendChild(b);
-}
-function syncMobileModeOverlay() {
-  if (!touchMode) { mobileModes.classList.remove('visible'); return; }
-  if (waitingChoice && !startCommitted && !startMode) {
-    rebuildMobileModes();
-    mobileModes.classList.add('visible');
-  } else {
-    mobileModes.classList.remove('visible');
-  }
-}
+modesEl.addEventListener('click', (e) => { const b = e.target.closest('button'); if (b && !b.hidden) act(b.dataset.act); });
+addEventListener('keydown', (e) => {
+  if (startCommitted || e.ctrlKey || e.altKey || e.metaKey || !document.getElementById('loading')) return;
+  if (e.code === 'F8') return;
+  const b = modeButtons.find((x) => !x.hidden && ACTS[x.dataset.act][2].includes(e.code));
+  if (!b) return;
+  act(b.dataset.act);
+  e.preventDefault(); e.stopImmediatePropagation();
+}, { capture: true });
 showModes();
 
-const hud = document.getElementById('hud');
 {
   const loading = document.getElementById('loading');
   const fill = document.getElementById('fill');
   const label = document.getElementById('label');
   const pct = document.getElementById('pct');
-  let target = 0, shown = 0, ready = false, dirty = false;
-  let dataBytes = 0;
+  let target = 0, shown = 0, ready = false, dirty = false, loadingGone = false;
+  let dataBytes = 0, worldBase = -1;
   const samples = [];
   let lastLine = '';
   const consoleEl = document.getElementById('console');
   const bc = new BroadcastChannel('game-progress');
+  let lastActivity = performance.now(), stallLogged = 0, lastLabel = '';
   bc.onmessage = (ev) => {
     const m = ev.data;
+    lastActivity = performance.now();
     if (m.dl) { dataBytes += m.dl; samples.push([performance.now(), m.dl]); return; }
-    if (m.lines) { lastLine = m.lines[m.lines.length - 1]; dirty = true; return; }
+    if (m.lines) { if (loadingGone || !m.lines.length) return; lastLine = m.lines[m.lines.length - 1]; dirty = true; return; }
+    if (m.gpuLost) { document.getElementById('hud').textContent = 'GPU perdida. Recarga.'; return; }
     if (m.error) { label.textContent = m.error; label.style.color = '#e66'; return; }
     if (m.pct > target) {
       target = m.pct;
-      if (m.label && !waitingChoice) label.textContent = m.label;
+      if (m.label) { lastLabel = m.label; if (!waitingChoice) { label.textContent = m.label; setValue(info.phase, m.label.slice(0, 30), m.pct >= 99 ? 'ok' : ''); } }
+      if (m.pct >= 72 && worldBase < 0) worldBase = dataBytes;
     }
-    if (m.choice && !startMode) { waitingChoice = true; showModes(); }
+    if (m.choice && !startMode) { waitingChoice = true; modesEl.classList.add('ask'); showModes(); }
     if (m.commit) { startCommitted = true; pickingMap = false; if (m.mode) startMode = m.mode; showModes(); }
+    if (m.compiling !== undefined && !waitingChoice) { label.textContent = lastLabel = 'Preparando shaders'; target = Math.max(target, 99); setValue(info.phase, 'Compilando shaders', 'warn'); }
     if (m.world) {
       ready = true;
+      document.getElementById('hud').textContent = 'clic para capturar el ratón (Esc libera, = FPS)';
+      setValue(info.phase, 'Listo', 'ok');
+      setTimeout(() => { document.getElementById('hud').textContent = ''; }, 15000);
       if (window.__stopSlidingScreens) window.__stopSlidingScreens();
       AmbientAudio.stop();
-      mobileModes.classList.remove('visible');
     }
   };
   const dataEl = document.getElementById('data');
-  const timer = setInterval(() => {
+  const WORLD_BYTES = 1.2e9;
+  setInterval(() => {
+    if (ready) return;
+    if (waitingChoice) { if (!startMode) { lastActivity = performance.now(); return; } waitingChoice = false; label.textContent = lastLabel; }
+    const quiet = (performance.now() - lastActivity) / 1000;
+    if (quiet > 30) {
+      label.textContent = 'Sin progreso ' + (quiet | 0) + 's' + (lastLabel ? ' (' + lastLabel + ')' : '');
+      label.style.color = '#e96';
+      if (quiet - stallLogged > 30) { stallLogged = quiet; postLog('[page] STALL'); }
+    } else if (stallLogged) { stallLogged = 0; label.style.color = ''; }
+  }, 2000);
+  const progressTimer = setInterval(() => {
     const now = performance.now();
     while (samples.length && now - samples[0][0] > 3000) samples.shift();
     const speed = samples.reduce((a, x) => a + x[1], 0) / 3;
-    if (dataBytes) dataEl.textContent = 'Game data: ' + (dataBytes / 1048576 | 0) + ' MB' + (speed > 1e4 ? ' (' + (speed / 1048576).toFixed(1) + ' MB/s)' : '');
-    const goal = ready ? 100 : Math.min(99, target + 6);
-    shown += (goal - shown) * 0.06;
+    if (dataBytes) {
+      setValue(info.bytes, (dataBytes / 1048576 | 0) + ' MB');
+      if (speed > 1e4) setValue(info.speed, (speed / 1048576).toFixed(1) + ' MB/s', 'ok');
+      dataEl.textContent = 'Game data: ' + (dataBytes / 1048576 | 0) + ' MB' + (speed > 1e4 ? ' (' + (speed / 1048576).toFixed(1) + ' MB/s)' : '');
+    }
+    if (worldBase >= 0 && !ready) target = Math.max(target, 72 + 26 * Math.min(1, (dataBytes - worldBase) / WORLD_BYTES));
+    const cap = ready ? 100 : Math.min(99, target + 6);
+    const goal = ready ? 100 : (shown < target ? target : cap);
+    shown += (goal - shown) * (goal === target || ready ? 0.12 : 0.004);
     if (dirty) { dirty = false; consoleEl.textContent = lastLine; }
     fill.style.width = shown.toFixed(1) + '%';
     pct.textContent = Math.round(shown) + '%';
-    if (ready && shown > 99.5) { loading.classList.add('done'); clearInterval(timer); }
+    if (ready && shown > 99.5) { loading.classList.add('done'); setTimeout(() => { try { loading.remove(); } catch(e) {} }, 1000); loadingGone = true; clearInterval(progressTimer); }
   }, 50);
 }
+const hud = document.getElementById('hud');
 
+{
+  const el = document.getElementById('fps');
+  let on = false;
+  new BroadcastChannel('game-fps').onmessage = (ev) => { if (on) el.textContent = Math.round(ev.data.fps) + ' FPS'; };
+  const isToggle = (e) => e.code === 'Equal' && !e.ctrlKey && !e.altKey && !e.metaKey;
+  addEventListener('keydown', (e) => { if (!isToggle(e)) return; e.stopImmediatePropagation(); e.preventDefault(); if (e.repeat) return; on = !on; el.style.display = on ? 'block' : 'none'; if (on) el.textContent = '-- FPS'; }, { capture: true });
+  addEventListener('keyup', (e) => { if (isToggle(e)) { e.stopImmediatePropagation(); e.preventDefault(); } }, { capture: true });
+}
+
+let audioPending = null, audioGesture = false, audioStarted = false;
 let canvasEl = document.getElementById('canvas');
 
-function fetchWithTimeout(url, opts = {}, timeoutMs = 30000) {
+// ✅ fetch con timeout
+function fetchWithTimeout(url, opts = {}, timeoutMs = 12000) {
   const ctrl = new AbortController();
   const timer = setTimeout(() => ctrl.abort(), timeoutMs);
   return fetch(url, { ...opts, signal: ctrl.signal }).finally(() => clearTimeout(timer));
 }
 
 window.addEventListener('game-start', async () => {
+  setBoot(40, 'Comprobando compatibilidad...');
+  if (remoteLog) {
+    const queue = []; let sending = false;
+    const pump = async () => {
+      if (sending || !queue.length) return; sending = true;
+      const body = queue.splice(0).join('\n');
+      try { await fetch('/log', { method: 'POST', body, keepalive: body.length < 60000 }); } catch (e) {}
+      sending = false; pump();
+    };
+    new BroadcastChannel('game-log').onmessage = (ev) => { queue.push(ev.data); if (queue.length > 20000) queue.splice(0, queue.length - 20000); pump(); };
+  }
+  addEventListener('pagehide', () => { try { new BroadcastChannel('game-io').postMessage('close'); } catch (e) {} });
+
   if (!crossOriginIsolated) {
-    document.getElementById('label').textContent = 'Sin aislamiento cross-origin. Abre por HTTPS.';
+    // En Linux probando desde http://192.168.x.x esto falla.
+    // Solución: servir por https:// o por http://localhost / http://127.0.0.1
+    document.getElementById('label').textContent = 'sin aislamiento cross-origin: usa HTTPS o http://localhost';
     document.getElementById('label').style.color = '#e66';
+    setValue(info.phase, 'sin aislamiento', 'error');
     setBoot(100, 'Error: sin aislamiento');
     setTimeout(hideBootScreen, 2000);
     return;
   }
 
+  setValue(info.phase, 'arrancando', 'ok');
   setBoot(60, 'Preparando canvas...');
 
   const lowParam = q.get('low');
-  const lowMemory = lowParam === '1' ||
-    (lowParam !== '0' && (touchMode || (navigator.deviceMemory || 8) <= 4));
-
+  const lowMemory = lowParam === '1' || (lowParam !== '0' && (navigator.deviceMemory || 8) <= 4);
   const LOW_ARGS = lowMemory ? [
     '-textureQuality=0', '-pedVariety=0', '-vehicleVariety=0',
-    '-shadowQuality=-1', '-reflectionQuality=0', '-particleQuality=0', '-grassQuality=0',
+    '-shadowQuality=' + (q.get('shadows') === '1' ? 0 : -1),
+    '-reflectionQuality=0', '-particleQuality=0', '-grassQuality=0',
     '-cityDensity=0', '-lodScale=0', '-pedLodBias=0', '-vehicleLodBias=0',
   ] : [];
-
-  const cores = +(q.get('cores') || 0) || (touchMode ? 4 : Math.min(navigator.hardwareConcurrency * 2, 32));
-
+  const cores = +(q.get('cores') || 0) || navigator.hardwareConcurrency * 2;
   const wantSize = () => {
     const forced = /^(\d+)x(\d+)$/.exec(q.get('res') || '');
     if (forced) return [+forced[1], +forced[2]];
-    const sc = Math.max(0.25, Math.min(2, +(q.get('scale') || (touchMode ? 0.5 : 1))));
+    const sc = Math.max(0.25, Math.min(2, +(q.get('scale') || 1)));
     let w = innerWidth * (devicePixelRatio || 1) * sc;
     let h = innerHeight * (devicePixelRatio || 1) * sc;
-    const cap = touchMode ? [960, 540] : [2560, 1440];
+    const cap = lowMemory ? [1920, 1080] : [2560, 1440];
     const k = Math.min(1, cap[0] / w, cap[1] / h);
     w *= k; h *= k;
-    return [Math.max(480, Math.round(w / 2) * 2), Math.max(270, Math.round(h / 2) * 2)];
+    return [Math.max(640, Math.round(w / 2) * 2), Math.max(360, Math.round(h / 2) * 2)];
   };
   const startSize = wantSize();
   canvasEl.width = startSize[0];
@@ -827,31 +918,47 @@ window.addEventListener('game-start', async () => {
   canvasEl.style.height = '100vh';
   const offscreen = canvasEl.transferControlToOffscreen();
 
-  setBoot(70, 'Descargando assets...');
+  const LOG_ARGS = q.get('verbose') ? [] : ['-Script_all=warning', '-replay_all=warning'];
+  const ENGINE_ARGS = ['-fastscriptcore'];
 
-  // ✅ Ahora apunta a gta.deloskiyt.pl
-  const PRIMARY = 'https://gta.deloskiyt.pl/b/8b0b5899ed';
+  setBoot(70, 'Descargando assets críticos...');
+
+  // ✅ Solo los assets que SÍ existen en R2
   const CRITICAL = [
-    { url: PRIMARY + '/shaders/index.json', label: 'Índice shaders' },
+    { url: '/data/manifest.json',  label: 'Manifest' },
+    { url: '/shaders/index.json',  label: 'Índice shaders' },
   ];
   const OPTIONAL = [
-    { url: PRIMARY + '/shaders/pipelines.json', label: 'Pipelines' },
-    { url: PRIMARY + '/shaders/pipelines_low.json', label: 'Pipelines low' },
+    { url: '/shaders/pipelines.json',      label: 'Pipelines' },
+    { url: '/data/bootset.json',           label: 'Bootset' },
+    { url: '/shaders/pipelines_low.json',  label: 'Pipelines low' },
+    { url: '/data/bootset_low.json',       label: 'Bootset low' },
   ];
 
+  // Lanza los opcionales en background sin bloquear
   for (const item of OPTIONAL) {
     fetchWithTimeout(item.url, { cache: 'reload' }, 60000)
-      .catch((e) => console.warn('[Preload opt] ' + item.label + ':', e.message || e));
+      .then((r) => { if (!r.ok) console.warn(`[Preload opt] ${item.label}: HTTP ${r.status}`); })
+      .catch((e) => console.warn(`[Preload opt] ${item.label}: ${e.message || e}`));
   }
 
-  let n = 0;
+  // Espera SOLO los críticos, con timeout por item
+  let preloadCount = 0;
   await Promise.all(CRITICAL.map(async (item) => {
     try {
       const res = await fetchWithTimeout(item.url, { cache: 'reload' }, 60000);
-      if (res.ok) await res.blob();
-    } catch (e) { console.warn('[Preload] ' + item.label + ':', e.message || e); }
-    n++;
-    setBoot(70 + (n / CRITICAL.length) * 25, item.label + ' (' + n + '/' + CRITICAL.length + ')');
+      if (res.ok) {
+        await res.blob();
+        console.log(`[Preload] ✓ ${item.label}`);
+      } else {
+        console.warn(`[Preload] ${item.label} → HTTP ${res.status} (${item.url})`);
+      }
+    } catch (e) {
+      console.warn(`[Preload] ${item.label} → ${e.message || e} (${item.url})`);
+    }
+    preloadCount++;
+    const p = 70 + (preloadCount / CRITICAL.length) * 25;
+    setBoot(p, `Preparando ${item.label} (${preloadCount}/${CRITICAL.length})`);
   }));
 
   setBoot(95, 'Iniciando motor...');
@@ -859,210 +966,132 @@ window.addEventListener('game-start', async () => {
   const worker = new Worker(BASE + '/loader.js');
   worker.onmessage = (ev) => {
     if (ev.data.hud) hud.textContent = ev.data.hud;
-    if (ev.data.input) {
-      installInput(ev.data.input.memory, ev.data.input.block);
-      if (touchMode) setupTouchControls();
-    }
+    if (ev.data.input) installInput(ev.data.input.memory, ev.data.input.block);
     if (ev.data.audio) { audioPending = ev.data.audio; tryStartAudio(); }
   };
-  worker.onerror = (e) => { hud.textContent = 'Worker error: ' + e.message; };
-
-  const frameLimit = touchMode ? 2 : 1;
+  worker.onerror = (e) => { hud.textContent = 'worker error: ' + e.message; console.error('[KITO] worker error:', e); };
 
   worker.postMessage({
     canvas: offscreen, base: BASE,
     args: ['-rootdir=/game/', ...(q.get('nogpu') ? [] : ['-wgpu']),
       '-nodisplaycalibration', '-noSocialClub', '-pc:nosocialclub',
+      ...(q.get('newgame') === '1' ? ['-noautoload'] : []),
       '-nonetwork', '-output',
       '-width=' + startSize[0], '-height=' + startSize[1], '-forceResolution',
-      '-Script_all=warning', '-replay_all=warning', '-fastscriptcore',
-      '-frameLimit=' + frameLimit,
+      ...LOG_ARGS, ...ENGINE_ARGS,
+      '-frameLimit=' + (q.get('fps') === '30' ? 2 : q.get('fps') === '0' ? 0 : 1),
       ...(cores <= 2 ? ['-numCores=' + cores] : []),
       ...LOW_ARGS,
       ...(q.get('args') || '').split(',').filter(Boolean)],
-    shotEvery: 0,
+    shotEvery: +(q.get('shot') || 0),
     cores, lowMemory,
-    slots: touchMode ? 2 : 4,
+    slots: lowMemory ? 2 : 4,
     syncPipelines: false,
-    remoteLog: false,
+    remoteLog: !!remoteLog,
   }, [offscreen]);
 
-  setTimeout(() => { setBoot(100, 'Iniciando...'); hideBootScreen(); }, 500);
+  setTimeout(() => { setBoot(100, 'Iniciando motor...'); hideBootScreen(); }, 500);
 });
 
 function tryStartAudio() {
-  if (!audioPending || audioStarted) return;
+  if (!audioPending || !audioGesture || audioStarted) return;
   audioStarted = true;
   (async () => {
     try {
-      let ctx = sharedAudioCtx;
-      if (!ctx) {
-        ctx = new (window.AudioContext || window.webkitAudioContext)({ latencyHint: 'interactive' });
-        sharedAudioCtx = ctx;
-      }
-      if (ctx.state !== 'running') { try { await ctx.resume(); } catch (e) {} }
-      await Promise.race([
-        ctx.audioWorklet.addModule(BASE + '/audio-worklet.js'),
-        new Promise((_, rej) => setTimeout(() => rej(new Error('timeout')), 8000)),
-      ]);
+      const ctx = new AudioContext({ sampleRate: 48000, latencyHint: 'interactive' });
+      await ctx.audioWorklet.addModule(BASE + '/audio-worklet.js');
       const node = new AudioWorkletNode(ctx, 'game-audio', {
         numberOfInputs: 0, numberOfOutputs: 1, outputChannelCount: [2],
         processorOptions: audioPending,
       });
       node.connect(ctx.destination);
-      console.log('[KITO] ✓ Audio enlazado');
-    } catch (e) {
-      audioStarted = false;
-      console.warn('[KITO] ✗ Audio:', e.message || e);
-    }
+      await ctx.resume();
+      addEventListener('pointerdown', () => ctx.resume());
+      addEventListener('keydown', () => ctx.resume());
+    } catch (e) { audioStarted = false; postLog('[page] audio failed: ' + e); }
   })();
 }
-for (const t of ['pointerdown', 'touchstart', 'keydown']) {
-  addEventListener(t, () => { audioGesture = true; tryStartAudio(); }, { capture: true, passive: true });
+for (const type of ['pointerdown', 'keydown']) {
+  addEventListener(type, () => { audioGesture = true; tryStartAudio(); }, { capture: true });
 }
 
 const VK = {
-  Backspace:0x08,Tab:0x09,Enter:0x0D,NumpadEnter:0xFD,Escape:0x1B,Space:0x20,
-  ArrowLeft:0x25,ArrowUp:0x26,ArrowRight:0x27,ArrowDown:0x28,
-  ShiftLeft:0xA0,ShiftRight:0xA1,ControlLeft:0xA2,ControlRight:0xA3,
-  AltLeft:0xA4,AltRight:0xA5,Equal:0xBB,
+  Backspace:0x08,Tab:0x09,Enter:0x0D,NumpadEnter:0xFD,Pause:0x13,CapsLock:0x14,Escape:0x1B,Space:0x20,
+  PageUp:0x21,PageDown:0x22,End:0x23,Home:0x24,ArrowLeft:0x25,ArrowUp:0x26,ArrowRight:0x27,ArrowDown:0x28,
+  PrintScreen:0x2C,Insert:0x2D,Delete:0x2E,MetaLeft:0x5B,MetaRight:0x5C,ContextMenu:0x5D,
+  NumpadMultiply:0x6A,NumpadAdd:0x6B,NumpadSubtract:0x6D,NumpadDecimal:0x6E,NumpadDivide:0x6F,
+  NumLock:0x90,ScrollLock:0x91,ShiftLeft:0xA0,ShiftRight:0xA1,ControlLeft:0xA2,ControlRight:0xA3,
+  AltLeft:0xA4,AltRight:0xA5,Semicolon:0xBA,Equal:0xBB,Comma:0xBC,Minus:0xBD,Period:0xBE,
+  Slash:0xBF,Backquote:0xC0,BracketLeft:0xDB,Backslash:0xDC,BracketRight:0xDD,Quote:0xDE,IntlBackslash:0xE2,
 };
 for (let i = 0; i < 10; i++) { VK['Digit' + i] = 0x30 + i; VK['Numpad' + i] = 0x60 + i; }
 for (let i = 0; i < 26; i++) VK['Key' + String.fromCharCode(65 + i)] = 0x41 + i;
 for (let i = 1; i <= 24; i++) VK['F' + i] = 0x6F + i;
-
-let inputRef = null;
 
 function installInput(memory, block) {
   const keys = new Uint8Array(memory.buffer, block, 256);
   const w = new Int32Array(memory.buffer, block + 256, 10);
   const U16 = new Uint16Array(memory.buffer, block + 256 + 40, 64);
   const MX=0,MY=1,DX=2,DY=3,DZ=4,BTN=5,FOCUS=6,LOCKED=7,HEAD=8,TAIL=9;
-  const W = canvasEl.width || 1280, H = canvasEl.height || 720;
+  let W = canvasEl.width || 1280, H = canvasEl.height || 720;
   const ext = new Int32Array(memory.buffer, block + 424, 4);
   startModeWord = new Int32Array(memory.buffer, block + 440, 1);
   if (startMode) Atomics.store(startModeWord, 0, startMode);
   Atomics.store(ext, 2, W); Atomics.store(ext, 3, H);
   Atomics.store(w, FOCUS, document.hasFocus() ? 1 : 0);
   Atomics.store(w, MX, W >> 1); Atomics.store(w, MY, H >> 1);
-
-  inputRef = { keys, w, W, H, MX, MY, DX, DY, BTN, FOCUS, LOCKED };
-
-  addEventListener('keydown', (e) => { const vk = VK[e.code]; if (vk) Atomics.store(keys, vk, 0x80); });
-  addEventListener('keyup', (e) => { const vk = VK[e.code]; if (vk) Atomics.store(keys, vk, 0); });
-  addEventListener('contextmenu', (e) => e.preventDefault());
+  const passThrough = (e) => e.code === 'F12' || e.code === 'F11' ||
+    (e.ctrlKey && e.shiftKey && (e.code === 'KeyI' || e.code === 'KeyJ')) || e.code === 'F5' || e.code === 'F8';
+  const FLY_ALIAS = { KeyI:'Numpad8',KeyK:'Numpad2',KeyJ:'Numpad4',KeyL:'Numpad6',KeyU:'Numpad7',KeyO:'Numpad9' };
+  const held = new Set();
+  const syncFlyAlias = () => { for (const [src, target] of Object.entries(FLY_ALIAS)) Atomics.store(keys, VK[target], held.has(src) || held.has(target) ? 0x80 : 0); };
+  addEventListener('keydown', (e) => {
+    if (passThrough(e)) return;
+    e.preventDefault();
+    const vk = VK[e.code];
+    if (vk) Atomics.store(keys, vk, 0x80);
+    held.add(e.code); syncFlyAlias();
+    if (e.key.length === 1 && !e.ctrlKey && !e.metaKey) {
+      const head = Atomics.load(w, HEAD);
+      if (((head - Atomics.load(w, TAIL)) >>> 0) < 64) { U16[head & 63] = e.key.charCodeAt(0); Atomics.store(w, HEAD, (head + 1) | 0); }
+    } else if (e.code === 'Backspace' || e.code === 'Enter') {
+      const head = Atomics.load(w, HEAD);
+      if (((head - Atomics.load(w, TAIL)) >>> 0) < 64) { U16[head & 63] = e.code === 'Enter' ? 13 : 8; Atomics.store(w, HEAD, (head + 1) | 0); }
+    }
+  });
+  addEventListener('keyup', (e) => {
+    if (passThrough(e)) return;
+    e.preventDefault();
+    const vk = VK[e.code];
+    if (vk) Atomics.store(keys, vk, 0);
+    held.delete(e.code); syncFlyAlias();
+  });
+  const releaseAll = () => { held.clear(); for (let i = 0; i < 256; i++) Atomics.store(keys, i, 0); Atomics.store(w, BTN, 0); };
+  addEventListener('focus', () => Atomics.store(w, FOCUS, 1));
+  addEventListener('blur', () => { Atomics.store(w, FOCUS, 0); releaseAll(); });
+  const locked = () => document.pointerLockElement === canvasEl;
   canvasEl.addEventListener('mousedown', (e) => {
-    if (document.pointerLockElement !== canvasEl) canvasEl.requestPointerLock({ unadjustedMovement: true }).catch(() => canvasEl.requestPointerLock());
-    Atomics.or(w, BTN, 1 << [0,2,1,3,4][e.button]);
+    if (!locked()) canvasEl.requestPointerLock({ unadjustedMovement: true }).catch(() => canvasEl.requestPointerLock());
+    Atomics.or(w, BTN, 1 << [0,2,1,3,4][e.button]); e.preventDefault();
   });
   addEventListener('mouseup', (e) => { Atomics.and(w, BTN, ~(1 << [0,2,1,3,4][e.button])); });
+  addEventListener('contextmenu', (e) => e.preventDefault());
+  document.addEventListener('pointerlockchange', () => Atomics.store(w, LOCKED, locked() ? 1 : 0));
   addEventListener('mousemove', (e) => {
-    if (document.pointerLockElement === canvasEl) {
-      Atomics.add(w, DX, e.movementX);
-      Atomics.add(w, DY, e.movementY);
+    const r = canvasEl.getBoundingClientRect();
+    if (locked()) {
+      Atomics.add(w, DX, e.movementX); Atomics.add(w, DY, e.movementY);
+      Atomics.store(w, MX, Math.max(0, Math.min(W - 1, Atomics.load(w, MX) + e.movementX)));
+      Atomics.store(w, MY, Math.max(0, Math.min(H - 1, Atomics.load(w, MY) + e.movementY)));
+    } else {
+      const x = Math.max(0, Math.min(W - 1, Math.round((e.clientX - r.left) * W / r.width)));
+      const y = Math.max(0, Math.min(H - 1, Math.round((e.clientY - r.top) * H / r.height)));
+      Atomics.add(w, DX, x - Atomics.load(w, MX)); Atomics.add(w, DY, y - Atomics.load(w, MY));
+      Atomics.store(w, MX, x); Atomics.store(w, MY, y);
     }
   });
-}
-
-function setupTouchControls() {
-  if (!inputRef) return;
-  const ui = document.getElementById('touch-ui');
-  if (ui.classList.contains('active')) return;
-  ui.classList.add('active');
-  console.log('[Touch] Controles activos');
-
-  const { keys, w, DX, DY, BTN } = inputRef;
-
-  function setKey(code, down) {
-    const vk = VK[code];
-    if (vk === undefined) return;
-    Atomics.store(keys, vk, down ? 0x80 : 0);
-  }
-
-  document.querySelectorAll('.touch-btn').forEach((btn) => {
-    const keyCode = btn.dataset.key;
-    const btnId = btn.dataset.btn;
-    const press = (e) => {
-      e.preventDefault(); e.stopPropagation();
-      btn.classList.add('active');
-      if (keyCode) setKey(keyCode, true);
-      if (btnId !== undefined) Atomics.or(w, BTN, 1 << parseInt(btnId, 10));
-    };
-    const release = (e) => {
-      e.preventDefault(); e.stopPropagation();
-      btn.classList.remove('active');
-      if (keyCode) setKey(keyCode, false);
-      if (btnId !== undefined) Atomics.and(w, BTN, ~(1 << parseInt(btnId, 10)));
-    };
-    btn.addEventListener('touchstart', press, { passive: false });
-    btn.addEventListener('touchend', release, { passive: false });
-    btn.addEventListener('touchcancel', release, { passive: false });
-  });
-
-  const stick = document.getElementById('touch-stick');
-  const knob = document.getElementById('touch-stick-knob');
-  let stickId = null, cx = 0, cy = 0, r = 0;
-
-  stick.addEventListener('touchstart', (e) => {
-    e.preventDefault();
-    const t = e.changedTouches[0];
-    stickId = t.identifier;
-    const rect = stick.getBoundingClientRect();
-    cx = rect.left + rect.width / 2;
-    cy = rect.top + rect.height / 2;
-    r = rect.width / 2 * 0.75;
-  }, { passive: false });
-
-  stick.addEventListener('touchmove', (e) => {
-    if (stickId === null) return;
-    for (const t of e.changedTouches) {
-      if (t.identifier !== stickId) continue;
-      e.preventDefault();
-      let dx = t.clientX - cx, dy = t.clientY - cy;
-      const d = Math.hypot(dx, dy);
-      if (d > r) { dx = dx / d * r; dy = dy / d * r; }
-      knob.style.transform = 'translate(calc(-50% + ' + dx + 'px), calc(-50% + ' + dy + 'px))';
-      const nx = dx / r, ny = dy / r;
-      Atomics.store(keys, VK['KeyW'], ny < -0.3 ? 0x80 : 0);
-      Atomics.store(keys, VK['KeyS'], ny >  0.3 ? 0x80 : 0);
-      Atomics.store(keys, VK['KeyA'], nx < -0.3 ? 0x80 : 0);
-      Atomics.store(keys, VK['KeyD'], nx >  0.3 ? 0x80 : 0);
-    }
-  }, { passive: false });
-
-  const stickEnd = (e) => {
-    for (const t of e.changedTouches) {
-      if (t.identifier !== stickId) continue;
-      e.preventDefault();
-      stickId = null;
-      knob.style.transform = 'translate(-50%, -50%)';
-      Atomics.store(keys, VK['KeyW'], 0);
-      Atomics.store(keys, VK['KeyS'], 0);
-      Atomics.store(keys, VK['KeyA'], 0);
-      Atomics.store(keys, VK['KeyD'], 0);
-    }
-  };
-  stick.addEventListener('touchend', stickEnd, { passive: false });
-  stick.addEventListener('touchcancel', stickEnd, { passive: false });
-
-  const look = document.getElementById('touch-look');
-  let lookId = null, lx = 0, ly = 0;
-  look.addEventListener('touchstart', (e) => {
-    const t = e.changedTouches[0];
-    lookId = t.identifier; lx = t.clientX; ly = t.clientY;
-  }, { passive: true });
-  look.addEventListener('touchmove', (e) => {
-    if (lookId === null) return;
-    for (const t of e.changedTouches) {
-      if (t.identifier !== lookId) continue;
-      const dx = t.clientX - lx, dy = t.clientY - ly;
-      lx = t.clientX; ly = t.clientY;
-      Atomics.add(w, DX, dx * 1.6);
-      Atomics.add(w, DY, dy * 1.6);
-    }
-  }, { passive: true });
-  look.addEventListener('touchend', () => { lookId = null; }, { passive: true });
-  look.addEventListener('touchcancel', () => { lookId = null; }, { passive: true });
+  let wheelAccum = 0;
+  addEventListener('wheel', (e) => { e.preventDefault(); wheelAccum += -e.deltaY / (e.deltaMode === 0 ? 100 : e.deltaMode === 1 ? 3 : 1); const n = Math.trunc(wheelAccum); if (n) { wheelAccum -= n; Atomics.add(w, DZ, n); } }, { passive: false });
 }
 </script>
 </body>
