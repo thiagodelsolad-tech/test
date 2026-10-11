@@ -1,19 +1,21 @@
 /**
  * sw.js — Service Worker para GTA V Web Edition
- * 
- * Reglas de mapeo:
- *   /data/x64/levels/...  → mirror/playgta5.com/data/common/data/levels/...
- *   /data/x64/audio/...   → mirror/playgta5.com/data/x64/audio/...  (o common/data/audio/)
- *   /data/common/...      → mirror/playgta5.com/data/common/...
- *   /game.wasm            → mirror/playgta5.com/b/8b0b5899ed/game.wasm
- *   /shaders/...          → mirror/playgta5.com/b/8b0b5899ed/shaders/...
+ *
+ * Maneja:
+ *   /data/x64/levels/gta5/citye/...    → mirror/playgta5.com/data/x64/levels/gta5/_citye/...  (con guion bajo)
+ *   /data/x64/levels/gta5/_citye/...   → idem (directo)
+ *   /data/x64/levels/gta5/hills/...    → _hills/...
+ *   /data/x64/levels/gta5/prologue/... → _prologue/...
+ *   /data/x64/audio/sfx/...            → mirror/playgta5.com/data/x64/audio/sfx/...
+ *   /game.wasm                         → mirror/playgta5.com/b/8b0b5899ed/game.wasm
+ *   /shaders/...                       → mirror/playgta5.com/b/8b0b5899ed/shaders/...
  */
 
 const R2_BASE = 'https://gta-proxy.kitofree1221.workers.dev';
-const PREFIX_ROOT = 'mirror/playgta5.com/data';           // raíz de assets (levels, maps, audio...)
-const PREFIX_BIN  = 'mirror/playgta5.com/b/8b0b5899ed';   // game.wasm y shaders
+const PREFIX_ROOT = 'mirror/playgta5.com/data';
+const PREFIX_BIN  = 'mirror/playgta5.com/b/8b0b5899ed';
 
-const CACHE = 'gta5-v12';
+const CACHE = 'gta5-v13';
 const MAX_BYTES = 2 * 1024 * 1024 * 1024;
 
 const LOCAL_EXACT = new Set([
@@ -30,20 +32,17 @@ function isFrontend(p) {
   return false;
 }
 
-// ============================================================
-// CANDIDATOS
-// ============================================================
 function candidatesFor(localPath) {
   const list = [];
 
-  // ---------- game.wasm ----------
+  // game.wasm
   if (localPath === '/game.wasm') {
     list.push(`${PREFIX_BIN}/game.wasm`);
     list.push('game.wasm');
     return list;
   }
 
-  // ---------- shaders ----------
+  // shaders
   if (localPath.startsWith('/shaders/')) {
     const rest = localPath.slice(9);
     list.push(`${PREFIX_BIN}/shaders/${rest}`);
@@ -51,38 +50,45 @@ function candidatesFor(localPath) {
     return list;
   }
 
-  // ---------- manifest / bootset (raíz del bucket) ----------
+  // manifest / bootset (raíz del bucket)
   if (localPath === '/data/manifest.json') { list.push('manifest.json'); return list; }
   if (localPath === '/data/bootset.json') { list.push('bootset.json'); return list; }
   if (localPath === '/data/bootset_low.json') { list.push('bootset_low.json'); return list; }
 
-  // ---------- assets del juego (/data/...) ----------
+  // Assets bajo /data/
   if (localPath.startsWith('/data/')) {
-    const rest = localPath.slice(6);  // quita "/data/"
-    // Ejemplos:
-    //   rest = "x64/levels/gta5/citye/downtown_01/fwy_01.rpf"
-    //   rest = "x64/audio/sfx/RADIO_01_CLASS_ROCK.rpf"
-    //   rest = "common/shaders/win32_40_cable.fxc"
+    const rest = localPath.slice(6);
 
-    // 1. Ruta tal cual (funciona para audio, shaders comunes)
+    // 1. Mapeo directo (funciona para audio, shaders comunes, streaming...)
     list.push(`${PREFIX_ROOT}/${rest}`);
 
-    // 2. Si empieza con "x64/", probar SIN el x64/ dentro de common/data/
-    //    (aquí es donde están levels/, maps/, anim/, textures/, etc.)
+    // 2. Variante con guion bajo para carpetas de levels
+    //    Motor pide "citye/downtown_01/fwy_01.rpf"  →  R2 tiene "_citye/downtown_01/fwy_01.rpf"
+    if (rest.startsWith('x64/levels/gta5/')) {
+      const after = rest.slice('x64/levels/gta5/'.length);
+      const slash = after.indexOf('/');
+      if (slash > 0) {
+        const folder = after.slice(0, slash);       // "citye", "hills", "prologue", "cityw"...
+        const sub = after.slice(slash + 1);          // "downtown_01/fwy_01.rpf"
+        list.push(`${PREFIX_ROOT}/x64/levels/gta5/_${folder}/${sub}`);
+      }
+    }
+
+    // 3. Variante common/data/ (por si algún día subes algún shader ahí)
     if (rest.startsWith('x64/')) {
-      const noX64 = rest.slice(4);   // "levels/gta5/citye/downtown_01/fwy_01.rpf"
+      const noX64 = rest.slice(4);
       list.push(`${PREFIX_ROOT}/common/data/${noX64}`);
       list.push(`${PREFIX_ROOT}/common/data/${rest}`);
     }
 
-    // 3. Fallbacks genéricos
+    // 4. Fallbacks por si moviste cosas a la raíz
     list.push(`data/${rest}`);
     list.push(rest);
 
     return list;
   }
 
-  // ---------- rutas sin prefijo ----------
+  // Rutas sin prefijo conocido
   const rest = localPath.slice(1);
   list.push(`${PREFIX_ROOT}/${rest}`);
   list.push(`${PREFIX_BIN}/${rest}`);
@@ -90,9 +96,6 @@ function candidatesFor(localPath) {
   return list;
 }
 
-// ============================================================
-// AISLAMIENTO
-// ============================================================
 function injectIsolation(r) {
   const h = new Headers(r.headers);
   h.set('Cross-Origin-Opener-Policy', 'same-origin');
@@ -101,12 +104,9 @@ function injectIsolation(r) {
   return new Response(r.body, { status: r.status, statusText: r.statusText, headers: h });
 }
 
-// ============================================================
-// CICLO DE VIDA
-// ============================================================
 self.addEventListener('install', () => {
   self.skipWaiting();
-  console.log('[SW] Instalado v12.');
+  console.log('[SW] Instalado v13.');
 });
 
 self.addEventListener('activate', (event) => {
@@ -114,7 +114,7 @@ self.addEventListener('activate', (event) => {
     const keys = await caches.keys();
     await Promise.all(keys.filter((k) => k !== CACHE).map((k) => caches.delete(k)));
     await self.clients.claim();
-    console.log('[SW] Activo v12.');
+    console.log('[SW] Activo v13.');
   })());
 });
 
