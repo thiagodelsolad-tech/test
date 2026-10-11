@@ -4,7 +4,6 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
 <meta name="theme-color" content="#05060a">
-<meta name="description" content="Clon web no oficial de GTA V — Proyecto educativo.">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -28,6 +27,7 @@
 		background: radial-gradient(ellipse at center, #0a0618 0%, #000 100%);
 		display: flex; flex-direction: column; align-items: center; justify-content: center;
 		transition: opacity 0.4s ease-out; padding: 20px;
+		touch-action: manipulation;
 	}
 	#device-select.hidden { opacity: 0; pointer-events: none; }
 	#device-select .ds-title {
@@ -47,10 +47,9 @@
 		border-radius: 12px; cursor: pointer;
 		display: flex; flex-direction: column; align-items: center;
 		transition: all 0.2s; color: #cdd6f4; font-family: 'Consolas', monospace;
+		touch-action: manipulation; -webkit-appearance: none; appearance: none;
 	}
-	#device-select .ds-card:hover, #device-select .ds-card:active {
-		border-color: #a78bfa; background: rgba(120,90,255,0.15); transform: translateY(-4px);
-	}
+	#device-select .ds-card:active { transform: scale(0.97); background: rgba(120,90,255,0.25); border-color: #a78bfa; }
 	#device-select .ds-card.detected { border-color: #7cffb2; box-shadow: 0 0 24px rgba(124,255,178,0.25); }
 	#device-select .ds-card.detected::before {
 		content: '✓ detectado'; position: absolute; top: -10px; left: 50%; transform: translateX(-50%);
@@ -66,6 +65,7 @@
 		background: radial-gradient(ellipse at center, #0a0618 0%, #000 100%);
 		display: flex; flex-direction: column; align-items: center; justify-content: center;
 		cursor: pointer; transition: opacity 0.8s ease-out; padding: 20px;
+		touch-action: manipulation;
 	}
 	#click-to-start.hidden { opacity: 0; pointer-events: none; }
 	#click-to-start .cts-logo {
@@ -87,8 +87,9 @@
 		font-family: 'Arial Black', sans-serif; font-size: 18px; letter-spacing: 4px;
 		padding: 20px 48px; border-radius: 8px; cursor: pointer;
 		animation: cts-pulse 2s ease-in-out infinite; transition: all 0.2s;
+		touch-action: manipulation;
 	}
-	#cts-button:hover, #cts-button:active { background: rgba(120,90,255,0.5); transform: scale(1.05); }
+	#cts-button:active { background: rgba(120,90,255,0.5); transform: scale(0.97); }
 	@keyframes cts-pulse { 0%, 100% { opacity: 0.6; } 50% { opacity: 1; } }
 	#click-to-start .cts-note {
 		position: absolute; bottom: 40px; font-size: 10px; color: rgba(180,180,200,0.4);
@@ -99,18 +100,19 @@
 		#cts-button { font-size: 15px; padding: 16px 32px; }
 	}
 
-	/* ==================== SOUND TOGGLE ==================== */
+	/* ==================== SOUND ==================== */
 	#sound-toggle {
-		position: fixed; top: 24px; right: 24px; width: 40px; height: 40px;
+		position: fixed; top: max(24px, env(safe-area-inset-top)); right: max(24px, env(safe-area-inset-right));
+		width: 44px; height: 44px;
 		background: rgba(0,0,0,0.65); border: 1px solid rgba(180,120,255,0.4);
 		border-radius: 50%; color: #a78bfa; font-size: 18px; cursor: pointer; z-index: 100;
 		display: flex; align-items: center; justify-content: center;
 		transition: all 0.25s; backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
+		touch-action: manipulation;
 	}
-	#sound-toggle:hover, #sound-toggle:active { background: rgba(120,90,255,0.3); transform: scale(1.08); }
 	#sound-toggle.muted { color: rgba(150,150,200,0.4); }
 
-	/* ==================== BOOT SCREEN ==================== */
+	/* ==================== BOOT ==================== */
 	#boot-screen {
 		position: fixed; inset: 0; background: #05060a; z-index: 1000;
 		display: none; flex-direction: column; align-items: center; justify-content: center; padding: 20px;
@@ -128,11 +130,10 @@
 		font-family: 'Arial Black', sans-serif; font-size: 28px; font-weight: 900;
 		letter-spacing: 12px; color: #fff; text-shadow: 0 0 20px rgba(180,120,255,0.6); margin-bottom: 8px;
 	}
-	#boot-screen .boot-sub {
-		font-size: 10px; letter-spacing: 6px; text-transform: uppercase;
-		color: rgba(200,200,255,0.5); margin-bottom: 40px;
-	}
-	#boot-screen .boot-status { font-size: 11px; letter-spacing: 2px; color: rgba(180,180,220,0.7); min-height: 16px; text-align: center; }
+	#boot-screen .boot-sub { font-size: 10px; letter-spacing: 6px; text-transform: uppercase;
+		color: rgba(200,200,255,0.5); margin-bottom: 40px; }
+	#boot-screen .boot-status { font-size: 11px; letter-spacing: 2px;
+		color: rgba(180,180,220,0.7); min-height: 16px; text-align: center; }
 	#boot-screen .boot-bar {
 		width: 240px; height: 2px; background: rgba(150,150,255,0.12);
 		border-radius: 1px; margin-top: 16px; overflow: hidden;
@@ -143,7 +144,7 @@
 		box-shadow: 0 0 10px rgba(124,92,255,0.7); transition: width 0.4s ease-out;
 	}
 
-	/* ==================== LOADING SCREEN ==================== */
+	/* ==================== LOADING ==================== */
 	#loading { position: fixed; inset: 0; background: #000; overflow: hidden;
 		transition: opacity .8s; z-index: 5; opacity: 0; }
 	#loading.done { opacity: 0; pointer-events: none; }
@@ -173,7 +174,6 @@
 		display: block; font-size: 11px; font-weight: 400; letter-spacing: 6px;
 		margin-top: 6px; color: rgba(255,255,255,0.5);
 	}
-
 	#kito-logo { position: absolute; left: 60px; top: 60px;
 		font-family: 'Arial Black',sans-serif; font-size: 52px; font-weight: 900;
 		letter-spacing: 10px; color: #fff;
@@ -187,8 +187,6 @@
 		border-radius: 50%; color: #a78bfa; font: bold 18px/34px monospace; text-align: center;
 		cursor: pointer; backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px);
 		transition: background .2s, transform .2s; z-index: 20; }
-	#info-toggle:hover { background: rgba(120,90,255,.25); transform: scale(1.08); }
-
 	#info-panel { position: absolute; right: 24px; top: 136px; width: 340px;
 		padding: 14px 16px; background: rgba(0,0,0,.85);
 		border: 1px solid rgba(150,150,255,.18); border-radius: 6px;
@@ -219,8 +217,6 @@
 		border: 0; background: none; color: #fff; font: 12px sans-serif; cursor: pointer; }
 	#modes button:disabled { cursor: default; }
 	#modes button[hidden] { display: none; }
-	#modes.ask button:not(:disabled) .ls-key { animation: ls-ask 1.2s ease-in-out infinite; }
-	@keyframes ls-ask { 50% { opacity: .35; } }
 	.ls-key { margin-left: 4px; min-width: 12px; height: 15px; padding: 0 4px;
 		line-height: 16px; border-radius: 2px; background: #fff; color: #000;
 		font-size: 10px; text-transform: uppercase; }
@@ -240,7 +236,7 @@
 
 	#bar { position: absolute; left: 0; right: 0; bottom: 0; height: 3px;
 		background: rgba(255,255,255,.08); z-index: 15; }
-	#fill { height: 100%; width: 0%;
+	#fill { height: 100%; width: 0;
 		background: linear-gradient(90deg, #7c5cff, #6ac3ff);
 		box-shadow: 0 0 12px rgba(124,92,255,.7); }
 
@@ -258,10 +254,13 @@
 		touch-action: none;
 	}
 	#touch-ui.active { display: block; }
-	#touch-ui > * { pointer-events: auto; }
 
+	/* Zona de look: SOLO mitad derecha, z-index 0 */
 	#touch-look {
-		position: absolute; inset: 0;
+		position: absolute;
+		left: 50%; right: 0; top: 0; bottom: 0;
+		z-index: 0;
+		pointer-events: auto;
 		touch-action: none;
 		background: transparent;
 	}
@@ -270,22 +269,24 @@
 		position: absolute;
 		left: max(20px, env(safe-area-inset-left));
 		bottom: max(20px, env(safe-area-inset-bottom));
-		width: 160px; height: 160px;
+		width: 150px; height: 150px;
 		border-radius: 50%;
-		background: rgba(0,0,0,0.30);
-		border: 2px solid rgba(150,150,255,0.28);
+		background: rgba(0,0,0,0.32);
+		border: 2px solid rgba(150,150,255,0.35);
 		touch-action: none;
 		display: flex; align-items: center; justify-content: center;
+		z-index: 10;
+		pointer-events: auto;
 		backdrop-filter: blur(6px);
 		-webkit-backdrop-filter: blur(6px);
 	}
 	#touch-stick-knob {
 		position: absolute;
 		left: 50%; top: 50%;
-		width: 60px; height: 60px;
+		width: 58px; height: 58px;
 		border-radius: 50%;
-		background: radial-gradient(circle, rgba(180,120,255,0.75) 0%, rgba(120,90,255,0.55) 100%);
-		box-shadow: 0 0 16px rgba(180,120,255,0.5);
+		background: radial-gradient(circle, rgba(180,120,255,0.8) 0%, rgba(120,90,255,0.6) 100%);
+		box-shadow: 0 0 16px rgba(180,120,255,0.6);
 		transform: translate(-50%, -50%);
 		pointer-events: none;
 	}
@@ -294,9 +295,9 @@
 		position: absolute;
 		display: flex; align-items: center; justify-content: center;
 		border-radius: 50%;
-		background: rgba(0,0,0,0.42);
-		border: 2px solid rgba(150,150,255,0.35);
-		color: rgba(255,255,255,0.9);
+		background: rgba(0,0,0,0.45);
+		border: 2px solid rgba(150,150,255,0.4);
+		color: rgba(255,255,255,0.92);
 		font-family: 'Arial Black', sans-serif;
 		font-weight: 900;
 		touch-action: none;
@@ -305,46 +306,47 @@
 		transition: background 0.08s, border-color 0.08s, transform 0.08s;
 		text-shadow: 0 0 6px rgba(180,120,255,0.6);
 		user-select: none; -webkit-user-select: none;
+		z-index: 10;
+		pointer-events: auto;
 	}
 	.touch-btn.active {
-		background: rgba(120,90,255,0.65);
+		background: rgba(120,90,255,0.7);
 		border-color: #a78bfa;
 		transform: scale(0.92);
 	}
 
-	/* Action buttons diamond (bottom-right) */
+	/* Diamond A/B/X/Y (bottom-right) */
 	.touch-btn-a, .touch-btn-b, .touch-btn-x, .touch-btn-y {
-		width: 64px; height: 64px; font-size: 20px;
+		width: 62px; height: 62px; font-size: 20px;
 	}
-	.touch-btn-y { right: calc(max(20px, env(safe-area-inset-right)) + 100px); bottom: calc(max(20px, env(safe-area-inset-bottom)) + 158px); }
-	.touch-btn-x { right: calc(max(20px, env(safe-area-inset-right)) + 166px); bottom: calc(max(20px, env(safe-area-inset-bottom)) + 92px); }
-	.touch-btn-b { right: calc(max(20px, env(safe-area-inset-right)) + 34px);  bottom: calc(max(20px, env(safe-area-inset-bottom)) + 92px); }
-	.touch-btn-a { right: calc(max(20px, env(safe-area-inset-right)) + 100px); bottom: calc(max(20px, env(safe-area-inset-bottom)) + 26px); }
+	.touch-btn-y { right: calc(max(20px, env(safe-area-inset-right)) + 96px); bottom: calc(max(20px, env(safe-area-inset-bottom)) + 152px); }
+	.touch-btn-x { right: calc(max(20px, env(safe-area-inset-right)) + 160px); bottom: calc(max(20px, env(safe-area-inset-bottom)) + 88px); }
+	.touch-btn-b { right: calc(max(20px, env(safe-area-inset-right)) + 32px);  bottom: calc(max(20px, env(safe-area-inset-bottom)) + 88px); }
+	.touch-btn-a { right: calc(max(20px, env(safe-area-inset-right)) + 96px); bottom: calc(max(20px, env(safe-area-inset-bottom)) + 24px); }
 
-	/* Shoulders (top corners) */
+	/* Shoulders */
 	.touch-btn-lb, .touch-btn-rb {
-		width: 78px; height: 46px; border-radius: 12px; font-size: 14px;
+		width: 76px; height: 46px; border-radius: 12px; font-size: 14px;
 	}
 	.touch-btn-lb { left: max(16px, env(safe-area-inset-left)); top: max(16px, env(safe-area-inset-top)); }
 	.touch-btn-rb { right: max(16px, env(safe-area-inset-right)); top: max(16px, env(safe-area-inset-top)); }
 
-	/* Start */
 	.touch-btn-start {
-		width: 50px; height: 50px; font-size: 15px;
+		width: 50px; height: 50px; font-size: 15px; border-radius: 12px;
 		left: 50%; top: max(16px, env(safe-area-inset-top));
 		transform: translateX(-50%);
 	}
 	.touch-btn-start.active { transform: translateX(-50%) scale(0.92); }
 
 	@media (orientation: portrait) {
-		#touch-stick { width: 130px; height: 130px; }
+		#touch-stick { width: 128px; height: 128px; }
 		#touch-stick-knob { width: 50px; height: 50px; }
 		.touch-btn-a, .touch-btn-b, .touch-btn-x, .touch-btn-y { width: 56px; height: 56px; font-size: 17px; }
-		.touch-btn-y { right: calc(max(20px, env(safe-area-inset-right)) + 84px); bottom: calc(max(20px, env(safe-area-inset-bottom)) + 138px); }
-		.touch-btn-x { right: calc(max(20px, env(safe-area-inset-right)) + 142px); bottom: calc(max(20px, env(safe-area-inset-bottom)) + 80px); }
-		.touch-btn-b { right: calc(max(20px, env(safe-area-inset-right)) + 26px);  bottom: calc(max(20px, env(safe-area-inset-bottom)) + 80px); }
-		.touch-btn-a { right: calc(max(20px, env(safe-area-inset-right)) + 84px); bottom: calc(max(20px, env(safe-area-inset-bottom)) + 22px); }
-		.touch-btn-lb, .touch-btn-rb { width: 64px; height: 40px; font-size: 12px; }
+		.touch-btn-y { right: calc(max(16px, env(safe-area-inset-right)) + 84px); bottom: calc(max(16px, env(safe-area-inset-bottom)) + 136px); }
+		.touch-btn-x { right: calc(max(16px, env(safe-area-inset-right)) + 142px); bottom: calc(max(16px, env(safe-area-inset-bottom)) + 78px); }
+		.touch-btn-b { right: calc(max(16px, env(safe-area-inset-right)) + 26px);  bottom: calc(max(16px, env(safe-area-inset-bottom)) + 78px); }
+		.touch-btn-a { right: calc(max(16px, env(safe-area-inset-right)) + 84px); bottom: calc(max(16px, env(safe-area-inset-bottom)) + 20px); }
+		.touch-btn-lb, .touch-btn-rb { width: 62px; height: 40px; font-size: 12px; }
 	}
 </style>
 </head>
@@ -359,12 +361,12 @@
   <div class="ds-title">KITO</div>
   <div class="ds-sub">Selecciona tu dispositivo</div>
   <div class="ds-cards">
-    <button class="ds-card" data-device="pc" id="ds-pc">
+    <button class="ds-card" data-device="pc" id="ds-pc" type="button">
       <div class="ds-icon">💻</div>
       <div class="ds-name">PC / Escritorio</div>
       <div class="ds-detail">WebGPU · GPU dedicada</div>
     </button>
-    <button class="ds-card" data-device="mobile" id="ds-mobile">
+    <button class="ds-card" data-device="mobile" id="ds-mobile" type="button">
       <div class="ds-icon">📱</div>
       <div class="ds-name">Móvil / Tablet</div>
       <div class="ds-detail">Experimental · controles táctiles</div>
@@ -384,7 +386,7 @@
 
 <button id="sound-toggle" title="Activar/desactivar sonido">🔊</button>
 
-<!-- BOOT SCREEN -->
+<!-- BOOT -->
 <div id="boot-screen">
   <div class="boot-spinner"></div>
   <div class="boot-title">KITO</div>
@@ -393,7 +395,7 @@
   <div class="boot-bar"><div class="boot-bar-fill" id="boot-bar-fill"></div></div>
 </div>
 
-<!-- LOADING SCREEN -->
+<!-- LOADING -->
 <div id="loading">
   <div id="ls-stage">
     <div id="ls-screens"></div>
@@ -402,7 +404,7 @@
     <div id="info-panel">
       <div class="title">Estado del sistema</div>
       <div class="row"><span class="label">Proyecto</span><span class="value">Fan-made</span></div>
-      <div class="row"><span class="label">Build</span><span class="value" id="info-version">v30</span></div>
+      <div class="row"><span class="label">Build</span><span class="value" id="info-version">v31</span></div>
       <div class="row"><span class="label">Service Worker</span><span class="value" id="info-sw">registrando…</span></div>
       <hr>
       <div class="title">Red</div>
@@ -420,12 +422,8 @@
       <div class="row"><span class="label">Tiempo</span><span class="value" id="info-time">0s</span></div>
       <hr>
       <div class="title">Aviso legal</div>
-      <div class="legal">
-        Fan-made <b>sin ánimo de lucro</b> con fines <b>educativos</b>.
-        No afiliado con <b>Rockstar Games</b> ni <b>Take-Two</b>.
-      </div>
+      <div class="legal">Fan-made <b>sin ánimo de lucro</b>. No afiliado con <b>Rockstar Games</b> ni <b>Take-Two</b>.</div>
     </div>
-
     <div id="ls-bars">
       <div id="modes" class="ls-bar">
         <button data-act="back"></button>
@@ -451,15 +449,10 @@
 <!-- TOUCH CONTROLS -->
 <div id="touch-ui">
   <div id="touch-look"></div>
-
-  <div id="touch-stick">
-    <div id="touch-stick-knob"></div>
-  </div>
-
+  <div id="touch-stick"><div id="touch-stick-knob"></div></div>
   <div class="touch-btn touch-btn-lb" data-key="ShiftLeft">LB</div>
   <div class="touch-btn touch-btn-rb" data-key="KeyF">RB</div>
   <div class="touch-btn touch-btn-start" data-key="Escape">☰</div>
-
   <div class="touch-btn touch-btn-y" data-key="KeyE">Y</div>
   <div class="touch-btn touch-btn-x" data-btn="1">X</div>
   <div class="touch-btn touch-btn-b" data-btn="0">B</div>
@@ -467,19 +460,14 @@
 </div>
 
 <script type="module">
-console.log('[KITO] index.html cargado — v30');
+console.log('[KITO] index.html cargado — v31');
 
-// ============================================================
-// DETECCIÓN DE DISPOSITIVO
-// ============================================================
-const isTouchDevice = ('ontouchstart' in window) && (navigator.maxTouchPoints || 0) > 0;
+const isTouchDevice = ('ontouchstart' in window) || (navigator.maxTouchPoints || 0) > 0;
 const forceTouchUI = new URLSearchParams(location.search).get('touch') === '1';
 const touchMode = isTouchDevice || forceTouchUI;
-console.log('[KITO] touch=' + isTouchDevice + ', maxTouchPoints=' + navigator.maxTouchPoints + ', forceTouchUI=' + forceTouchUI);
+console.log('[KITO] touch=' + isTouchDevice + ' maxTouchPoints=' + navigator.maxTouchPoints + ' forceTouchUI=' + forceTouchUI);
 
-// ============================================================
-// FILTRO DE ERRORES COSMÉTICOS
-// ============================================================
+// Filtro de errores cosméticos
 (function() {
   const ignore = [
     /Bink is not available/i, /LookupVar\(.+\) failed/i,
@@ -502,7 +490,7 @@ console.log('[KITO] touch=' + isTouchDevice + ', maxTouchPoints=' + navigator.ma
 })();
 
 // ============================================================
-// MÚSICA DE INTRO (4 pistas synthwave)
+// MÚSICA DE INTRO
 // ============================================================
 const AmbientAudio = (function() {
   let ctx = null, masterGain = null, playing = false;
@@ -702,12 +690,8 @@ function startGame() {
   if (gameStarted) return;
   gameStarted = true;
   console.log('[KITO] 🚀 Arrancando...');
-  try {
-    AmbientAudio.init();
-    AmbientAudio.start();
-    soundToggle.textContent = '🔊';
-    soundToggle.classList.remove('muted');
-  } catch (e) { console.warn('[Audio]', e); }
+  try { AmbientAudio.init(); AmbientAudio.start(); soundToggle.textContent = '🔊'; soundToggle.classList.remove('muted'); }
+  catch (e) { console.warn('[Audio]', e); }
   clickScreen.classList.add('hidden');
   setTimeout(() => { try { clickScreen.remove(); } catch(e) {} }, 900);
   bootScreen.classList.add('visible');
@@ -716,7 +700,6 @@ function startGame() {
 }
 ctsButton.addEventListener('click', (e) => { e.stopPropagation(); startGame(); });
 clickScreen.addEventListener('click', startGame);
-clickScreen.addEventListener('touchend', (e) => { e.preventDefault(); startGame(); }, { passive: false });
 document.addEventListener('keydown', (e) => {
   if (!gameStarted && (e.code === 'Space' || e.code === 'Enter' || e.code === 'Escape')) {
     e.preventDefault(); startGame();
@@ -757,22 +740,27 @@ function hideBootScreen() {
   const hasTouch = isTouchDevice;
   const smallScreen = Math.min(innerWidth, innerHeight) < 768;
   const hasWebGPU = !!navigator.gpu;
-  const isMobile = isMobileUA || (hasTouch && smallScreen && !hasWebGPU);
+  const isMobile = isMobileUA || (hasTouch && smallScreen);
 
   const detected = isMobile ? 'mobile' : 'pc';
   (detected === 'mobile' ? dsMobile : dsPc).classList.add('detected');
-  console.log('[KITO] Device detected: ' + detected +
-    ' (UA=' + isMobileUA + ' touch=' + hasTouch + ' small=' + smallScreen + ' WebGPU=' + hasWebGPU + ')');
+  console.log('[KITO] Device: ' + detected + ' (UA=' + isMobileUA + ' touch=' + hasTouch + ' small=' + smallScreen + ' WebGPU=' + hasWebGPU + ')');
 
+  let proceeded = false;
   function proceed() {
+    if (proceeded) return;
+    proceeded = true;
     sel.classList.add('hidden');
     if (cts) cts.style.display = '';
     setTimeout(() => { try { sel.remove(); } catch(e) {} }, 500);
   }
-  dsPc.addEventListener('click', proceed);
-  dsMobile.addEventListener('click', proceed);
-  dsPc.addEventListener('touchend', (e) => { e.preventDefault(); proceed(); }, { passive: false });
-  dsMobile.addEventListener('touchend', (e) => { e.preventDefault(); proceed(); }, { passive: false });
+
+  function bind(el, handler) {
+    el.addEventListener('click', handler);
+    el.addEventListener('touchend', (e) => { e.preventDefault(); handler(e); }, { passive: false });
+  }
+  bind(dsPc, proceed);
+  bind(dsMobile, proceed);
 })();
 
 // ============================================================
@@ -850,13 +838,13 @@ const swReady = (async () => {
   try {
     const reg = await navigator.serviceWorker.register('/sw.js', { scope: '/' });
     if (!navigator.serviceWorker.controller) {
-      if (!sessionStorage.getItem('sw_reloaded_v30')) {
-        sessionStorage.setItem('sw_reloaded_v30', '1');
+      if (!sessionStorage.getItem('sw_reloaded_v31')) {
+        sessionStorage.setItem('sw_reloaded_v31', '1');
         location.reload();
         return null;
       }
     } else {
-      sessionStorage.removeItem('sw_reloaded_v30');
+      sessionStorage.removeItem('sw_reloaded_v31');
     }
     await navigator.serviceWorker.ready;
     return reg;
@@ -891,7 +879,6 @@ function setValue(el, text, cls) { if (!el) return; el.textContent = text; el.cl
 const infoPanel = document.getElementById('info-panel');
 const infoToggle = document.getElementById('info-toggle');
 infoToggle.addEventListener('click', (e) => { e.stopPropagation(); infoPanel.classList.toggle('visible'); });
-infoToggle.addEventListener('touchend', (e) => { e.preventDefault(); e.stopPropagation(); infoPanel.classList.toggle('visible'); }, { passive: false });
 addEventListener('keydown', (e) => { if (e.code === 'F8') { e.preventDefault(); infoPanel.classList.toggle('visible'); } });
 if (navigator.hardwareConcurrency) setValue(info.cores, navigator.hardwareConcurrency);
 if (navigator.deviceMemory) setValue(info.mem, navigator.deviceMemory + ' GB');
@@ -916,7 +903,7 @@ setInterval(() => { const sec = Math.floor((performance.now() - t0) / 1000); set
 AmbientAudio.onTrack((t) => { if (info.phase && info.phase.textContent.startsWith('♪')) setValue(info.phase, '♪ ' + t.name, 'ok'); });
 
 // ============================================================
-// CRASH HANDLER
+// CRASH
 // ============================================================
 {
   let posted = 0;
@@ -1077,7 +1064,7 @@ showModes();
 const hud = document.getElementById('hud');
 
 // ============================================================
-// FPS
+// FPS toggle
 // ============================================================
 {
   const el = document.getElementById('fps');
@@ -1222,7 +1209,7 @@ window.addEventListener('game-start', async () => {
 });
 
 // ============================================================
-// AUDIO DEL JUEGO
+// AUDIO JUEGO
 // ============================================================
 function tryStartAudio() {
   if (!audioPending || !audioGesture || audioStarted) return;
@@ -1262,8 +1249,214 @@ for (let i = 0; i < 10; i++) { VK['Digit' + i] = 0x30 + i; VK['Numpad' + i] = 0x
 for (let i = 0; i < 26; i++) VK['Key' + String.fromCharCode(65 + i)] = 0x41 + i;
 for (let i = 1; i <= 24; i++) VK['F' + i] = 0x6F + i;
 
-let inputRef = null;   // { keys, w } compartido con los controles táctiles
+let inputRef = null;
 
 function installInput(memory, block) {
   const keys = new Uint8Array(memory.buffer, block, 256);
-  const w = new Int32Array(m
+  const w = new Int32Array(memory.buffer, block + 256, 10);
+  const U16 = new Uint16Array(memory.buffer, block + 256 + 40, 64);
+  const MX=0,MY=1,DX=2,DY=3,DZ=4,BTN=5,FOCUS=6,LOCKED=7,HEAD=8,TAIL=9;
+  let W = canvasEl.width || 1280, H = canvasEl.height || 720;
+  const ext = new Int32Array(memory.buffer, block + 424, 4);
+  startModeWord = new Int32Array(memory.buffer, block + 440, 1);
+  if (startMode) Atomics.store(startModeWord, 0, startMode);
+  Atomics.store(ext, 2, W); Atomics.store(ext, 3, H);
+  Atomics.store(w, FOCUS, document.hasFocus() ? 1 : 0);
+  Atomics.store(w, MX, W >> 1); Atomics.store(w, MY, H >> 1);
+
+  inputRef = { keys, w, W, H, MX, MY, DX, DY, BTN, FOCUS, LOCKED };
+
+  const passThrough = (e) => e.code === 'F12' || e.code === 'F11' ||
+    (e.ctrlKey && e.shiftKey && (e.code === 'KeyI' || e.code === 'KeyJ')) || e.code === 'F5' || e.code === 'F8';
+  const FLY_ALIAS = { KeyI:'Numpad8',KeyK:'Numpad2',KeyJ:'Numpad4',KeyL:'Numpad6',KeyU:'Numpad7',KeyO:'Numpad9' };
+  const held = new Set();
+  const syncFlyAlias = () => { for (const [src, target] of Object.entries(FLY_ALIAS)) Atomics.store(keys, VK[target], held.has(src) || held.has(target) ? 0x80 : 0); };
+  addEventListener('keydown', (e) => {
+    if (passThrough(e)) return;
+    e.preventDefault();
+    const vk = VK[e.code];
+    if (vk) Atomics.store(keys, vk, 0x80);
+    held.add(e.code); syncFlyAlias();
+    if (e.key.length === 1 && !e.ctrlKey && !e.metaKey) {
+      const head = Atomics.load(w, HEAD);
+      if (((head - Atomics.load(w, TAIL)) >>> 0) < 64) { U16[head & 63] = e.key.charCodeAt(0); Atomics.store(w, HEAD, (head + 1) | 0); }
+    } else if (e.code === 'Backspace' || e.code === 'Enter') {
+      const head = Atomics.load(w, HEAD);
+      if (((head - Atomics.load(w, TAIL)) >>> 0) < 64) { U16[head & 63] = e.code === 'Enter' ? 13 : 8; Atomics.store(w, HEAD, (head + 1) | 0); }
+    }
+  });
+  addEventListener('keyup', (e) => {
+    if (passThrough(e)) return;
+    e.preventDefault();
+    const vk = VK[e.code];
+    if (vk) Atomics.store(keys, vk, 0);
+    held.delete(e.code); syncFlyAlias();
+  });
+  const releaseAll = () => { held.clear(); for (let i = 0; i < 256; i++) Atomics.store(keys, i, 0); Atomics.store(w, BTN, 0); };
+  addEventListener('focus', () => Atomics.store(w, FOCUS, 1));
+  addEventListener('blur', () => { Atomics.store(w, FOCUS, 0); releaseAll(); });
+  const locked = () => document.pointerLockElement === canvasEl;
+  canvasEl.addEventListener('mousedown', (e) => {
+    if (!locked()) canvasEl.requestPointerLock({ unadjustedMovement: true }).catch(() => canvasEl.requestPointerLock());
+    Atomics.or(w, BTN, 1 << [0,2,1,3,4][e.button]); e.preventDefault();
+  });
+  addEventListener('mouseup', (e) => { Atomics.and(w, BTN, ~(1 << [0,2,1,3,4][e.button])); });
+  addEventListener('contextmenu', (e) => e.preventDefault());
+  document.addEventListener('pointerlockchange', () => Atomics.store(w, LOCKED, locked() ? 1 : 0));
+  addEventListener('mousemove', (e) => {
+    const r = canvasEl.getBoundingClientRect();
+    if (locked()) {
+      Atomics.add(w, DX, e.movementX); Atomics.add(w, DY, e.movementY);
+      Atomics.store(w, MX, Math.max(0, Math.min(W - 1, Atomics.load(w, MX) + e.movementX)));
+      Atomics.store(w, MY, Math.max(0, Math.min(H - 1, Atomics.load(w, MY) + e.movementY)));
+    } else {
+      const x = Math.max(0, Math.min(W - 1, Math.round((e.clientX - r.left) * W / r.width)));
+      const y = Math.max(0, Math.min(H - 1, Math.round((e.clientY - r.top) * H / r.height)));
+      Atomics.add(w, DX, x - Atomics.load(w, MX)); Atomics.add(w, DY, y - Atomics.load(w, MY));
+      Atomics.store(w, MX, x); Atomics.store(w, MY, y);
+    }
+  });
+  let wheelAccum = 0;
+  addEventListener('wheel', (e) => { e.preventDefault(); wheelAccum += -e.deltaY / (e.deltaMode === 0 ? 100 : e.deltaMode === 1 ? 3 : 1); const n = Math.trunc(wheelAccum); if (n) { wheelAccum -= n; Atomics.add(w, DZ, n); } }, { passive: false });
+}
+
+// ============================================================
+// TOUCH CONTROLS (móvil)
+// ============================================================
+function setupTouchControls() {
+  if (!inputRef) { console.warn('[Touch] inputRef no listo todavía'); return; }
+  const ui = document.getElementById('touch-ui');
+  ui.classList.add('active');
+  console.log('[Touch] Controles táctiles activados');
+
+  const { keys, w, MX, MY, DX, DY, BTN } = inputRef;
+
+  function setKey(code, down) {
+    const vk = VK[code];
+    if (vk === undefined) return;
+    Atomics.store(keys, vk, down ? 0x80 : 0);
+  }
+
+  // ---- Botones táctiles ----
+  document.querySelectorAll('.touch-btn').forEach((btn) => {
+    const keyCode = btn.dataset.key;
+    const btnId = btn.dataset.btn;
+    const press = (e) => {
+      e.preventDefault(); e.stopPropagation();
+      btn.classList.add('active');
+      if (keyCode) setKey(keyCode, true);
+      if (btnId !== undefined) Atomics.or(w, BTN, 1 << (parseInt(btnId, 10)));
+    };
+    const release = (e) => {
+      e.preventDefault(); e.stopPropagation();
+      btn.classList.remove('active');
+      if (keyCode) setKey(keyCode, false);
+      if (btnId !== undefined) Atomics.and(w, BTN, ~(1 << (parseInt(btnId, 10))));
+    };
+    btn.addEventListener('touchstart', press, { passive: false });
+    btn.addEventListener('touchend', release, { passive: false });
+    btn.addEventListener('touchcancel', release, { passive: false });
+    btn.addEventListener('mousedown', press);
+    btn.addEventListener('mouseup', release);
+    btn.addEventListener('mouseleave', release);
+  });
+
+  // ---- Joystick izquierdo ----
+  const stick = document.getElementById('touch-stick');
+  const knob = document.getElementById('touch-stick-knob');
+  let stickId = null;
+  let stickCX = 0, stickCY = 0, stickR = 0;
+
+  function stickStart(e) {
+    e.preventDefault(); e.stopPropagation();
+    const t = e.changedTouches[0];
+    stickId = t.identifier;
+    const rect = stick.getBoundingClientRect();
+    stickCX = rect.left + rect.width / 2;
+    stickCY = rect.top + rect.height / 2;
+    stickR = rect.width / 2;
+  }
+  function stickMove(e) {
+    if (stickId === null) return;
+    for (const t of e.changedTouches) {
+      if (t.identifier !== stickId) continue;
+      e.preventDefault(); e.stopPropagation();
+      let dx = t.clientX - stickCX;
+      let dy = t.clientY - stickCY;
+      const dist = Math.hypot(dx, dy);
+      const max = stickR * 0.75;
+      if (dist > max) { dx = dx / dist * max; dy = dy / dist * max; }
+      knob.style.transform = 'translate(calc(-50% + ' + dx + 'px), calc(-50% + ' + dy + 'px))';
+      const nx = dx / max, ny = dy / max;
+      Atomics.store(keys, VK['KeyW'], ny < -0.3 ? 0x80 : 0);
+      Atomics.store(keys, VK['KeyS'], ny >  0.3 ? 0x80 : 0);
+      Atomics.store(keys, VK['KeyA'], nx < -0.3 ? 0x80 : 0);
+      Atomics.store(keys, VK['KeyD'], nx >  0.3 ? 0x80 : 0);
+      Atomics.store(keys, VK['ShiftLeft'], Math.hypot(nx, ny) > 0.9 ? 0x80 : 0);
+    }
+  }
+  function stickEnd(e) {
+    for (const t of e.changedTouches) {
+      if (t.identifier !== stickId) continue;
+      e.preventDefault(); e.stopPropagation();
+      stickId = null;
+      knob.style.transform = 'translate(-50%, -50%)';
+      Atomics.store(keys, VK['KeyW'], 0);
+      Atomics.store(keys, VK['KeyS'], 0);
+      Atomics.store(keys, VK['KeyA'], 0);
+      Atomics.store(keys, VK['KeyD'], 0);
+      Atomics.store(keys, VK['ShiftLeft'], 0);
+    }
+  }
+  stick.addEventListener('touchstart', stickStart, { passive: false });
+  stick.addEventListener('touchmove', stickMove, { passive: false });
+  stick.addEventListener('touchend', stickEnd, { passive: false });
+  stick.addEventListener('touchcancel', stickEnd, { passive: false });
+
+  // ---- Look (mitad derecha) ----
+  const look = document.getElementById('touch-look');
+  let lookId = null, lastLX = 0, lastLY = 0, lookStartTime = 0, lookMoved = false;
+
+  look.addEventListener('touchstart', (e) => {
+    const t = e.changedTouches[0];
+    lookId = t.identifier;
+    lastLX = t.clientX; lastLY = t.clientY;
+    lookStartTime = performance.now();
+    lookMoved = false;
+  }, { passive: true });
+
+  look.addEventListener('touchmove', (e) => {
+    if (lookId === null) return;
+    for (const t of e.changedTouches) {
+      if (t.identifier !== lookId) continue;
+      const dx = t.clientX - lastLX;
+      const dy = t.clientY - lastLY;
+      if (Math.abs(dx) > 1 || Math.abs(dy) > 1) lookMoved = true;
+      lastLX = t.clientX; lastLY = t.clientY;
+      const sens = 1.6;
+      Atomics.add(w, DX, dx * sens);
+      Atomics.add(w, DY, dy * sens);
+      Atomics.store(w, MX, Math.max(0, Math.min(inputRef.W - 1, Atomics.load(w, MX) + dx * sens)));
+      Atomics.store(w, MY, Math.max(0, Math.min(inputRef.H - 1, Atomics.load(w, MY) + dy * sens)));
+    }
+  }, { passive: true });
+
+  look.addEventListener('touchend', (e) => {
+    for (const t of e.changedTouches) {
+      if (t.identifier !== lookId) continue;
+      const dur = performance.now() - lookStartTime;
+      // Tap corto = disparo
+      if (!lookMoved && dur < 250) {
+        Atomics.or(w, BTN, 1 << 0);
+        setTimeout(() => { Atomics.and(w, BTN, ~(1 << 0)); }, 120);
+      }
+      lookId = null;
+    }
+  }, { passive: true });
+  look.addEventListener('touchcancel', () => { lookId = null; }, { passive: true });
+
+  console.log('[Touch] Todos los controles enlazados');
+}
+</script>
+</body>
+</html>
