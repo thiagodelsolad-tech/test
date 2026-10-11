@@ -402,7 +402,7 @@ function fetchShaderSource(sh) {
 // Prefetch: effects create their shaders long before the first draw that uses them, so the source is requested at creation (CREATE_SHADER) instead of by that draw,
 // which suspended the command loop for a whole request per new shader (a network round trip each for remote players, hundreds in the first frames). At most
 // SHADER_FETCHES are in flight; a draw that needs a shader not started yet starts it at once (ensureShaderSources).
-const SHADER_FETCHES = 16, shaderQueue = [];
+const SHADER_FETCHES = 64, shaderQueue = [];
 let shaderQueueHead = 0, shaderFetching = 0;
 function pumpShaderQueue() {
 	while (shaderFetching < SHADER_FETCHES && shaderQueueHead < shaderQueue.length) {
@@ -1286,7 +1286,7 @@ function compileAsync(c, desc, vbReq, onDone) {
 }
 // Browser: pipelines compile asynchronously (?syncpipelines=1: synchronously, as Node does by default for deterministic headless runs and screenshots; WGPU_ASYNC_PIPELINES=1
 // makes Node compile them asynchronously too, to measure the draws skipped meanwhile)
-const asyncPipelines = isNode ? !!process.env.WGPU_ASYNC_PIPELINES : !new URLSearchParams(self.location.search).get('syncpipelines') && typeof GPUDevice !== 'undefined' && !!GPUDevice.prototype.createRenderPipelineAsync;
+const asyncPipelines = isNode ? !!process.env.WGPU_ASYNC_PIPELINES : false;
 const PIPELINE_PENDING = { pending: true };
 let pipelinesPending = 0, pendingSkips = 0, pendingSkips0 = 0;
 
@@ -1301,7 +1301,7 @@ const shadersByHash = new Map();		// DXBC hash -> shader object (createShader)
 let shadersReady = 0;		// shader objects whose sources are here (browser: fetched): unready recipes are retried when this grows
 let aheadMade = 0, aheadUsed = 0, aheadInFlight = 0;
 let aheadList = [], aheadPos = 0, aheadLater = [], aheadReadyAtPass = -1;
-const AHEAD_MAX = isNode ? 1 : Math.max(2, Math.min(8, (self.navigator.hardwareConcurrency || 4) - 1));		// compiles in flight at once (the GPU process compiles them on its threads)
+const AHEAD_MAX = isNode ? 1 : Math.max(16, Math.min(96, (self.navigator.hardwareConcurrency || 4) * 4));		// compiles in flight at once (the GPU process compiles them on its threads)
 function pipelineRecipe(vsObj, psObj, layout, strides, topoIdx, stripFmt, blendState, dss, rs, rtInfo, dsFormat, roDepth, roStencil) {
 	return {
 		vs: vsObj.hash, ps: psObj ? psObj.hash : '',
