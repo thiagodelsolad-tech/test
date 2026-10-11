@@ -2,85 +2,34 @@
 <html lang="es">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
 <meta name="theme-color" content="#05060a">
-<meta name="mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="description" content="Clon web no oficial de GTA V — Proyecto educativo.">
 <title>GTA V — Web Edition (Fan Project)</title>
 
 <link rel="preconnect" href="https://cdn.apkprojects.xyz" crossorigin>
 <link rel="dns-prefetch" href="https://cdn.apkprojects.xyz">
 
 <style>
-	* { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+	* { box-sizing: border-box; }
 	html, body { margin: 0; height: 100%; background: #000; color: #ccc;
 		font: 12px 'Consolas','Menlo',monospace; overflow: hidden;
-		-webkit-user-select: none; user-select: none; touch-action: none;
-		overscroll-behavior: none; }
-
-	/* ✅ dvh con fallback para móviles con barras dinámicas */
+		-webkit-user-select: none; user-select: none; }
 	#canvas { display: block; position: absolute; left: 0; top: 0;
-		width: 100vw; height: 100vh; height: 100dvh;
-		background: #000; touch-action: none; }
+		width: 100vw; height: 100vh; background: #000; }
 
-	/* ==================== DEVICE SELECTOR ==================== */
-	#device-select {
-		position: fixed; inset: 0; z-index: 6000;
-		background: radial-gradient(ellipse at center, #0a0618 0%, #000 100%);
-		display: flex; flex-direction: column; align-items: center; justify-content: center;
-		transition: opacity 0.4s ease-out;
-		padding: max(20px, env(safe-area-inset-top)) max(20px, env(safe-area-inset-right))
-		         max(20px, env(safe-area-inset-bottom)) max(20px, env(safe-area-inset-left));
-		touch-action: manipulation;
-	}
-	#device-select.hidden { opacity: 0; pointer-events: none; }
-	#device-select .ds-title {
-		font-family: 'Arial Black', sans-serif; font-size: 54px; font-weight: 900;
-		letter-spacing: 14px; color: #fff; margin-bottom: 6px;
-		text-shadow: 0 0 20px rgba(180,120,255,0.7), 0 0 60px rgba(120,180,255,0.4);
-		text-align: center;
-	}
-	#device-select .ds-sub {
-		font-size: 11px; letter-spacing: 6px; color: rgba(200,200,255,0.5);
-		text-transform: uppercase; margin-bottom: 44px; text-align: center;
-	}
-	#device-select .ds-cards { display: flex; gap: 20px; flex-wrap: wrap; justify-content: center; }
-	#device-select .ds-card {
-		position: relative; width: 200px; min-height: 160px; padding: 28px 20px;
-		background: rgba(20,15,40,0.6);
-		border: 2px solid rgba(150,150,255,0.25);
-		border-radius: 12px; cursor: pointer;
-		display: flex; flex-direction: column; align-items: center; justify-content: center;
-		transition: all 0.2s; color: #cdd6f4; font-family: 'Consolas', monospace;
-		touch-action: manipulation; -webkit-appearance: none; appearance: none;
-	}
-	#device-select .ds-card:active { transform: scale(0.97); background: rgba(120,90,255,0.25); border-color: #a78bfa; }
-	#device-select .ds-card.detected { border-color: #7cffb2; box-shadow: 0 0 24px rgba(124,255,178,0.25); }
-	#device-select .ds-card.detected::before {
-		content: '✓ detectado'; position: absolute; top: -10px; left: 50%; transform: translateX(-50%);
-		background: #0a0618; padding: 2px 8px; font-size: 9px; letter-spacing: 2px; color: #7cffb2;
-	}
-	#device-select .ds-icon { font-size: 48px; margin-bottom: 12px; line-height: 1; }
-	#device-select .ds-name { font-size: 14px; font-weight: 700; letter-spacing: 2px; text-align: center; }
-	#device-select .ds-detail { font-size: 10px; color: rgba(180,180,220,0.6); margin-top: 8px; text-align: center; }
-
-	/* ==================== CLICK TO START ==================== */
 	#click-to-start {
 		position: fixed; inset: 0; z-index: 5000;
 		background: radial-gradient(ellipse at center, #0a0618 0%, #000 100%);
 		display: flex; flex-direction: column; align-items: center; justify-content: center;
 		cursor: pointer; transition: opacity 0.8s ease-out;
-		padding: max(20px, env(safe-area-inset-top)) max(20px, env(safe-area-inset-right))
-		         max(20px, env(safe-area-inset-bottom)) max(20px, env(safe-area-inset-left));
-		touch-action: manipulation;
 	}
 	#click-to-start.hidden { opacity: 0; pointer-events: none; }
 	#click-to-start .cts-logo {
 		font-family: 'Arial Black', sans-serif; font-size: 82px; font-weight: 900;
-		letter-spacing: 14px; color: #fff; margin-bottom: 12px; text-align: center;
-		text-shadow: 0 0 20px rgba(180,120,255,0.9), 0 0 60px rgba(120,180,255,0.5);
-		animation: cts-glow 3s ease-in-out infinite; pointer-events: none;
+		letter-spacing: 14px; color: #fff;
+		text-shadow: 0 0 20px rgba(180, 120, 255, 0.9), 0 0 60px rgba(120, 180, 255, 0.5);
+		margin-bottom: 12px; animation: cts-glow 3s ease-in-out infinite; pointer-events: none;
 	}
 	@keyframes cts-glow {
 		0%, 100% { text-shadow: 0 0 20px rgba(180,120,255,0.9), 0 0 60px rgba(120,180,255,0.5); }
@@ -88,70 +37,66 @@
 	}
 	#click-to-start .cts-sub {
 		font-size: 12px; letter-spacing: 12px; text-transform: uppercase;
-		color: rgba(200,200,255,0.5); margin-bottom: 60px; pointer-events: none; text-align: center;
+		color: rgba(200, 200, 255, 0.5); margin-bottom: 60px; pointer-events: none;
 	}
 	#cts-button {
-		background: rgba(120,90,255,0.2); border: 2px solid #a78bfa; color: #fff;
+		background: rgba(120, 90, 255, 0.2); border: 2px solid #a78bfa; color: #fff;
 		font-family: 'Arial Black', sans-serif; font-size: 18px; letter-spacing: 4px;
 		padding: 20px 48px; border-radius: 8px; cursor: pointer;
 		animation: cts-pulse 2s ease-in-out infinite; transition: all 0.2s;
-		touch-action: manipulation; min-height: 56px;
 	}
-	#cts-button:active { background: rgba(120,90,255,0.5); transform: scale(0.97); }
+	#cts-button:hover { background: rgba(120, 90, 255, 0.5); transform: scale(1.05); }
+	#cts-button:active { transform: scale(0.98); }
 	@keyframes cts-pulse { 0%, 100% { opacity: 0.6; } 50% { opacity: 1; } }
 	#click-to-start .cts-note {
-		position: absolute; bottom: max(40px, calc(env(safe-area-inset-bottom) + 20px));
-		font-size: 10px; color: rgba(180,180,200,0.4);
+		position: absolute; bottom: 40px; font-size: 10px; color: rgba(180, 180, 200, 0.4);
 		text-align: center; padding: 0 40px; max-width: 600px; line-height: 1.6; pointer-events: none;
 	}
 
-	/* ==================== SOUND ==================== */
 	#sound-toggle {
-		position: fixed; top: max(24px, env(safe-area-inset-top));
-		right: max(24px, env(safe-area-inset-right));
-		width: 48px; height: 48px;   /* ✅ ≥48px táctil */
-		background: rgba(0,0,0,0.65); border: 1px solid rgba(180,120,255,0.4);
-		border-radius: 50%; color: #a78bfa; font-size: 20px; cursor: pointer; z-index: 100;
+		position: fixed; top: 24px; right: 24px; width: 40px; height: 40px;
+		background: rgba(0, 0, 0, 0.65); border: 1px solid rgba(180, 120, 255, 0.4);
+		border-radius: 50%; color: #a78bfa; font-size: 18px; cursor: pointer; z-index: 100;
 		display: flex; align-items: center; justify-content: center;
 		transition: all 0.25s; backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
-		touch-action: manipulation;
 	}
-	#sound-toggle.muted { color: rgba(150,150,200,0.4); }
+	#sound-toggle:hover { background: rgba(120, 90, 255, 0.3); transform: scale(1.08); }
+	#sound-toggle.muted { color: rgba(150, 150, 200, 0.4); }
 
-	/* ==================== BOOT ==================== */
 	#boot-screen {
 		position: fixed; inset: 0; background: #05060a; z-index: 1000;
 		display: none; flex-direction: column; align-items: center; justify-content: center;
-		padding: 20px; transition: opacity 0.6s ease-out;
+		transition: opacity 0.6s ease-out;
 	}
 	#boot-screen.visible { display: flex; }
 	#boot-screen.hidden { opacity: 0; pointer-events: none; }
 	#boot-screen .boot-spinner {
-		width: 64px; height: 64px; border: 3px solid rgba(120,100,255,0.15);
+		width: 64px; height: 64px; border: 3px solid rgba(120, 100, 255, 0.15);
 		border-top-color: #a78bfa; border-radius: 50%;
 		animation: boot-spin 1s linear infinite; margin-bottom: 24px;
 	}
 	@keyframes boot-spin { to { transform: rotate(360deg); } }
 	#boot-screen .boot-title {
 		font-family: 'Arial Black', sans-serif; font-size: 28px; font-weight: 900;
-		letter-spacing: 12px; color: #fff; text-shadow: 0 0 20px rgba(180,120,255,0.6); margin-bottom: 8px;
-		text-align: center;
+		letter-spacing: 12px; color: #fff; text-shadow: 0 0 20px rgba(180, 120, 255, 0.6); margin-bottom: 8px;
 	}
-	#boot-screen .boot-sub { font-size: 10px; letter-spacing: 6px; text-transform: uppercase;
-		color: rgba(200,200,255,0.5); margin-bottom: 40px; text-align: center; }
-	#boot-screen .boot-status { font-size: 11px; letter-spacing: 2px;
-		color: rgba(180,180,220,0.7); min-height: 16px; text-align: center; }
+	#boot-screen .boot-sub {
+		font-size: 10px; letter-spacing: 6px; text-transform: uppercase;
+		color: rgba(200, 200, 255, 0.5); margin-bottom: 40px;
+	}
+	#boot-screen .boot-status {
+		font-size: 11px; letter-spacing: 2px; color: rgba(180, 180, 220, 0.7); min-height: 16px;
+	}
 	#boot-screen .boot-bar {
-		width: min(240px, 80vw); height: 2px; background: rgba(150,150,255,0.12);
+		width: 240px; height: 2px; background: rgba(150, 150, 255, 0.12);
 		border-radius: 1px; margin-top: 16px; overflow: hidden;
 	}
 	#boot-screen .boot-bar-fill {
 		height: 100%; width: 0%;
 		background: linear-gradient(90deg, #7c5cff, #6ac3ff);
-		box-shadow: 0 0 10px rgba(124,92,255,0.7); transition: width 0.4s ease-out;
+		box-shadow: 0 0 10px rgba(124, 92, 255, 0.7); transition: width 0.4s ease-out;
 	}
 
-	/* ==================== LOADING ==================== */
 	#loading { position: fixed; inset: 0; background: #000; overflow: hidden;
 		transition: opacity .8s; z-index: 5; opacity: 0; }
 	#loading.done { opacity: 0; pointer-events: none; }
@@ -159,67 +104,53 @@
 	#ls-stage { position: absolute; left: 0; top: 0; width: 1280px; height: 720px;
 		transform-origin: 0 0; overflow: hidden; font: 12px sans-serif; color: #fff; }
 	#ls-screens { position: absolute; inset: 0; overflow: hidden; }
+
 	.ls-screen { position: absolute; inset: 0; will-change: transform; }
 	.ls-screen .screen-bg { position: absolute; inset: 0; }
 
-	.screen-1 .screen-bg { background: radial-gradient(ellipse at 30% 40%, rgba(255,140,60,0.5) 0%, transparent 55%), radial-gradient(ellipse at 70% 80%, rgba(180,60,100,0.4) 0%, transparent 60%), linear-gradient(180deg, #1a0e1e 0%, #2d1220 50%, #0a0608 100%); }
-	.screen-2 .screen-bg { background: radial-gradient(ellipse at 20% 70%, rgba(0,180,220,0.5) 0%, transparent 50%), radial-gradient(ellipse at 80% 30%, rgba(120,40,200,0.4) 0%, transparent 55%), linear-gradient(180deg, #050a18 0%, #0a1428 50%, #020408 100%); }
-	.screen-3 .screen-bg { background: radial-gradient(circle at 50% 50%, rgba(255,200,100,0.35) 0%, transparent 40%), radial-gradient(ellipse at 20% 80%, rgba(200,60,60,0.4) 0%, transparent 50%), linear-gradient(180deg, #1a0e08 0%, #2a1408 60%, #0a0402 100%); }
-	.screen-4 .screen-bg { background: radial-gradient(ellipse at 70% 30%, rgba(80,255,160,0.4) 0%, transparent 50%), radial-gradient(ellipse at 30% 70%, rgba(40,100,180,0.4) 0%, transparent 55%), linear-gradient(180deg, #021a0e 0%, #051428 50%, #020204 100%); }
-	.screen-5 .screen-bg { background: radial-gradient(ellipse at 50% 20%, rgba(255,60,60,0.4) 0%, transparent 50%), radial-gradient(ellipse at 50% 90%, rgba(60,20,100,0.5) 0%, transparent 55%), linear-gradient(180deg, #1a0508 0%, #0a0518 60%, #000 100%); }
-	.screen-6 .screen-bg { background: radial-gradient(ellipse at 30% 50%, rgba(255,200,255,0.3) 0%, transparent 45%), radial-gradient(ellipse at 70% 50%, rgba(100,180,255,0.3) 0%, transparent 45%), linear-gradient(180deg, #0a0814 0%, #180a24 50%, #05030a 100%); }
-	.screen-7 .screen-bg { background: radial-gradient(ellipse at 60% 40%, rgba(255,100,200,0.4) 0%, transparent 45%), radial-gradient(ellipse at 40% 60%, rgba(100,200,255,0.4) 0%, transparent 50%), linear-gradient(180deg, #0a0416 0%, #1a0828 50%, #05020a 100%); }
-	.screen-8 .screen-bg { background: radial-gradient(ellipse at 30% 40%, rgba(255,180,60,0.4) 0%, transparent 50%), radial-gradient(ellipse at 70% 70%, rgba(200,40,120,0.4) 0%, transparent 55%), linear-gradient(180deg, #1a1008 0%, #1a0818 60%, #050205 100%); }
+	.screen-1 .screen-bg { background: radial-gradient(ellipse at 30% 40%, rgba(255, 140, 60, 0.5) 0%, transparent 55%), radial-gradient(ellipse at 70% 80%, rgba(180, 60, 100, 0.4) 0%, transparent 60%), linear-gradient(180deg, #1a0e1e 0%, #2d1220 50%, #0a0608 100%); }
+	.screen-2 .screen-bg { background: radial-gradient(ellipse at 20% 70%, rgba(0, 180, 220, 0.5) 0%, transparent 50%), radial-gradient(ellipse at 80% 30%, rgba(120, 40, 200, 0.4) 0%, transparent 55%), linear-gradient(180deg, #050a18 0%, #0a1428 50%, #020408 100%); }
+	.screen-3 .screen-bg { background: radial-gradient(circle at 50% 50%, rgba(255, 200, 100, 0.35) 0%, transparent 40%), radial-gradient(ellipse at 20% 80%, rgba(200, 60, 60, 0.4) 0%, transparent 50%), linear-gradient(180deg, #1a0e08 0%, #2a1408 60%, #0a0402 100%); }
+	.screen-4 .screen-bg { background: radial-gradient(ellipse at 70% 30%, rgba(80, 255, 160, 0.4) 0%, transparent 50%), radial-gradient(ellipse at 30% 70%, rgba(40, 100, 180, 0.4) 0%, transparent 55%), linear-gradient(180deg, #021a0e 0%, #051428 50%, #020204 100%); }
+	.screen-5 .screen-bg { background: radial-gradient(ellipse at 50% 20%, rgba(255, 60, 60, 0.4) 0%, transparent 50%), radial-gradient(ellipse at 50% 90%, rgba(60, 20, 100, 0.5) 0%, transparent 55%), linear-gradient(180deg, #1a0508 0%, #0a0518 60%, #000 100%); }
+	.screen-6 .screen-bg { background: radial-gradient(ellipse at 30% 50%, rgba(255, 200, 255, 0.3) 0%, transparent 45%), radial-gradient(ellipse at 70% 50%, rgba(100, 180, 255, 0.3) 0%, transparent 45%), linear-gradient(180deg, #0a0814 0%, #180a24 50%, #05030a 100%); }
+	.screen-7 .screen-bg { background: radial-gradient(ellipse at 60% 40%, rgba(255, 100, 200, 0.4) 0%, transparent 45%), radial-gradient(ellipse at 40% 60%, rgba(100, 200, 255, 0.4) 0%, transparent 50%), linear-gradient(180deg, #0a0416 0%, #1a0828 50%, #05020a 100%); }
+	.screen-8 .screen-bg { background: radial-gradient(ellipse at 30% 40%, rgba(255, 180, 60, 0.4) 0%, transparent 50%), radial-gradient(ellipse at 70% 70%, rgba(200, 40, 120, 0.4) 0%, transparent 55%), linear-gradient(180deg, #1a1008 0%, #1a0818 60%, #050205 100%); }
 
 	.screen-label {
 		position: absolute; left: 80px; bottom: 180px;
 		font-family: 'Arial Black', sans-serif; font-size: 44px; font-weight: 900;
-		letter-spacing: 8px; color: rgba(255,255,255,0.9);
-		text-shadow: 0 4px 20px rgba(0,0,0,0.9);
+		letter-spacing: 8px; color: rgba(255, 255, 255, 0.9);
+		text-shadow: 0 4px 20px rgba(0, 0, 0, 0.9);
 	}
 	.screen-label small {
 		display: block; font-size: 11px; font-weight: 400; letter-spacing: 6px;
-		margin-top: 6px; color: rgba(255,255,255,0.5);
+		margin-top: 6px; color: rgba(255, 255, 255, 0.5);
 	}
 
-	/* ✅ Logo ahora es viewport-fixed (no se escala con el stage) */
-	#kito-logo { position: fixed;
-		left: max(20px, env(safe-area-inset-left));
-		top: max(20px, env(safe-area-inset-top));
-		font-family: 'Arial Black',sans-serif; font-size: 40px; font-weight: 900;
-		letter-spacing: 8px; color: #fff; line-height: 1;
+	#kito-logo { position: absolute; left: 60px; top: 60px;
+		font-family: 'Arial Black',sans-serif; font-size: 52px; font-weight: 900;
+		letter-spacing: 10px; color: #fff;
 		text-shadow: 0 0 12px rgba(180,120,255,.9), 0 0 30px rgba(120,180,255,.6), 2px 4px 0 rgba(0,0,0,.6);
 		pointer-events: none; z-index: 10; }
-	#kito-logo small { display: block; font-size: 9px; letter-spacing: 8px;
+	#kito-logo small { display: block; font-size: 10px; letter-spacing: 10px;
 		margin-top: 4px; color: rgba(255,255,255,.7); text-shadow: none; font-weight: 400; }
 
-	/* ✅ Info toggle ahora es viewport-fixed y cumple 48×48 */
-	#info-toggle { position: fixed;
-		right: max(24px, env(safe-area-inset-right));
-		top: calc(max(24px, env(safe-area-inset-top)) + 60px);
-		width: 48px; height: 48px;
+	#info-toggle { position: absolute; right: 24px; top: 90px; width: 36px; height: 36px;
 		background: rgba(0,0,0,.55); border: 1px solid rgba(150,150,255,.3);
-		border-radius: 50%; color: #a78bfa; font: bold 20px/44px monospace; text-align: center;
+		border-radius: 50%; color: #a78bfa; font: bold 18px/34px monospace; text-align: center;
 		cursor: pointer; backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px);
-		transition: background .2s, transform .2s; z-index: 20;
-		display: flex; align-items: center; justify-content: center;
-		-webkit-appearance: none; appearance: none; padding: 0;
-	}
+		transition: background .2s, transform .2s; z-index: 20; }
+	#info-toggle:hover { background: rgba(120,90,255,.25); transform: scale(1.08); }
 
-	/* ✅ Info panel con ancho fluido y top coherente con el toggle */
-	#info-panel { position: fixed;
-		right: max(24px, env(safe-area-inset-right));
-		top: calc(max(24px, env(safe-area-inset-top)) + 120px);
-		width: min(340px, calc(100vw - 48px));
+	#info-panel { position: absolute; right: 24px; top: 136px; width: 340px;
 		padding: 14px 16px; background: rgba(0,0,0,.85);
 		border: 1px solid rgba(150,150,255,.18); border-radius: 6px;
 		backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
 		font-family: 'Consolas','Menlo',monospace; font-size: 10.5px; line-height: 1.5;
 		color: #cdd6f4; z-index: 19;
 		opacity: 0; pointer-events: none; transform: translateY(-8px);
-		transition: opacity .25s, transform .25s;
-		max-height: min(80vh, calc(100dvh - 180px)); overflow-y: auto;
-		-webkit-overflow-scrolling: touch; }
+		transition: opacity .25s, transform .25s; max-height: 80vh; overflow-y: auto; }
 	#info-panel.visible { opacity: 1; pointer-events: auto; transform: translateY(0); }
 	#info-panel .row { display: flex; justify-content: space-between; gap: 12px; }
 	#info-panel .label { color: #7c8bd4; }
@@ -242,6 +173,8 @@
 		border: 0; background: none; color: #fff; font: 12px sans-serif; cursor: pointer; }
 	#modes button:disabled { cursor: default; }
 	#modes button[hidden] { display: none; }
+	#modes.ask button:not(:disabled) .ls-key { animation: ls-ask 1.2s ease-in-out infinite; }
+	@keyframes ls-ask { 50% { opacity: .35; } }
 	.ls-key { margin-left: 4px; min-width: 12px; height: 15px; padding: 0 4px;
 		line-height: 16px; border-radius: 2px; background: #fff; color: #000;
 		font-size: 10px; text-transform: uppercase; }
@@ -271,210 +204,6 @@
 	#fps { position: fixed; left: 8px; top: 6px; display: none; color: #0f0;
 		font: bold 18px/1.2 Consolas,monospace; font-variant-numeric: tabular-nums;
 		text-shadow: 1px 1px 2px #000, 0 0 3px #000; pointer-events: none; z-index: 10; }
-
-	/* ==================== MOBILE MODE SELECTOR ==================== */
-	#mobile-modes {
-		position: fixed; inset: 0; z-index: 4500;
-		background: rgba(0,0,0,0.88);
-		backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
-		display: none; flex-direction: column; align-items: center; justify-content: center;
-		gap: 16px;
-		padding: max(20px, env(safe-area-inset-top)) max(20px, env(safe-area-inset-right))
-		         max(20px, env(safe-area-inset-bottom)) max(20px, env(safe-area-inset-left));
-		touch-action: manipulation;
-	}
-	#mobile-modes.visible { display: flex; }
-	#mobile-modes .mm-title {
-		font-family: 'Arial Black', sans-serif; font-size: 18px; font-weight: 900;
-		letter-spacing: 4px; color: #fff; margin-bottom: 8px; text-align: center;
-		text-shadow: 0 0 12px rgba(180,120,255,0.6);
-	}
-	#mobile-modes .mm-sub {
-		font-size: 11px; letter-spacing: 3px; color: rgba(200,200,255,0.55);
-		text-transform: uppercase; margin-bottom: 12px; text-align: center;
-	}
-	#mobile-modes .mm-btn {
-		width: 100%; max-width: 420px; min-height: 64px;
-		padding: 18px 22px;
-		background: rgba(20,15,40,0.7);
-		border: 2px solid rgba(150,150,255,0.35);
-		border-radius: 12px;
-		color: #fff;
-		font-family: 'Arial Black', sans-serif;
-		font-size: 16px; letter-spacing: 2px;
-		cursor: pointer;
-		display: flex; align-items: center; justify-content: space-between;
-		transition: all 0.15s;
-		touch-action: manipulation; -webkit-appearance: none; appearance: none;
-	}
-	#mobile-modes .mm-btn:active {
-		background: rgba(120,90,255,0.55);
-		border-color: #a78bfa;
-		transform: scale(0.98);
-	}
-	#mobile-modes .mm-btn .mm-icon { font-size: 26px; flex-shrink: 0; }
-	#mobile-modes .mm-btn .mm-desc {
-		display: block; font-family: 'Consolas', monospace;
-		font-size: 10px; color: rgba(200,200,255,0.55);
-		letter-spacing: 1px; font-weight: 400; margin-top: 3px;
-	}
-	#mobile-modes .mm-btn.back {
-		border-color: rgba(150,150,200,0.3);
-		background: rgba(20,20,30,0.6);
-		font-size: 14px;
-	}
-
-	/* ==================== TOUCH CONTROLS ==================== */
-	#touch-ui {
-		position: fixed; inset: 0; z-index: 4000;
-		pointer-events: none; display: none;
-		touch-action: none;
-	}
-	#touch-ui.active { display: block; }
-
-	#touch-look {
-		position: absolute;
-		left: 50%; right: 0; top: 0; bottom: 0;
-		z-index: 0;
-		pointer-events: auto;
-		touch-action: none;
-		background: transparent;
-	}
-
-	#touch-stick {
-		position: absolute;
-		left: max(20px, env(safe-area-inset-left));
-		bottom: max(20px, env(safe-area-inset-bottom));
-		width: 150px; height: 150px;
-		border-radius: 50%;
-		background: rgba(0,0,0,0.32);
-		border: 2px solid rgba(150,150,255,0.35);
-		touch-action: none;
-		display: flex; align-items: center; justify-content: center;
-		z-index: 10;
-		pointer-events: auto;
-		backdrop-filter: blur(6px);
-		-webkit-backdrop-filter: blur(6px);
-	}
-	#touch-stick-knob {
-		position: absolute;
-		left: 50%; top: 50%;
-		width: 58px; height: 58px;
-		border-radius: 50%;
-		background: radial-gradient(circle, rgba(180,120,255,0.8) 0%, rgba(120,90,255,0.6) 100%);
-		box-shadow: 0 0 16px rgba(180,120,255,0.6);
-		transform: translate(-50%, -50%);
-		pointer-events: none;
-	}
-
-	.touch-btn {
-		position: absolute;
-		display: flex; align-items: center; justify-content: center;
-		border-radius: 50%;
-		background: rgba(0,0,0,0.45);
-		border: 2px solid rgba(150,150,255,0.4);
-		color: rgba(255,255,255,0.92);
-		font-family: 'Arial Black', sans-serif;
-		font-weight: 900;
-		touch-action: none;
-		backdrop-filter: blur(6px);
-		-webkit-backdrop-filter: blur(6px);
-		transition: background 0.08s, border-color 0.08s, transform 0.08s;
-		text-shadow: 0 0 6px rgba(180,120,255,0.6);
-		user-select: none; -webkit-user-select: none;
-		z-index: 10;
-		pointer-events: auto;
-		/* ✅ Seguridad táctil universal */
-		min-width: 48px; min-height: 48px;
-	}
-	.touch-btn.active {
-		background: rgba(120,90,255,0.7);
-		border-color: #a78bfa;
-		transform: scale(0.92);
-	}
-
-	.touch-btn-a, .touch-btn-b, .touch-btn-x, .touch-btn-y {
-		width: 64px; height: 64px; font-size: 20px;   /* ✅ ≥48 */
-	}
-	.touch-btn-y { right: calc(max(20px, env(safe-area-inset-right)) + 96px); bottom: calc(max(20px, env(safe-area-inset-bottom)) + 152px); }
-	.touch-btn-x { right: calc(max(20px, env(safe-area-inset-right)) + 160px); bottom: calc(max(20px, env(safe-area-inset-bottom)) + 88px); }
-	.touch-btn-b { right: calc(max(20px, env(safe-area-inset-right)) + 32px);  bottom: calc(max(20px, env(safe-area-inset-bottom)) + 88px); }
-	.touch-btn-a { right: calc(max(20px, env(safe-area-inset-right)) + 96px); bottom: calc(max(20px, env(safe-area-inset-bottom)) + 24px); }
-
-	/* ✅ LB/RB ≥48px alto también en desktop */
-	.touch-btn-lb, .touch-btn-rb {
-		width: 82px; height: 52px; border-radius: 12px; font-size: 14px;
-	}
-	.touch-btn-lb { left: max(16px, env(safe-area-inset-left)); top: max(16px, env(safe-area-inset-top)); }
-	.touch-btn-rb { right: max(16px, env(safe-area-inset-right)); top: max(16px, env(safe-area-inset-top)); }
-
-	.touch-btn-start {
-		width: 52px; height: 52px; font-size: 16px; border-radius: 12px;
-		left: 50%; top: max(16px, env(safe-area-inset-top));
-		transform: translateX(-50%);
-	}
-	.touch-btn-start.active { transform: translateX(-50%) scale(0.92); }
-
-	/* ==================== RESPONSIVE ==================== */
-
-	/* Tablets / móviles grandes */
-	@media (max-width: 768px) {
-		#info-panel { font-size: 10px; padding: 12px 14px; }
-		#kito-logo { font-size: 32px; letter-spacing: 6px; }
-	}
-
-	/* Móviles */
-	@media (max-width: 600px) {
-		#device-select .ds-title { font-size: 36px; letter-spacing: 8px; }
-		#device-select .ds-sub { font-size: 9px; letter-spacing: 4px; margin-bottom: 28px; }
-		#device-select .ds-cards { gap: 12px; }
-		#device-select .ds-card { width: min(180px, 42vw); padding: 20px 14px; min-height: 150px; }
-		#device-select .ds-icon { font-size: 38px; }
-		#device-select .ds-name { font-size: 12px; letter-spacing: 1px; }
-		#device-select .ds-detail { font-size: 9px; }
-
-		#click-to-start .cts-logo { font-size: 56px; letter-spacing: 10px; }
-		#cts-button { font-size: 15px; padding: 16px 32px; min-height: 52px; }
-		#click-to-start .cts-sub { letter-spacing: 8px; margin-bottom: 40px; }
-	}
-
-	/* Móviles pequeños / landscape bajo */
-	@media (max-width: 400px) {
-		#device-select .ds-title { font-size: 30px; letter-spacing: 6px; }
-		#device-select .ds-card { width: min(160px, 44vw); padding: 16px 10px; min-height: 140px; }
-		#device-select .ds-icon { font-size: 32px; margin-bottom: 8px; }
-		#device-select .ds-name { font-size: 11px; letter-spacing: 0.5px; }
-		#device-select .ds-detail { font-size: 9px; margin-top: 6px; }
-	}
-
-	/* Orientation: touch controls en portrait */
-	@media (orientation: portrait) {
-		#touch-stick { width: 132px; height: 132px; }
-		#touch-stick-knob { width: 52px; height: 52px; }
-		.touch-btn-a, .touch-btn-b, .touch-btn-x, .touch-btn-y { width: 58px; height: 58px; font-size: 17px; }
-		.touch-btn-y { right: calc(max(16px, env(safe-area-inset-right)) + 84px); bottom: calc(max(16px, env(safe-area-inset-bottom)) + 140px); }
-		.touch-btn-x { right: calc(max(16px, env(safe-area-inset-right)) + 148px); bottom: calc(max(16px, env(safe-area-inset-bottom)) + 78px); }
-		.touch-btn-b { right: calc(max(16px, env(safe-area-inset-right)) + 26px);  bottom: calc(max(16px, env(safe-area-inset-bottom)) + 78px); }
-		.touch-btn-a { right: calc(max(16px, env(safe-area-inset-right)) + 84px); bottom: calc(max(16px, env(safe-area-inset-bottom)) + 20px); }
-		.touch-btn-lb, .touch-btn-rb { width: 72px; height: 52px; font-size: 13px; } /* ✅ ≥48 */
-		.touch-btn-start { width: 52px; height: 52px; font-size: 15px; }
-	}
-
-	/* Landscape bajo (móviles girados) */
-	@media (orientation: landscape) and (max-height: 480px) {
-		#touch-stick { width: 120px; height: 120px; }
-		#touch-stick-knob { width: 46px; height: 46px; }
-		.touch-btn-a, .touch-btn-b, .touch-btn-x, .touch-btn-y { width: 54px; height: 54px; font-size: 16px; }
-		.touch-btn-lb, .touch-btn-rb { width: 72px; height: 48px; font-size: 12px; }
-		.touch-btn-start { width: 48px; height: 48px; font-size: 14px; }
-	}
-
-	/* Móviles extremadamente pequeños: evitar solapamiento stick / botones */
-	@media (max-width: 360px) {
-		#touch-stick { width: 112px; height: 112px; }
-		#touch-stick-knob { width: 44px; height: 44px; }
-		.touch-btn-a, .touch-btn-b, .touch-btn-x, .touch-btn-y { width: 52px; height: 52px; font-size: 15px; }
-	}
 </style>
 </head>
 <body>
@@ -483,26 +212,7 @@
 <div id="hud"></div>
 <div id="fps"></div>
 
-<!-- DEVICE SELECTOR -->
-<div id="device-select">
-  <div class="ds-title">KITO</div>
-  <div class="ds-sub">Selecciona tu dispositivo</div>
-  <div class="ds-cards">
-    <button class="ds-card" data-device="pc" id="ds-pc" type="button">
-      <div class="ds-icon">💻</div>
-      <div class="ds-name">PC / Escritorio</div>
-      <div class="ds-detail">WebGPU · GPU dedicada</div>
-    </button>
-    <button class="ds-card" data-device="mobile" id="ds-mobile" type="button">
-      <div class="ds-icon">📱</div>
-      <div class="ds-name">Móvil / Tablet</div>
-      <div class="ds-detail">Experimental · controles táctiles</div>
-    </button>
-  </div>
-</div>
-
-<!-- CLICK TO START -->
-<div id="click-to-start" style="display:none">
+<div id="click-to-start">
   <div class="cts-logo">KITO</div>
   <div class="cts-sub">Web Edition</div>
   <button id="cts-button" type="button">▶ CLIC PARA COMENZAR</button>
@@ -513,7 +223,6 @@
 
 <button id="sound-toggle" title="Activar/desactivar sonido">🔊</button>
 
-<!-- BOOT -->
 <div id="boot-screen">
   <div class="boot-spinner"></div>
   <div class="boot-title">KITO</div>
@@ -522,10 +231,45 @@
   <div class="boot-bar"><div class="boot-bar-fill" id="boot-bar-fill"></div></div>
 </div>
 
-<!-- LOADING (kito-logo, info-toggle y info-panel movidos FUERA del stage escalable) -->
 <div id="loading">
   <div id="ls-stage">
     <div id="ls-screens"></div>
+
+    <div id="kito-logo">KITO<small>WEB EDITION</small></div>
+
+    <button id="info-toggle" title="Mostrar/ocultar panel (F8)">ℹ</button>
+
+    <div id="info-panel">
+      <div class="title">Estado del sistema</div>
+      <div class="row"><span class="label">Proyecto</span><span class="value">Fan-made</span></div>
+      <div class="row"><span class="label">Build</span><span class="value" id="info-version">v29</span></div>
+      <div class="row"><span class="label">Service Worker</span><span class="value" id="info-sw">registrando…</span></div>
+
+      <hr>
+      <div class="title">Red</div>
+      <div class="row"><span class="label">Conexión</span><span class="value" id="info-net">comprobando…</span></div>
+      <div class="row"><span class="label">Velocidad</span><span class="value" id="info-speed">— MB/s</span></div>
+      <div class="row"><span class="label">Descargado</span><span class="value" id="info-bytes">0 MB</span></div>
+
+      <hr>
+      <div class="title">Hardware</div>
+      <div class="row"><span class="label">GPU</span><span class="value" id="info-gpu">detectando…</span></div>
+      <div class="row"><span class="label">Núcleos</span><span class="value" id="info-cores">—</span></div>
+      <div class="row"><span class="label">Memoria</span><span class="value" id="info-mem">— GB</span></div>
+
+      <hr>
+      <div class="title">Progreso</div>
+      <div class="row"><span class="label">Fase</span><span class="value" id="info-phase">iniciando</span></div>
+      <div class="row"><span class="label">Tiempo</span><span class="value" id="info-time">0s</span></div>
+
+      <hr>
+      <div class="title">Aviso legal</div>
+      <div class="legal">
+        Este proyecto es un <b>fan-made sin ánimo de lucro</b> con fines <b>educativos</b>.
+        No está afiliado con <b>Rockstar Games</b> ni <b>Take-Two</b>.
+      </div>
+    </div>
+
     <div id="ls-bars">
       <div id="modes" class="ls-bar">
         <button data-act="back"></button>
@@ -542,32 +286,6 @@
     </div>
   </div>
 
-  <div id="kito-logo">KITO<small>WEB EDITION</small></div>
-  <button id="info-toggle" title="Panel (F8)" type="button" aria-label="Panel de información">ℹ</button>
-  <div id="info-panel">
-    <div class="title">Estado del sistema</div>
-    <div class="row"><span class="label">Proyecto</span><span class="value">Fan-made</span></div>
-    <div class="row"><span class="label">Build</span><span class="value" id="info-version">v32</span></div>
-    <div class="row"><span class="label">Service Worker</span><span class="value" id="info-sw">registrando…</span></div>
-    <hr>
-    <div class="title">Red</div>
-    <div class="row"><span class="label">Conexión</span><span class="value" id="info-net">comprobando…</span></div>
-    <div class="row"><span class="label">Velocidad</span><span class="value" id="info-speed">— MB/s</span></div>
-    <div class="row"><span class="label">Descargado</span><span class="value" id="info-bytes">0 MB</span></div>
-    <hr>
-    <div class="title">Hardware</div>
-    <div class="row"><span class="label">GPU</span><span class="value" id="info-gpu">detectando…</span></div>
-    <div class="row"><span class="label">Núcleos</span><span class="value" id="info-cores">—</span></div>
-    <div class="row"><span class="label">Memoria</span><span class="value" id="info-mem">— GB</span></div>
-    <hr>
-    <div class="title">Progreso</div>
-    <div class="row"><span class="label">Fase</span><span class="value" id="info-phase">iniciando</span></div>
-    <div class="row"><span class="label">Tiempo</span><span class="value" id="info-time">0s</span></div>
-    <hr>
-    <div class="title">Aviso legal</div>
-    <div class="legal">Fan-made <b>sin ánimo de lucro</b>. No afiliado con <b>Rockstar Games</b> ni <b>Take-Two</b>.</div>
-  </div>
-
   <div id="ls-log">
     <div id="data"></div>
     <div id="console"></div>
@@ -575,35 +293,15 @@
   <div id="bar"><div id="fill"></div></div>
 </div>
 
-<!-- MOBILE MODE SELECTOR -->
-<div id="mobile-modes">
-  <div class="mm-title" id="mm-title">ELIGE MODO</div>
-  <div class="mm-sub" id="mm-sub">Cómo quieres jugar</div>
-  <div id="mm-buttons" style="width:100%;display:flex;flex-direction:column;gap:14px;align-items:center;"></div>
-</div>
-
-<!-- TOUCH CONTROLS -->
-<div id="touch-ui">
-  <div id="touch-look"></div>
-  <div id="touch-stick"><div id="touch-stick-knob"></div></div>
-  <div class="touch-btn touch-btn-lb" data-key="ShiftLeft">LB</div>
-  <div class="touch-btn touch-btn-rb" data-key="KeyF">RB</div>
-  <div class="touch-btn touch-btn-start" data-key="Escape">☰</div>
-  <div class="touch-btn touch-btn-y" data-key="KeyE">Y</div>
-  <div class="touch-btn touch-btn-x" data-btn="1">X</div>
-  <div class="touch-btn touch-btn-b" data-btn="0">B</div>
-  <div class="touch-btn touch-btn-a" data-key="Space">A</div>
-</div>
-
 <script type="module">
-console.log('[KITO] index.html cargado — v32');
+console.log('[KITO] index.html cargado — v29');
+window.addEventListener('error', (e) => {
+  console.error('[KITO] ERROR:', e.message, 'en', e.filename, ':', e.lineno);
+  const hud = document.getElementById('hud');
+  if (hud && !hud.textContent) hud.textContent = 'Error: ' + e.message;
+});
 
-const isTouchDevice = ('ontouchstart' in window) || (navigator.maxTouchPoints || 0) > 0;
-const forceTouchUI = new URLSearchParams(location.search).get('touch') === '1';
-const touchMode = isTouchDevice || forceTouchUI;
-console.log('[KITO] touch=' + isTouchDevice + ' maxTouchPoints=' + navigator.maxTouchPoints + ' forceTouchUI=' + forceTouchUI + ' → touchMode=' + touchMode);
-
-// Filtro de errores cosméticos
+// Filtro cosmético
 (function() {
   const ignore = [
     /Bink is not available/i, /LookupVar\(.+\) failed/i,
@@ -626,7 +324,7 @@ console.log('[KITO] touch=' + isTouchDevice + ' maxTouchPoints=' + navigator.max
 })();
 
 // ============================================================
-// MÚSICA
+// PLAYLIST synthwave (4 pistas rotando)
 // ============================================================
 const AmbientAudio = (function() {
   let ctx = null, masterGain = null, playing = false;
@@ -642,7 +340,8 @@ const AmbientAudio = (function() {
         { root: 45, chord: [57,60,64], arp: [57,60,64,69,72,69,64,60] },
         { root: 41, chord: [53,57,60], arp: [53,57,60,65,69,65,60,57] },
         { root: 36, chord: [48,52,55], arp: [48,52,55,60,64,60,55,52] },
-        { root: 43, chord: [55,59,62], arp: [55,59,62,67,71,67,62,59] } ] },
+        { root: 43, chord: [55,59,62], arp: [55,59,62,67,71,67,62,59] },
+      ] },
     { name: 'Midnight Coast', bpm: 100, padWave: 'sawtooth', padDetune: 10, padCutoff: 2200, padGain: 0.045, bassWave: 'sawtooth', bassCutoff: 700, arpWave: 'square', arpGain: 0.16,
       kickPattern: [1,0,0,1,0,0,1,0,1,0,0,1,0,0,1,0], hatPattern: [0,1,0,1,0,1,0,1,0,1,1,1,0,1,0,1],
       arpPattern: [1,1,0,1,0,1,1,0,1,0,1,1,0,1,1,0], bassPattern: [1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,1],
@@ -650,7 +349,8 @@ const AmbientAudio = (function() {
         { root: 40, chord: [52,55,59], arp: [52,55,59,64,67,64,59,55] },
         { root: 36, chord: [48,52,55], arp: [48,52,55,60,64,60,55,52] },
         { root: 43, chord: [55,59,62], arp: [55,59,62,67,71,67,62,59] },
-        { root: 38, chord: [50,53,57], arp: [50,53,57,62,65,62,57,53] } ] },
+        { root: 38, chord: [50,53,57], arp: [50,53,57,62,65,62,57,53] },
+      ] },
     { name: 'Sunset Cruise', bpm: 76, padWave: 'triangle', padDetune: 5, padCutoff: 1400, padGain: 0.07, bassWave: 'sine', bassCutoff: 500, arpWave: 'sine', arpGain: 0.24,
       kickPattern: [1,0,0,0,0,0,0,0,1,0,0,0,0,0,0,0], hatPattern: [0,0,1,0,0,0,1,0,0,0,1,0,0,0,1,1],
       arpPattern: [1,1,1,1,0,1,1,1,1,1,0,1,1,1,1,0], bassPattern: [1,0,0,0,0,0,0,0,1,0,0,0,0,0,0,1],
@@ -658,7 +358,8 @@ const AmbientAudio = (function() {
         { root: 41, chord: [53,57,60], arp: [53,57,60,65,69,72,69,65] },
         { root: 36, chord: [48,52,55], arp: [48,52,55,60,64,67,64,60] },
         { root: 43, chord: [55,59,62], arp: [55,59,62,67,71,74,71,67] },
-        { root: 45, chord: [57,60,64], arp: [57,60,64,69,72,76,72,69] } ] },
+        { root: 45, chord: [57,60,64], arp: [57,60,64,69,72,76,72,69] },
+      ] },
     { name: 'Chase', bpm: 112, padWave: 'sawtooth', padDetune: 12, padCutoff: 2600, padGain: 0.04, bassWave: 'square', bassCutoff: 1000, arpWave: 'sawtooth', arpGain: 0.14,
       kickPattern: [1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,1], hatPattern: [0,1,1,1,0,1,1,1,0,1,1,1,1,1,1,1],
       arpPattern: [1,0,1,1,0,1,1,0,1,1,0,1,1,0,1,1], bassPattern: [1,1,0,1,1,0,1,1,1,1,0,1,1,0,1,1],
@@ -666,7 +367,8 @@ const AmbientAudio = (function() {
         { root: 33, chord: [45,48,52], arp: [45,48,52,57,60,64,60,57] },
         { root: 40, chord: [52,55,59], arp: [52,55,59,64,67,71,67,64] },
         { root: 43, chord: [55,59,62], arp: [55,59,62,67,71,74,71,67] },
-        { root: 45, chord: [57,60,64], arp: [57,60,64,69,72,76,72,69] } ] },
+        { root: 45, chord: [57,60,64], arp: [57,60,64,69,72,76,72,69] },
+      ] },
   ];
 
   const mtof = (m) => 440 * Math.pow(2, (m - 69) / 12);
@@ -760,7 +462,11 @@ const AmbientAudio = (function() {
     if (!playing || !currentTrack) return;
     const stepDur = 60 / currentTrack.bpm / 4;
     const now = ctx.currentTime;
-    while (nextNoteTime < now + 0.15) { scheduleStep(step, nextNoteTime); nextNoteTime += stepDur; step++; }
+    while (nextNoteTime < now + 0.15) {
+      scheduleStep(step, nextNoteTime);
+      nextNoteTime += stepDur;
+      step++;
+    }
     schedulerId = setTimeout(scheduler, 25);
   }
   let trackTimer = null;
@@ -775,12 +481,14 @@ const AmbientAudio = (function() {
     trackTimer = setTimeout(() => {
       if (!playing) return;
       const g = masterGain.gain, t = ctx.currentTime;
-      g.cancelScheduledValues(t); g.setValueAtTime(g.value, t); g.linearRampToValueAtTime(0, t + 1.2);
+      g.cancelScheduledValues(t); g.setValueAtTime(g.value, t);
+      g.linearRampToValueAtTime(0, t + 1.2);
       setTimeout(() => {
         if (!playing) return;
         startTrack(trackIndex + 1);
         const t2 = ctx.currentTime;
-        g.cancelScheduledValues(t2); g.setValueAtTime(0, t2); g.linearRampToValueAtTime(0.55, t2 + 2);
+        g.cancelScheduledValues(t2); g.setValueAtTime(0, t2);
+        g.linearRampToValueAtTime(0.55, t2 + 2);
       }, 1300);
     }, TRACK_DURATION_MS);
   }
@@ -810,9 +518,6 @@ const AmbientAudio = (function() {
   return { init, start, stop, toggle, isPlaying: () => playing, onTrack };
 })();
 
-// ============================================================
-// DOM
-// ============================================================
 const clickScreen = document.getElementById('click-to-start');
 const ctsButton = document.getElementById('cts-button');
 const bootScreen = document.getElementById('boot-screen');
@@ -841,7 +546,6 @@ document.addEventListener('keydown', (e) => {
     e.preventDefault(); startGame();
   }
 }, { capture: true });
-
 soundToggle.addEventListener('click', (e) => {
   e.stopPropagation();
   const isPlaying = AmbientAudio.toggle();
@@ -862,44 +566,7 @@ function hideBootScreen() {
   }, 300);
 }
 
-// ============================================================
-// DEVICE SELECTOR
-// ============================================================
-(function initDeviceSelector() {
-  const sel = document.getElementById('device-select');
-  const dsPc = document.getElementById('ds-pc');
-  const dsMobile = document.getElementById('ds-mobile');
-  const cts = document.getElementById('click-to-start');
-
-  const ua = navigator.userAgent || '';
-  const isMobileUA = /Android|iPhone|iPad|iPod|Mobile|Tablet|Windows Phone/i.test(ua);
-  const smallScreen = Math.min(innerWidth, innerHeight) < 768;
-  const hasWebGPU = !!navigator.gpu;
-  const isMobile = isMobileUA || (isTouchDevice && smallScreen);
-
-  const detected = isMobile ? 'mobile' : 'pc';
-  (detected === 'mobile' ? dsMobile : dsPc).classList.add('detected');
-  console.log('[KITO] Device: ' + detected + ' (UA=' + isMobileUA + ' touch=' + isTouchDevice + ' small=' + smallScreen + ' WebGPU=' + hasWebGPU + ')');
-
-  let proceeded = false;
-  function proceed() {
-    if (proceeded) return;
-    proceeded = true;
-    sel.classList.add('hidden');
-    if (cts) cts.style.display = '';
-    setTimeout(() => { try { sel.remove(); } catch(e) {} }, 500);
-  }
-  function bind(el, handler) {
-    el.addEventListener('click', handler);
-    el.addEventListener('touchend', (e) => { e.preventDefault(); handler(e); }, { passive: false });
-  }
-  bind(dsPc, proceed);
-  bind(dsMobile, proceed);
-})();
-
-// ============================================================
-// SLIDING SCREENS
-// ============================================================
+// Sliding screens
 (function initSlidingScreens() {
   const holder = document.getElementById('ls-screens');
   if (!holder) return;
@@ -918,19 +585,19 @@ function hideBootScreen() {
   function createScreen(def) {
     const el = document.createElement('div');
     el.className = 'ls-screen ' + def.class;
-    el.innerHTML = '<div class="screen-bg"></div><div class="screen-label">' + def.label + '<small>' + def.sub + '</small></div>';
+    el.innerHTML = `<div class="screen-bg"></div><div class="screen-label">${def.label}<small>${def.sub}</small></div>`;
     return el;
   }
   function animateIn(el, fromX) {
     const duration = 900, startTime = performance.now(), toX = 0;
-    el.style.transform = 'translateX(' + fromX + 'px)';
+    el.style.transform = `translateX(${fromX}px)`;
     function tick() {
       if (stopped) return;
       const t = Math.min(1, (performance.now() - startTime) / duration);
       const eased = cubicInOut(t);
-      el.style.transform = 'translateX(' + (fromX + (toX - fromX) * eased) + 'px)';
+      el.style.transform = `translateX(${fromX + (toX - fromX) * eased}px)`;
       const label = el.querySelector('.screen-label');
-      if (label) { label.style.transform = 'translateX(' + (40 * (1 - eased)) + 'px)'; label.style.opacity = eased; }
+      if (label) { label.style.transform = `translateX(${40 * (1 - eased)}px)`; label.style.opacity = eased; }
       if (t < 1) requestAnimationFrame(tick);
     }
     requestAnimationFrame(tick);
@@ -941,7 +608,7 @@ function hideBootScreen() {
     function tick() {
       const t = Math.min(1, (performance.now() - startTime) / duration);
       const eased = cubicInOut(t);
-      el.style.transform = 'translateX(' + (toX * eased) + 'px)';
+      el.style.transform = `translateX(${toX * eased}px)`;
       if (t < 1) requestAnimationFrame(tick);
       else { try { el.remove(); } catch(e) {} }
     }
@@ -964,38 +631,29 @@ function hideBootScreen() {
   window.__stopSlidingScreens = () => { stopped = true; };
 })();
 
-// ============================================================
-// SERVICE WORKER
-// ============================================================
 const swReady = (async () => {
   if (!('serviceWorker' in navigator)) return null;
   try {
     const reg = await navigator.serviceWorker.register('/sw.js', { scope: '/' });
     if (!navigator.serviceWorker.controller) {
-      if (!sessionStorage.getItem('sw_reloaded_v32')) {
-        sessionStorage.setItem('sw_reloaded_v32', '1');
+      if (!sessionStorage.getItem('sw_reloaded_v29')) {
+        sessionStorage.setItem('sw_reloaded_v29', '1');
         location.reload();
         return null;
       }
     } else {
-      sessionStorage.removeItem('sw_reloaded_v32');
+      sessionStorage.removeItem('sw_reloaded_v29');
     }
     await navigator.serviceWorker.ready;
     return reg;
   } catch (e) { console.warn('[SW]', e); return null; }
 })();
 
-// ============================================================
-// PARAMS
-// ============================================================
 const q = new URLSearchParams(location.search);
 const BASE = '';
 const remoteLog = q.get('log') === '1';
 const postLog = (text) => { if (remoteLog) fetch('/log', { method: 'POST', body: text }).catch(() => {}); };
 
-// ============================================================
-// INFO PANEL
-// ============================================================
 const t0 = performance.now();
 const info = {
   version: document.getElementById('info-version'),
@@ -1036,9 +694,6 @@ setInterval(() => { const sec = Math.floor((performance.now() - t0) / 1000); set
 
 AmbientAudio.onTrack((t) => { if (info.phase && info.phase.textContent.startsWith('♪')) setValue(info.phase, '♪ ' + t.name, 'ok'); });
 
-// ============================================================
-// CRASH
-// ============================================================
 {
   let posted = 0;
   new BroadcastChannel('game-crash').onmessage = (ev) => {
@@ -1054,21 +709,15 @@ AmbientAudio.onTrack((t) => { if (info.phase && info.phase.textContent.startsWit
   };
 }
 
-// ============================================================
-// FIT
-// ============================================================
 {
   const stage = document.getElementById('ls-stage');
   const fit = () => {
     const s = Math.min(innerWidth / 1280, innerHeight / 720);
     stage.style.transform = 'translate(' + (innerWidth - 1280 * s) / 2 + 'px,' + (innerHeight - 720 * s) / 2 + 'px) scale(' + s + ')';
   };
-  fit(); addEventListener('resize', fit); addEventListener('orientationchange', () => setTimeout(fit, 200));
+  fit(); addEventListener('resize', fit);
 }
 
-// ============================================================
-// MODES
-// ============================================================
 let startMode = q.get('mode') === 'story' ? 1 : q.get('mode') === 'sandbox' ? (q.get('map') === 'env_test' ? 3 : 2) : 0;
 let startModeWord = null, startCommitted = false, pickingMap = false, waitingChoice = false;
 const ACTS = {
@@ -1101,7 +750,6 @@ const showModes = () => {
   if (waitingChoice && !startMode) {
     document.getElementById('label').textContent = pickingMap ? 'Elige un mapa para continuar' : 'Elige Modo Historia o Sandbox para continuar';
   }
-  syncMobileModeOverlay();
 };
 const choose = (m) => {
   pickingMap = false;
@@ -1124,62 +772,8 @@ addEventListener('keydown', (e) => {
   act(b.dataset.act);
   e.preventDefault(); e.stopImmediatePropagation();
 }, { capture: true });
-
-// ============================================================
-// MOBILE MODE OVERLAY
-// ============================================================
-const mobileModes = document.getElementById('mobile-modes');
-const mmTitle = document.getElementById('mm-title');
-const mmSub = document.getElementById('mm-sub');
-const mmButtons = document.getElementById('mm-buttons');
-let mmBound = false;
-
-function rebuildMobileModeButtons() {
-  mmButtons.innerHTML = '';
-  if (pickingMap) {
-    mmTitle.textContent = 'ELIGE MAPA';
-    mmSub.textContent = 'Qué mapa cargar en Sandbox';
-    addMMButton('map5', '🗺️', 'Mapa GTA V', 'Los Santos + Blaine County', 'mm-btn');
-    addMMButton('map6', '🌆', 'Mapa GTA VI', 'Vice City (experimental)', 'mm-btn');
-    addMMButton('back', '←', 'Atrás', 'Volver a elegir modo', 'mm-btn back');
-  } else {
-    mmTitle.textContent = 'ELIGE MODO';
-    mmSub.textContent = 'Cómo quieres jugar';
-    addMMButton('story', '📖', 'Modo Historia', 'Campaña completa (recomendado)', 'mm-btn');
-    addMMButton('sandbox', '🎮', 'Modo Sandbox', 'Elige mapa libremente', 'mm-btn');
-  }
-}
-function addMMButton(actName, icon, label, desc, cls) {
-  const b = document.createElement('button');
-  b.type = 'button';
-  b.className = cls;
-  b.innerHTML = '<div style="display:flex;align-items:center;gap:14px;text-align:left;">' +
-    '<span class="mm-icon">' + icon + '</span>' +
-    '<span><span>' + label + '</span><span class="mm-desc">' + desc + '</span></span>' +
-    '</div>';
-  const handler = (e) => { e.preventDefault(); e.stopPropagation(); act(actName); };
-  b.addEventListener('click', handler);
-  b.addEventListener('touchend', handler, { passive: false });
-  mmButtons.appendChild(b);
-}
-
-function syncMobileModeOverlay() {
-  if (!touchMode) { mobileModes.classList.remove('visible'); return; }
-  if (waitingChoice && !startCommitted && !startMode) {
-    if (!mmBound) { rebuildMobileModeButtons(); mmBound = true; }
-    else rebuildMobileModeButtons();
-    mobileModes.classList.add('visible');
-  } else {
-    mobileModes.classList.remove('visible');
-    mmBound = false;
-  }
-}
-
 showModes();
 
-// ============================================================
-// PROGRESS
-// ============================================================
 {
   const loading = document.getElementById('loading');
   const fill = document.getElementById('fill');
@@ -1209,12 +803,11 @@ showModes();
     if (m.compiling !== undefined && !waitingChoice) { label.textContent = lastLabel = 'Preparando shaders'; target = Math.max(target, 99); setValue(info.phase, 'Compilando shaders', 'warn'); }
     if (m.world) {
       ready = true;
-      document.getElementById('hud').textContent = touchMode ? '' : 'clic para capturar el ratón (Esc libera, = FPS)';
+      document.getElementById('hud').textContent = 'clic para capturar el ratón (Esc libera, = FPS)';
       setValue(info.phase, 'Listo', 'ok');
       setTimeout(() => { document.getElementById('hud').textContent = ''; }, 15000);
       if (window.__stopSlidingScreens) window.__stopSlidingScreens();
       AmbientAudio.stop();
-      mobileModes.classList.remove('visible');
     }
   };
   const dataEl = document.getElementById('data');
@@ -1250,9 +843,6 @@ showModes();
 }
 const hud = document.getElementById('hud');
 
-// ============================================================
-// FPS toggle
-// ============================================================
 {
   const el = document.getElementById('fps');
   let on = false;
@@ -1262,12 +852,10 @@ const hud = document.getElementById('hud');
   addEventListener('keyup', (e) => { if (isToggle(e)) { e.stopImmediatePropagation(); e.preventDefault(); } }, { capture: true });
 }
 
-// ============================================================
-// WORKER
-// ============================================================
 let audioPending = null, audioGesture = false, audioStarted = false;
 let canvasEl = document.getElementById('canvas');
 
+// ✅ fetch con timeout
 function fetchWithTimeout(url, opts = {}, timeoutMs = 12000) {
   const ctrl = new AbortController();
   const timer = setTimeout(() => ctrl.abort(), timeoutMs);
@@ -1301,33 +889,30 @@ window.addEventListener('game-start', async () => {
   setBoot(60, 'Preparando canvas...');
 
   const lowParam = q.get('low');
-  const lowMemory = lowParam === '1' || (lowParam !== '0' && ((navigator.deviceMemory || 8) <= 4 || touchMode));
-
+  const lowMemory = lowParam === '1' || (lowParam !== '0' && (navigator.deviceMemory || 8) <= 4);
   const LOW_ARGS = lowMemory ? [
     '-textureQuality=0', '-pedVariety=0', '-vehicleVariety=0',
-    '-shadowQuality=-1', '-reflectionQuality=0', '-particleQuality=0', '-grassQuality=0',
+    '-shadowQuality=' + (q.get('shadows') === '1' ? 0 : -1),
+    '-reflectionQuality=0', '-particleQuality=0', '-grassQuality=0',
     '-cityDensity=0', '-lodScale=0', '-pedLodBias=0', '-vehicleLodBias=0',
   ] : [];
-
-  const cores = +(q.get('cores') || 0) || Math.min(navigator.hardwareConcurrency * 2, touchMode ? 4 : 32);
-
+  const cores = +(q.get('cores') || 0) || navigator.hardwareConcurrency * 2;
   const wantSize = () => {
     const forced = /^(\d+)x(\d+)$/.exec(q.get('res') || '');
     if (forced) return [+forced[1], +forced[2]];
-    const sc = Math.max(0.25, Math.min(2, +(q.get('scale') || (touchMode ? 0.5 : 1))));
+    const sc = Math.max(0.25, Math.min(2, +(q.get('scale') || 1)));
     let w = innerWidth * (devicePixelRatio || 1) * sc;
     let h = innerHeight * (devicePixelRatio || 1) * sc;
-    const cap = lowMemory ? [1024, 600] : [2560, 1440];
+    const cap = lowMemory ? [1920, 1080] : [2560, 1440];
     const k = Math.min(1, cap[0] / w, cap[1] / h);
     w *= k; h *= k;
-    return [Math.max(480, Math.round(w / 2) * 2), Math.max(270, Math.round(h / 2) * 2)];
+    return [Math.max(640, Math.round(w / 2) * 2), Math.max(360, Math.round(h / 2) * 2)];
   };
   const startSize = wantSize();
   canvasEl.width = startSize[0];
   canvasEl.height = startSize[1];
   canvasEl.style.width = '100vw';
   canvasEl.style.height = '100vh';
-  canvasEl.style.height = '100dvh';
   const offscreen = canvasEl.transferControlToOffscreen();
 
   const LOG_ARGS = q.get('verbose') ? [] : ['-Script_all=warning', '-replay_all=warning'];
@@ -1335,6 +920,7 @@ window.addEventListener('game-start', async () => {
 
   setBoot(70, 'Descargando assets críticos...');
 
+  // ✅ CORREGIDO: solo los assets que SÍ existen en R2
   const CRITICAL = [
     { url: '/data/manifest.json',  label: 'Manifest' },
     { url: '/shaders/index.json',  label: 'Índice shaders' },
@@ -1346,21 +932,30 @@ window.addEventListener('game-start', async () => {
     { url: '/data/bootset_low.json',       label: 'Bootset low' },
   ];
 
+  // Lanza los opcionales en background sin bloquear
   for (const item of OPTIONAL) {
     fetchWithTimeout(item.url, { cache: 'reload' }, 60000)
-      .then((r) => { if (!r.ok) console.warn('[Preload opt] ' + item.label + ': HTTP ' + r.status); })
-      .catch((e) => console.warn('[Preload opt] ' + item.label + ': ' + (e.message || e)));
+      .then((r) => { if (!r.ok) console.warn(`[Preload opt] ${item.label}: HTTP ${r.status}`); })
+      .catch((e) => console.warn(`[Preload opt] ${item.label}: ${e.message || e}`));
   }
 
+  // Espera SOLO los críticos, con timeout por item
   let preloadCount = 0;
   await Promise.all(CRITICAL.map(async (item) => {
     try {
       const res = await fetchWithTimeout(item.url, { cache: 'reload' }, 60000);
-      if (res.ok) { await res.blob(); console.log('[Preload] ✓ ' + item.label); }
-      else console.warn('[Preload] ' + item.label + ' → HTTP ' + res.status + ' (' + item.url + ')');
-    } catch (e) { console.warn('[Preload] ' + item.label + ' → ' + (e.message || e) + ' (' + item.url + ')'); }
+      if (res.ok) {
+        await res.blob();
+        console.log(`[Preload] ✓ ${item.label}`);
+      } else {
+        console.warn(`[Preload] ${item.label} → HTTP ${res.status} (${item.url})`);
+      }
+    } catch (e) {
+      console.warn(`[Preload] ${item.label} → ${e.message || e} (${item.url})`);
+    }
     preloadCount++;
-    setBoot(70 + (preloadCount / CRITICAL.length) * 25, 'Preparando ' + item.label + ' (' + preloadCount + '/' + CRITICAL.length + ')');
+    const p = 70 + (preloadCount / CRITICAL.length) * 25;
+    setBoot(p, `Preparando ${item.label} (${preloadCount}/${CRITICAL.length})`);
   }));
 
   setBoot(95, 'Iniciando motor...');
@@ -1368,16 +963,10 @@ window.addEventListener('game-start', async () => {
   const worker = new Worker(BASE + '/loader.js');
   worker.onmessage = (ev) => {
     if (ev.data.hud) hud.textContent = ev.data.hud;
-    if (ev.data.input) {
-      installInput(ev.data.input.memory, ev.data.input.block);
-      if (touchMode) setupTouchControls();
-    }
+    if (ev.data.input) installInput(ev.data.input.memory, ev.data.input.block);
     if (ev.data.audio) { audioPending = ev.data.audio; tryStartAudio(); }
   };
   worker.onerror = (e) => { hud.textContent = 'worker error: ' + e.message; console.error('[KITO] worker error:', e); };
-
-  const fpsParam = q.get('fps');
-  const frameLimit = fpsParam === '0' ? 0 : fpsParam === '60' ? 1 : (touchMode ? 2 : 1);
 
   worker.postMessage({
     canvas: offscreen, base: BASE,
@@ -1387,13 +976,13 @@ window.addEventListener('game-start', async () => {
       '-nonetwork', '-output',
       '-width=' + startSize[0], '-height=' + startSize[1], '-forceResolution',
       ...LOG_ARGS, ...ENGINE_ARGS,
-      '-frameLimit=' + frameLimit,
+      '-frameLimit=' + (q.get('fps') === '30' ? 2 : q.get('fps') === '0' ? 0 : 1),
       ...(cores <= 2 ? ['-numCores=' + cores] : []),
       ...LOW_ARGS,
       ...(q.get('args') || '').split(',').filter(Boolean)],
     shotEvery: +(q.get('shot') || 0),
     cores, lowMemory,
-    slots: touchMode ? 2 : (lowMemory ? 2 : 4),
+    slots: lowMemory ? 2 : 4,
     syncPipelines: false,
     remoteLog: !!remoteLog,
   }, [offscreen]);
@@ -1401,9 +990,6 @@ window.addEventListener('game-start', async () => {
   setTimeout(() => { setBoot(100, 'Iniciando motor...'); hideBootScreen(); }, 500);
 });
 
-// ============================================================
-// AUDIO JUEGO
-// ============================================================
 function tryStartAudio() {
   if (!audioPending || !audioGesture || audioStarted) return;
   audioStarted = true;
@@ -1426,9 +1012,6 @@ for (const type of ['pointerdown', 'keydown']) {
   addEventListener(type, () => { audioGesture = true; tryStartAudio(); }, { capture: true });
 }
 
-// ============================================================
-// INPUT
-// ============================================================
 const VK = {
   Backspace:0x08,Tab:0x09,Enter:0x0D,NumpadEnter:0xFD,Pause:0x13,CapsLock:0x14,Escape:0x1B,Space:0x20,
   PageUp:0x21,PageDown:0x22,End:0x23,Home:0x24,ArrowLeft:0x25,ArrowUp:0x26,ArrowRight:0x27,ArrowDown:0x28,
@@ -1442,8 +1025,6 @@ for (let i = 0; i < 10; i++) { VK['Digit' + i] = 0x30 + i; VK['Numpad' + i] = 0x
 for (let i = 0; i < 26; i++) VK['Key' + String.fromCharCode(65 + i)] = 0x41 + i;
 for (let i = 1; i <= 24; i++) VK['F' + i] = 0x6F + i;
 
-let inputRef = null;
-
 function installInput(memory, block) {
   const keys = new Uint8Array(memory.buffer, block, 256);
   const w = new Int32Array(memory.buffer, block + 256, 10);
@@ -1456,9 +1037,6 @@ function installInput(memory, block) {
   Atomics.store(ext, 2, W); Atomics.store(ext, 3, H);
   Atomics.store(w, FOCUS, document.hasFocus() ? 1 : 0);
   Atomics.store(w, MX, W >> 1); Atomics.store(w, MY, H >> 1);
-
-  inputRef = { keys, w, W, H, MX, MY, DX, DY, BTN, FOCUS, LOCKED };
-
   const passThrough = (e) => e.code === 'F12' || e.code === 'F11' ||
     (e.ctrlKey && e.shiftKey && (e.code === 'KeyI' || e.code === 'KeyJ')) || e.code === 'F5' || e.code === 'F8';
   const FLY_ALIAS = { KeyI:'Numpad8',KeyK:'Numpad2',KeyJ:'Numpad4',KeyL:'Numpad6',KeyU:'Numpad7',KeyO:'Numpad9' };
@@ -1511,140 +1089,6 @@ function installInput(memory, block) {
   });
   let wheelAccum = 0;
   addEventListener('wheel', (e) => { e.preventDefault(); wheelAccum += -e.deltaY / (e.deltaMode === 0 ? 100 : e.deltaMode === 1 ? 3 : 1); const n = Math.trunc(wheelAccum); if (n) { wheelAccum -= n; Atomics.add(w, DZ, n); } }, { passive: false });
-}
-
-// ============================================================
-// TOUCH CONTROLS
-// ============================================================
-function setupTouchControls() {
-  if (!inputRef) { console.warn('[Touch] inputRef no listo'); return; }
-  const ui = document.getElementById('touch-ui');
-  if (ui.classList.contains('active')) return;
-  ui.classList.add('active');
-  console.log('[Touch] Controles activados');
-
-  const { keys, w, MX, MY, DX, DY, BTN } = inputRef;
-
-  function setKey(code, down) {
-    const vk = VK[code];
-    if (vk === undefined) return;
-    Atomics.store(keys, vk, down ? 0x80 : 0);
-  }
-
-  document.querySelectorAll('.touch-btn').forEach((btn) => {
-    const keyCode = btn.dataset.key;
-    const btnId = btn.dataset.btn;
-    const press = (e) => {
-      e.preventDefault(); e.stopPropagation();
-      btn.classList.add('active');
-      if (keyCode) setKey(keyCode, true);
-      if (btnId !== undefined) Atomics.or(w, BTN, 1 << (parseInt(btnId, 10)));
-    };
-    const release = (e) => {
-      e.preventDefault(); e.stopPropagation();
-      btn.classList.remove('active');
-      if (keyCode) setKey(keyCode, false);
-      if (btnId !== undefined) Atomics.and(w, BTN, ~(1 << (parseInt(btnId, 10))));
-    };
-    btn.addEventListener('touchstart', press, { passive: false });
-    btn.addEventListener('touchend', release, { passive: false });
-    btn.addEventListener('touchcancel', release, { passive: false });
-    btn.addEventListener('mousedown', press);
-    btn.addEventListener('mouseup', release);
-    btn.addEventListener('mouseleave', release);
-  });
-
-  const stick = document.getElementById('touch-stick');
-  const knob = document.getElementById('touch-stick-knob');
-  let stickId = null, stickCX = 0, stickCY = 0, stickR = 0;
-
-  function stickStart(e) {
-    e.preventDefault(); e.stopPropagation();
-    const t = e.changedTouches[0];
-    stickId = t.identifier;
-    const rect = stick.getBoundingClientRect();
-    stickCX = rect.left + rect.width / 2;
-    stickCY = rect.top + rect.height / 2;
-    stickR = rect.width / 2;
-  }
-  function stickMove(e) {
-    if (stickId === null) return;
-    for (const t of e.changedTouches) {
-      if (t.identifier !== stickId) continue;
-      e.preventDefault(); e.stopPropagation();
-      let dx = t.clientX - stickCX;
-      let dy = t.clientY - stickCY;
-      const dist = Math.hypot(dx, dy);
-      const max = stickR * 0.75;
-      if (dist > max) { dx = dx / dist * max; dy = dy / dist * max; }
-      knob.style.transform = 'translate(calc(-50% + ' + dx + 'px), calc(-50% + ' + dy + 'px))';
-      const nx = dx / max, ny = dy / max;
-      Atomics.store(keys, VK['KeyW'], ny < -0.3 ? 0x80 : 0);
-      Atomics.store(keys, VK['KeyS'], ny >  0.3 ? 0x80 : 0);
-      Atomics.store(keys, VK['KeyA'], nx < -0.3 ? 0x80 : 0);
-      Atomics.store(keys, VK['KeyD'], nx >  0.3 ? 0x80 : 0);
-      Atomics.store(keys, VK['ShiftLeft'], Math.hypot(nx, ny) > 0.9 ? 0x80 : 0);
-    }
-  }
-  function stickEnd(e) {
-    for (const t of e.changedTouches) {
-      if (t.identifier !== stickId) continue;
-      e.preventDefault(); e.stopPropagation();
-      stickId = null;
-      knob.style.transform = 'translate(-50%, -50%)';
-      Atomics.store(keys, VK['KeyW'], 0);
-      Atomics.store(keys, VK['KeyS'], 0);
-      Atomics.store(keys, VK['KeyA'], 0);
-      Atomics.store(keys, VK['KeyD'], 0);
-      Atomics.store(keys, VK['ShiftLeft'], 0);
-    }
-  }
-  stick.addEventListener('touchstart', stickStart, { passive: false });
-  stick.addEventListener('touchmove', stickMove, { passive: false });
-  stick.addEventListener('touchend', stickEnd, { passive: false });
-  stick.addEventListener('touchcancel', stickEnd, { passive: false });
-
-  const look = document.getElementById('touch-look');
-  let lookId = null, lastLX = 0, lastLY = 0, lookStartTime = 0, lookMoved = false;
-
-  look.addEventListener('touchstart', (e) => {
-    const t = e.changedTouches[0];
-    lookId = t.identifier;
-    lastLX = t.clientX; lastLY = t.clientY;
-    lookStartTime = performance.now();
-    lookMoved = false;
-  }, { passive: true });
-
-  look.addEventListener('touchmove', (e) => {
-    if (lookId === null) return;
-    for (const t of e.changedTouches) {
-      if (t.identifier !== lookId) continue;
-      const dx = t.clientX - lastLX;
-      const dy = t.clientY - lastLY;
-      if (Math.abs(dx) > 1 || Math.abs(dy) > 1) lookMoved = true;
-      lastLX = t.clientX; lastLY = t.clientY;
-      const sens = 1.6;
-      Atomics.add(w, DX, dx * sens);
-      Atomics.add(w, DY, dy * sens);
-      Atomics.store(w, MX, Math.max(0, Math.min(inputRef.W - 1, Atomics.load(w, MX) + dx * sens)));
-      Atomics.store(w, MY, Math.max(0, Math.min(inputRef.H - 1, Atomics.load(w, MY) + dy * sens)));
-    }
-  }, { passive: true });
-
-  look.addEventListener('touchend', (e) => {
-    for (const t of e.changedTouches) {
-      if (t.identifier !== lookId) continue;
-      const dur = performance.now() - lookStartTime;
-      if (!lookMoved && dur < 250) {
-        Atomics.or(w, BTN, 1 << 0);
-        setTimeout(() => { Atomics.and(w, BTN, ~(1 << 0)); }, 120);
-      }
-      lookId = null;
-    }
-  }, { passive: true });
-  look.addEventListener('touchcancel', () => { lookId = null; }, { passive: true });
-
-  console.log('[Touch] Todos los controles enlazados');
 }
 </script>
 </body>
