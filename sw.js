@@ -1,7 +1,6 @@
 /**
  * sw.js — v30
  * Range requests desde caché + fallback entre múltiples rutas R2.
- * Compatibilidad Linux/ext4: fallback case-insensitive + URLs seguras.
  */
 
 const R2_BASE     = 'https://cdn.apkprojects.xyz';
@@ -13,10 +12,6 @@ const MAX_BYTES = 5 * 1024 * 1024 * 1024;
 const TIMEOUT_DEFAULT = 45000;
 const TIMEOUT_RANGE   = 15000;
 const TIMEOUT_FULL    = 300000;
-
-// ext4 / S3 son case-sensitive. Duplicamos cada candidato en minúsculas.
-// (Si tu mirror está perfectamente en minúsculas, pon false y ahorras fetches.)
-const CASE_FALLBACK = true;
 
 const FRONTEND = new Set([
   '/', '/index.html', '/sw.js', '/CNAME', '/README.md',
@@ -70,24 +65,6 @@ function candidatesFor(localPath) {
   }
   const rest = localPath.slice(1);
   return [`${PREFIX_ROOT}/${rest}`, `${PREFIX_BIN}/${rest}`];
-}
-
-// ── Linux-friendly: duplica candidatos con su versión minúscula ──
-function withCaseFallback(list) {
-  if (!CASE_FALLBACK) return list;
-  const out = [];
-  for (const p of list) {
-    out.push(p);
-    const low = p.toLowerCase();
-    if (low !== p) out.push(low);
-  }
-  return out;
-}
-
-// ── Construcción de URL segura (escapa #, ?, %, espacios) ──
-function makeUrl(candidate) {
-  try { return new URL(candidate, R2_BASE + '/').href; }
-  catch (e) { return R2_BASE + '/' + candidate; }
 }
 
 function injectIsolation(r) {
@@ -169,10 +146,6 @@ async function serveRangeFromCache(cachedResponse, rangeHeader) {
   headers.set('Content-Length', String(slice.byteLength));
   headers.set('Accept-Ranges', 'bytes');
   headers.set('Content-Type', 'application/octet-stream');
-  // Linux + nginx/Caddy: sin esto el player no ve los headers vía CORS
-  headers.set('Access-Control-Allow-Origin', '*');
-  headers.set('Access-Control-Expose-Headers',
-    'Content-Range, Content-Length, Accept-Ranges, ETag');
   return new Response(slice, { status: 206, statusText: 'Partial Content', headers });
 }
 
@@ -192,18 +165,14 @@ async function handleAsset(event) {
   }
   if (cached && !range) return injectIsolation(cached);
 
-  // ↓↓↓ Cambio clave Linux: añadimos variantes lowercase ↓↓↓
-  const candidates = withCaseFallback(candidatesFor(pathname));
+  const candidates = candidatesFor(pathname);
   if (!candidates.length) return new Response('', { status: 404 });
 
   const timeout = range ? TIMEOUT_RANGE
                 : pathname.endsWith('.rpf') ? TIMEOUT_FULL
                 : TIMEOUT_DEFAULT;
 
-  // URL segura en vez de concatenación cruda
-  const results = await Promise.all(
-    candidates.map((c) => fastFetch(makeUrl(c), req, timeout))
-  );
+  const results = await Promise.all(candidates.map((c) => fastFetch(`${R2_BASE}/${c}`, req, timeout)));
   const res = results.find((r) => r !== null) || null;
 
   if (!res) return new Response('', { status: 404 });
