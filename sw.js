@@ -1,15 +1,19 @@
 /**
  * sw.js — Service Worker GTA V Web Edition
- * v24 — CDN directo + fix Range header
+ * v25 — Fix crítico: Range requests, rutas /game/, timeouts por tipo
  */
 
 const R2_BASE     = 'https://cdn.apkprojects.xyz';
 const PREFIX_ROOT = 'mirror/playgta5.com/data';
 const PREFIX_BIN  = 'mirror/playgta5.com/b/8b0b5899ed';
 
-const CACHE       = 'gta5-v24';
+const CACHE       = 'gta5-v25';                  // ✅ FIX: bump para invalidar caché vieja
 const MAX_BYTES   = 2 * 1024 * 1024 * 1024;
-const FETCH_TIMEOUT = 30000;
+
+// ✅ FIX: timeouts diferenciados. Un Range debe responder rápido; un RPF completo puede tardar.
+const TIMEOUT_DEFAULT = 45000;
+const TIMEOUT_RANGE   = 15000;
+const TIMEOUT_FULL    = 180000;
 
 // ============================================================
 // Rutas servidas localmente por GitHub Pages (NO se proxean)
@@ -48,10 +52,24 @@ function candidatesFor(localPath) {
   if (localPath === '/data/bootset.json')     return ['bootset.json'];
   if (localPath === '/data/bootset_low.json') return ['bootset_low.json'];
 
+  // ✅ FIX IMPORTANTE: RPF, update.rpf y DLC. El motor los pide como /game/...
+  // Antes caían al fallback genérico y resolvían a rutas incorrectas del bucket.
+  if (localPath.startsWith('/game/')) {
+    const rest = localPath.slice(6); // quita "game/"
+    return [
+      `${PREFIX_ROOT}/${rest}`,       // mirror/.../data/x64a.rpf
+      `${PREFIX_ROOT}/game/${rest}`,  // mirror/.../data/game/x64a.rpf (por si acaso)
+      `${PREFIX_BIN}/${rest}`,        // mirror/.../b/xxx/x64a.rpf
+    ];
+  }
+
   // assets del motor bajo /data/
   if (localPath.startsWith('/data/')) {
     const rest = localPath.slice(6);
-    const list = [`${PREFIX_ROOT}/${rest}`, `${PREFIX_ROOT}/common/data/${rest}`];
+    const list = [
+      `${PREFIX_ROOT}/${rest}`,
+      `${PREFIX_ROOT}/common/data/${rest}`,
+    ];
 
     // levels con guion bajo (_citye, _hills, _prologue)
     if (rest.startsWith('x64/levels/gta5/')) {
@@ -95,22 +113,21 @@ self.addEventListener('install', () => {
 
 self.addEventListener('activate', (event) => {
   event.waitUntil((async () => {
-    // Limpia cachés antiguas
     const keys = await caches.keys();
     await Promise.all(keys.filter((k) => k !== CACHE).map((k) => caches.delete(k)));
     await self.clients.claim();
-    // Pre-descarga el bootset en background
     prefetchBootset();
   })());
 });
 
 // ============================================================
-// Prefetch del bootset en background (opcional, acelera cargas)
+// Prefetch del bootset en background
+// ✅ FIX: cachea bajo la clave que el engine realmente pedirá (/data/<path>)
 // ============================================================
 async function prefetchBootset() {
   try {
     const cache = await caches.open(CACHE);
-    const done = await cache.match('/__bootset_done__');
+    const done = await cache.match('/__bootset_done_v25__');
     if (done) return;
 
     const res = await fetch(`${R2_BASE}/bootset.json`);
@@ -123,9 +140,9 @@ async function prefetchBootset() {
     const worker = async () => {
       while (i < entries.length) {
         const entry = entries[i++];
-        const path = entry[0];
+        const path = Array.isArray(entry) ? entry[0] : entry;
         const url = `${R2_BASE}/${PREFIX_ROOT}/${path}`;
-        const key = new Request(`/data/${path}`);
+        const key = new Request(`/data/${path}`);   // ✅ clave usada por el engine
         try {
           if (await cache.match(key)) continue;
           const r = await fetch(url);
@@ -135,15 +152,22 @@ async function prefetchBootset() {
     };
 
     await Promise.all(Array.from({ length: PAR }, worker));
-    await cache.put('/__bootset_done__', new Response('1'));
+    await cache.put('/__bootset_done_v25__', new Response('1'));
   } catch (e) {
     // silencioso
   }
 }
 
 // ============================================================
-// Recorte de caché (máx 2 GB)
+// Recorte de caché (máx 2 GB) — ✅ FIX: debounce para no bloquear el SW
 // ============================================================
+let trimScheduled = false;
+function scheduleTrimCache() {
+  if (trimScheduled) return;
+  trimScheduled = true;
+  setTimeout(() => { trimScheduled = false; trimCache(); }, 5000);
+}
+
 async function trimCache() {
   try {
     const c = await caches.open(CACHE);
@@ -153,7 +177,7 @@ async function trimCache() {
     for (const r of reqs) {
       const res = await c.match(r);
       if (!res) continue;
-      const len = parseInt(res.headers.get('Content-Length') || '0', 10);
+      const len = parseInt(res.headers.get('Content-Length') || '0', 10) || 0;
       sizes.push({ r, len });
       total += len;
     }
@@ -168,13 +192,12 @@ async function trimCache() {
 }
 
 // ============================================================
-// FETCH CORREGIDO: no envía Range vacío (era el bug)
+// Fetch con timeout configurable y reenvío de Range
 // ============================================================
-function fastFetch(url, req, timeout = FETCH_TIMEOUT) {
+function fastFetch(url, req, timeout) {
   const ctrl = new AbortController();
   const timer = setTimeout(() => ctrl.abort(), timeout);
 
-  // Solo añade Range si el navegador lo envió explícitamente
   const headers = {};
   const range = req.headers.get('Range');
   if (range) headers['Range'] = range;
@@ -197,41 +220,62 @@ function fastFetch(url, req, timeout = FETCH_TIMEOUT) {
 }
 
 // ============================================================
-// Manejo de assets con fallback entre candidatos
+// Manejo de assets
+// ✅ FIX PRINCIPAL: no servir el archivo entero a peticiones Range
 // ============================================================
 async function handleAsset(event) {
   const req = event.request;
   const url = new URL(req.url);
   const pathname = url.pathname;
+  const hasRange = req.headers.has('Range');
 
-  // 1. Cache-First
   const cache = await caches.open(CACHE);
-  const cached = await cache.match(req);
-  if (cached) return injectIsolation(cached);
 
-  // 2. Prueba cada candidato en R2
+  // Cache-First SOLO sin Range. Con Range hay que ir a red (o devolver 206 correcto).
+  if (!hasRange) {
+    const cached = await cache.match(req);
+    if (cached) return injectIsolation(cached);
+  }
+
   const candidates = candidatesFor(pathname);
-  const first = `${R2_BASE}/${candidates[0]}`;
-  let res = await fastFetch(first, req);
+  if (!candidates.length) {
+    return new Response('', { status: 404 });
+  }
 
-  // Si falla el primero, prueba el resto en paralelo
+  const timeout = hasRange ? TIMEOUT_RANGE
+                : pathname.endsWith('.rpf') ? TIMEOUT_FULL
+                : TIMEOUT_DEFAULT;
+
+  // Primer candidato
+  let res = await fastFetch(`${R2_BASE}/${candidates[0]}`, req, timeout);
+
+  // Fallback al resto en paralelo
   if (!res && candidates.length > 1) {
-    const rest = candidates.slice(1).map((p) => fastFetch(`${R2_BASE}/${p}`, req));
+    const rest = candidates.slice(1).map((p) => fastFetch(`${R2_BASE}/${p}`, req, timeout));
     const results = await Promise.all(rest);
     res = results.find((r) => r !== null) || null;
   }
 
-  if (res) {
-    // Guarda en caché local si es una respuesta completa
-    if (res.status === 200) {
-      const cacheable = res.clone();
-      event.waitUntil?.(cache.put(req, cacheable).then(trimCache).catch(() => {}));
-    }
-    return injectIsolation(res);
+  if (!res) return new Response('', { status: 404 });
+
+  // ✅ FIX: solo cachea respuestas completas (200) y sin Range.
+  // Antes cacheaba el RPF entero bajo la URL, y luego cualquier Range posterior
+  // recibía los 500 MB-2 GB completos → colapso de memoria + stalls.
+  if (!hasRange && res.status === 200) {
+    const cacheable = res.clone();
+    event.waitUntil?.(
+      cache.put(req, cacheable)
+        .then(() => scheduleTrimCache())
+        .catch(() => {})
+    );
   }
 
-  // Nada funcionó
-  return new Response('', { status: 404 });
+  // Diagnóstico: si pedimos Range y R2 devolvió 200, avisa (debería ser 206)
+  if (hasRange && res.status === 200) {
+    console.warn('[SW] Range ignorado por R2:', pathname);
+  }
+
+  return injectIsolation(res);
 }
 
 // ============================================================
@@ -240,22 +284,15 @@ async function handleAsset(event) {
 self.addEventListener('fetch', (event) => {
   const url = new URL(event.request.url);
 
-  // Solo intercepta peticiones del mismo origen
   if (url.origin !== self.location.origin) return;
-
-  // Solo GET/HEAD
   if (event.request.method !== 'GET' && event.request.method !== 'HEAD') return;
-
-  // Evita error "only-if-cached"
   if (event.request.cache === 'only-if-cached' && event.request.mode !== 'same-origin') return;
 
-  // Bloquea batchc (no existe en R2, devuelve 404 rápido)
   if (isBatchPath(url.pathname)) {
     event.respondWith(new Response('', { status: 404 }));
     return;
   }
 
-  // Frontend estático (GitHub Pages): sirve con COOP/COEP
   if (isFrontend(url.pathname)) {
     event.respondWith((async () => {
       try {
@@ -271,6 +308,5 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // Resto de assets: CDN con caché
   event.respondWith(handleAsset(event));
 });
