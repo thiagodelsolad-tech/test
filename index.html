@@ -5,19 +5,99 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
 <meta name="theme-color" content="#05060a">
 <meta name="description" content="Clon web no oficial de GTA V — Proyecto educativo, sin afiliación con Rockstar Games o Take-Two.">
-<title>GTA V (Fan Project)</title>
+<title>GTA V — Web Edition (Fan Project)</title>
 
-<link rel="preconnect" href="https://gta-proxy.kitofree1221.workers.dev" crossorigin>
-<link rel="dns-prefetch" href="https://gta-proxy.kitofree1221.workers.dev">
+<link rel="preconnect" href="https://cdn.apkprojects.xyz" crossorigin>
+<link rel="dns-prefetch" href="https://cdn.apkprojects.xyz">
 
 <style>
+	* { box-sizing: border-box; }
 	html, body { margin: 0; height: 100%; background: #000; color: #ccc;
 		font: 12px 'Consolas','Menlo',monospace; overflow: hidden;
 		-webkit-user-select: none; user-select: none; }
 	#canvas { display: block; position: absolute; left: 0; top: 0;
 		width: 100vw; height: 100vh; background: #000; }
 
-	/* PANTALLA DE ESPERA INICIAL */
+	/* ============================================================
+	   CLICK TO START — requerido para desbloquear audio
+	   ============================================================ */
+	#click-to-start {
+		position: fixed; inset: 0; z-index: 5000;
+		background: radial-gradient(ellipse at center, #0a0618 0%, #000 100%);
+		display: flex; flex-direction: column; align-items: center; justify-content: center;
+		cursor: pointer; transition: opacity 0.8s ease-out;
+	}
+	#click-to-start.hidden { opacity: 0; pointer-events: none; }
+	#click-to-start .cts-logo {
+		font-family: 'Arial Black', sans-serif;
+		font-size: 82px; font-weight: 900;
+		letter-spacing: 14px; color: #fff;
+		text-shadow:
+			0 0 20px rgba(180, 120, 255, 0.9),
+			0 0 60px rgba(120, 180, 255, 0.5);
+		margin-bottom: 12px;
+		animation: cts-glow 3s ease-in-out infinite;
+	}
+	@keyframes cts-glow {
+		0%, 100% { text-shadow: 0 0 20px rgba(180,120,255,0.9), 0 0 60px rgba(120,180,255,0.5); }
+		50%      { text-shadow: 0 0 40px rgba(180,120,255,1), 0 0 100px rgba(120,180,255,0.8); }
+	}
+	#click-to-start .cts-sub {
+		font-size: 12px; letter-spacing: 12px;
+		text-transform: uppercase;
+		color: rgba(200, 200, 255, 0.5);
+		margin-bottom: 60px;
+	}
+	#click-to-start .cts-prompt {
+		font-size: 14px; letter-spacing: 6px;
+		color: #fff;
+		padding: 16px 40px;
+		border: 1px solid rgba(180, 120, 255, 0.5);
+		border-radius: 4px;
+		animation: cts-pulse 2s ease-in-out infinite;
+	}
+	@keyframes cts-pulse {
+		0%, 100% { opacity: 0.6; transform: scale(1); }
+		50%      { opacity: 1; transform: scale(1.03); }
+	}
+	#click-to-start .cts-note {
+		position: absolute; bottom: 40px;
+		font-size: 10px; color: rgba(180, 180, 200, 0.4);
+		text-align: center; padding: 0 40px;
+		max-width: 600px; line-height: 1.6;
+	}
+
+	/* ============================================================
+	   BOTÓN DE SONIDO
+	   ============================================================ */
+	#sound-toggle {
+		position: fixed; top: 24px; right: 24px;
+		width: 40px; height: 40px;
+		background: rgba(0, 0, 0, 0.65);
+		border: 1px solid rgba(180, 120, 255, 0.4);
+		border-radius: 50%;
+		color: #a78bfa; font-size: 18px;
+		cursor: pointer; z-index: 100;
+		display: flex; align-items: center; justify-content: center;
+		transition: all 0.25s;
+		backdrop-filter: blur(8px);
+		-webkit-backdrop-filter: blur(8px);
+	}
+	#sound-toggle:hover {
+		background: rgba(120, 90, 255, 0.3);
+		transform: scale(1.08);
+	}
+	#sound-toggle.muted { color: rgba(150, 150, 200, 0.4); }
+	#sound-toggle.muted::after {
+		content: ''; position: absolute;
+		top: 50%; left: 4px; right: 4px; height: 2px;
+		background: rgba(255, 100, 100, 0.9);
+		transform: rotate(-45deg); border-radius: 1px;
+	}
+
+	/* ============================================================
+	   PANTALLA DE ESPERA / BOOT
+	   ============================================================ */
 	#boot-screen {
 		position: fixed; inset: 0; background: #05060a;
 		z-index: 1000;
@@ -66,14 +146,10 @@
 		box-shadow: 0 0 10px rgba(124, 92, 255, 0.7);
 		transition: width 0.4s ease-out;
 	}
-	#boot-screen .boot-disclaimer {
-		position: absolute; bottom: 20px;
-		font-size: 9px; color: rgba(180, 180, 200, 0.35);
-		text-align: center; padding: 0 40px;
-		max-width: 600px; line-height: 1.5;
-	}
 
-	/* PANTALLA DE CARGA PRINCIPAL */
+	/* ============================================================
+	   PANTALLA DE CARGA PRINCIPAL
+	   ============================================================ */
 	#loading { position: fixed; inset: 0; background: #000; overflow: hidden;
 		transition: opacity .8s; z-index: 5; opacity: 0; }
 	#loading.done { opacity: 0; pointer-events: none; }
@@ -82,75 +158,191 @@
 		transform-origin: 0 0; overflow: hidden; font: 12px sans-serif; color: #fff; }
 	#ls-screens { position: absolute; inset: 0; }
 
-	#kito-bg { position: absolute; inset: 0; overflow: hidden; background: #05060a; }
-	.kito-grad { position: absolute; inset: -20%;
-		background:
-			radial-gradient(circle at 20% 30%, rgba(120,60,255,.55) 0%, transparent 45%),
-			radial-gradient(circle at 80% 70%, rgba(255,60,140,.45) 0%, transparent 50%),
-			radial-gradient(circle at 50% 100%, rgba(0,200,255,.35) 0%, transparent 55%),
-			linear-gradient(180deg, #06070f 0%, #0b0a1a 50%, #05060a 100%);
-		animation: kito-drift 22s ease-in-out infinite alternate; filter: blur(4px); }
-	@keyframes kito-drift { 0%{transform:translate3d(0,0,0) scale(1);}
-		100%{transform:translate3d(-30px,20px,0) scale(1.08);} }
-	.kito-grid { position: absolute; left: -50%; right: -50%; bottom: -10%; height: 70%;
-		background-image:
-			linear-gradient(rgba(120,180,255,.28) 1px, transparent 1px),
-			linear-gradient(90deg, rgba(120,180,255,.28) 1px, transparent 1px);
-		background-size: 60px 60px; transform: perspective(420px) rotateX(62deg);
-		transform-origin: center bottom; animation: kito-grid-move 6s linear infinite;
-		opacity: .55;
-		mask-image: linear-gradient(180deg, transparent 0%, #000 40%, #000 100%);
-		-webkit-mask-image: linear-gradient(180deg, transparent 0%, #000 40%, #000 100%); }
-	@keyframes kito-grid-move { from{background-position:0 0,0 0;} to{background-position:0 60px,60px 0;} }
-	.kito-particles { position: absolute; inset: 0; pointer-events: none; }
-	.kito-particles span { position: absolute; width: 3px; height: 3px; border-radius: 50%;
-		background: #fff; box-shadow: 0 0 8px 2px rgba(150,180,255,.9); opacity: 0;
-		animation: kito-float 9s linear infinite; }
-	@keyframes kito-float { 0%{transform:translateY(40px) scale(.6);opacity:0;}
-		15%{opacity:.9;} 85%{opacity:.9;} 100%{transform:translateY(-560px) scale(1.1);opacity:0;} }
-	.kito-particles span:nth-child(1){left:6%;animation-delay:0s;}
-	.kito-particles span:nth-child(2){left:14%;animation-delay:1.3s;}
-	.kito-particles span:nth-child(3){left:22%;animation-delay:2.6s;}
-	.kito-particles span:nth-child(4){left:31%;animation-delay:.7s;}
-	.kito-particles span:nth-child(5){left:39%;animation-delay:3.9s;}
-	.kito-particles span:nth-child(6){left:47%;animation-delay:1.9s;}
-	.kito-particles span:nth-child(7){left:55%;animation-delay:4.8s;}
-	.kito-particles span:nth-child(8){left:63%;animation-delay:.4s;}
-	.kito-particles span:nth-child(9){left:71%;animation-delay:2.2s;}
-	.kito-particles span:nth-child(10){left:79%;animation-delay:5.4s;}
-	.kito-particles span:nth-child(11){left:87%;animation-delay:3.1s;}
-	.kito-particles span:nth-child(12){left:93%;animation-delay:1.1s;}
-	.kito-glow { position: absolute; left: 50%; top: 50%; width: 900px; height: 900px;
-		transform: translate(-50%,-50%);
-		background: radial-gradient(circle, rgba(180,120,255,.28) 0%, transparent 60%);
-		animation: kito-pulse 4s ease-in-out infinite; pointer-events: none; mix-blend-mode: screen; }
-	@keyframes kito-pulse { 0%,100%{transform:translate(-50%,-50%) scale(1);opacity:.7;}
-		50%{transform:translate(-50%,-50%) scale(1.15);opacity:1;} }
-	.kito-watermark { position: absolute; left: 50%; top: 48%; transform: translate(-50%,-50%);
-		font-family: 'Arial Black',sans-serif; font-size: 260px; font-weight: 900;
-		letter-spacing: 30px; color: transparent;
-		-webkit-text-stroke: 2px rgba(255,255,255,.14);
-		text-shadow: 0 0 40px rgba(150,100,255,.25); white-space: nowrap;
-		pointer-events: none; animation: kito-wm 8s ease-in-out infinite alternate; }
-	@keyframes kito-wm { from{opacity:.7;letter-spacing:30px;} to{opacity:1;letter-spacing:38px;} }
-	.kito-vignette { position: absolute; inset: 0;
-		background: radial-gradient(ellipse at center, transparent 40%, rgba(0,0,0,.85) 100%);
-		pointer-events: none; }
-	.kito-scanlines { position: absolute; inset: 0;
-		background: repeating-linear-gradient(180deg,
-			rgba(255,255,255,.035) 0px, rgba(255,255,255,.035) 1px,
-			transparent 1px, transparent 3px);
-		pointer-events: none; mix-blend-mode: overlay; }
+	/* Pantallas deslizantes estilo GTA V */
+	.ls-screen {
+		position: absolute; inset: 0;
+		will-change: transform;
+		overflow: hidden;
+	}
+	.ls-screen .screen-bg {
+		position: absolute; inset: 0;
+		background-size: 100% 100%;
+	}
+	.ls-screen .screen-foreground {
+		position: absolute;
+		will-change: transform;
+	}
 
-	#kito-logo { position: absolute; left: 95px; top: 380px;
-		font-family: 'Arial Black',sans-serif; font-size: 92px; font-weight: 900;
-		letter-spacing: 8px; color: #fff;
+	/* Las 8 pantallas con distintos ambientes */
+	.screen-1 .screen-bg {
+		background:
+			radial-gradient(ellipse at 30% 40%, rgba(255, 140, 60, 0.5) 0%, transparent 55%),
+			radial-gradient(ellipse at 70% 80%, rgba(180, 60, 100, 0.4) 0%, transparent 60%),
+			linear-gradient(180deg, #1a0e1e 0%, #2d1220 50%, #0a0608 100%);
+	}
+	.screen-1::before {
+		content: ''; position: absolute; inset: 0;
+		background-image:
+			radial-gradient(circle, #fff 1px, transparent 1px),
+			radial-gradient(circle, #fff 1px, transparent 1px);
+		background-size: 80px 80px, 120px 120px;
+		background-position: 0 0, 40px 40px;
+		opacity: 0.06;
+		animation: stars-move 60s linear infinite;
+	}
+	@keyframes stars-move {
+		from { background-position: 0 0, 40px 40px; }
+		to   { background-position: 0 -800px, 40px -1160px; }
+	}
+	.screen-1 .screen-foreground {
+		left: 200px; bottom: 80px; width: 380px; height: 500px;
+		background: linear-gradient(180deg, transparent 0%, rgba(0,0,0,0.85) 100%);
+		mask-image: radial-gradient(ellipse at center bottom, #000 30%, transparent 70%);
+		-webkit-mask-image: radial-gradient(ellipse at center bottom, #000 30%, transparent 70%);
+	}
+
+	.screen-2 .screen-bg {
+		background:
+			radial-gradient(ellipse at 20% 70%, rgba(0, 180, 220, 0.5) 0%, transparent 50%),
+			radial-gradient(ellipse at 80% 30%, rgba(120, 40, 200, 0.4) 0%, transparent 55%),
+			linear-gradient(180deg, #050a18 0%, #0a1428 50%, #020408 100%);
+	}
+	.screen-2::before {
+		content: ''; position: absolute; inset: 0;
+		background:
+			repeating-linear-gradient(90deg, transparent 0px, transparent 60px, rgba(100, 200, 255, 0.08) 60px, rgba(100, 200, 255, 0.08) 61px),
+			repeating-linear-gradient(0deg, transparent 0px, transparent 60px, rgba(100, 200, 255, 0.08) 60px, rgba(100, 200, 255, 0.08) 61px);
+		perspective: 400px; transform: rotateX(70deg); transform-origin: center bottom;
+		animation: grid-scroll 4s linear infinite;
+	}
+	@keyframes grid-scroll {
+		from { background-position: 0 0, 0 0; }
+		to   { background-position: 0 60px, 60px 0; }
+	}
+
+	.screen-3 .screen-bg {
+		background:
+			radial-gradient(circle at 50% 50%, rgba(255, 200, 100, 0.35) 0%, transparent 40%),
+			radial-gradient(ellipse at 20% 80%, rgba(200, 60, 60, 0.4) 0%, transparent 50%),
+			linear-gradient(180deg, #1a0e08 0%, #2a1408 60%, #0a0402 100%);
+	}
+	.screen-3::before {
+		content: ''; position: absolute;
+		left: 50%; top: 50%; width: 600px; height: 600px;
+		transform: translate(-50%, -50%);
+		background: radial-gradient(circle, rgba(255, 180, 80, 0.5) 0%, transparent 60%);
+		animation: sun-pulse 4s ease-in-out infinite;
+	}
+	@keyframes sun-pulse {
+		0%, 100% { transform: translate(-50%, -50%) scale(1); opacity: 0.6; }
+		50%      { transform: translate(-50%, -50%) scale(1.15); opacity: 1; }
+	}
+
+	.screen-4 .screen-bg {
+		background:
+			radial-gradient(ellipse at 70% 30%, rgba(80, 255, 160, 0.4) 0%, transparent 50%),
+			radial-gradient(ellipse at 30% 70%, rgba(40, 100, 180, 0.4) 0%, transparent 55%),
+			linear-gradient(180deg, #021a0e 0%, #051428 50%, #020204 100%);
+	}
+	.screen-4::before {
+		content: ''; position: absolute; inset: 0;
+		background:
+			radial-gradient(circle at 20% 30%, rgba(100, 255, 200, 0.6) 0%, transparent 2%),
+			radial-gradient(circle at 60% 60%, rgba(100, 255, 200, 0.5) 0%, transparent 1.5%),
+			radial-gradient(circle at 40% 80%, rgba(100, 255, 200, 0.4) 0%, transparent 1.5%),
+			radial-gradient(circle at 80% 40%, rgba(100, 255, 200, 0.5) 0%, transparent 2%),
+			radial-gradient(circle at 15% 70%, rgba(100, 255, 200, 0.3) 0%, transparent 1%);
+		animation: firefly 6s ease-in-out infinite alternate;
+	}
+	@keyframes firefly {
+		0%   { opacity: 0.5; }
+		100% { opacity: 1; }
+	}
+
+	.screen-5 .screen-bg {
+		background:
+			radial-gradient(ellipse at 50% 20%, rgba(255, 60, 60, 0.4) 0%, transparent 50%),
+			radial-gradient(ellipse at 50% 90%, rgba(60, 20, 100, 0.5) 0%, transparent 55%),
+			linear-gradient(180deg, #1a0508 0%, #0a0518 60%, #000 100%);
+	}
+	.screen-5::before {
+		content: ''; position: absolute; inset: 0;
+		background: linear-gradient(180deg,
+			transparent 0%, transparent 45%,
+			rgba(255, 100, 100, 0.15) 50%,
+			transparent 55%, transparent 100%);
+		animation: scan-red 8s linear infinite;
+	}
+	@keyframes scan-red {
+		from { transform: translateY(-100%); }
+		to   { transform: translateY(100%); }
+	}
+
+	.screen-6 .screen-bg {
+		background:
+			radial-gradient(ellipse at 30% 50%, rgba(255, 200, 255, 0.3) 0%, transparent 45%),
+			radial-gradient(ellipse at 70% 50%, rgba(100, 180, 255, 0.3) 0%, transparent 45%),
+			linear-gradient(180deg, #0a0814 0%, #180a24 50%, #05030a 100%);
+	}
+	.screen-6::before {
+		content: ''; position: absolute;
+		left: 50%; top: 50%; width: 800px; height: 800px;
+		transform: translate(-50%, -50%);
+		background: conic-gradient(from 0deg,
+			rgba(180, 100, 255, 0.2) 0deg,
+			rgba(100, 180, 255, 0.2) 90deg,
+			rgba(255, 100, 180, 0.2) 180deg,
+			rgba(100, 255, 180, 0.2) 270deg,
+			rgba(180, 100, 255, 0.2) 360deg);
+		animation: rotate-slow 20s linear infinite;
+		opacity: 0.4;
+	}
+	@keyframes rotate-slow {
+		from { transform: translate(-50%, -50%) rotate(0deg); }
+		to   { transform: translate(-50%, -50%) rotate(360deg); }
+	}
+
+	.screen-7 .screen-bg {
+		background:
+			radial-gradient(ellipse at 60% 40%, rgba(255, 100, 200, 0.4) 0%, transparent 45%),
+			radial-gradient(ellipse at 40% 60%, rgba(100, 200, 255, 0.4) 0%, transparent 50%),
+			linear-gradient(180deg, #0a0416 0%, #1a0828 50%, #05020a 100%);
+	}
+
+	.screen-8 .screen-bg {
+		background:
+			radial-gradient(ellipse at 30% 40%, rgba(255, 180, 60, 0.4) 0%, transparent 50%),
+			radial-gradient(ellipse at 70% 70%, rgba(200, 40, 120, 0.4) 0%, transparent 55%),
+			linear-gradient(180deg, #1a1008 0%, #1a0818 60%, #050205 100%);
+	}
+
+	/* Texto superpuesto en cada pantalla (ciudad de Los Santos) */
+	.screen-label {
+		position: absolute;
+		left: 80px; bottom: 180px;
+		font-family: 'Arial Black', sans-serif;
+		font-size: 44px; font-weight: 900;
+		letter-spacing: 8px;
+		color: rgba(255, 255, 255, 0.9);
+		text-shadow: 0 4px 20px rgba(0, 0, 0, 0.9);
+	}
+	.screen-label small {
+		display: block; font-size: 11px; font-weight: 400;
+		letter-spacing: 6px; margin-top: 6px;
+		color: rgba(255, 255, 255, 0.5);
+	}
+
+	/* Logo KITO */
+	#kito-logo { position: absolute; left: 60px; top: 60px;
+		font-family: 'Arial Black',sans-serif; font-size: 52px; font-weight: 900;
+		letter-spacing: 10px; color: #fff;
 		text-shadow: 0 0 12px rgba(180,120,255,.9), 0 0 30px rgba(120,180,255,.6),
-			2px 4px 0 rgba(0,0,0,.6); pointer-events: none; }
-	#kito-logo small { display: block; font-size: 14px; letter-spacing: 10px;
+			2px 4px 0 rgba(0,0,0,.6); pointer-events: none; z-index: 10; }
+	#kito-logo small { display: block; font-size: 10px; letter-spacing: 10px;
 		margin-top: 4px; color: rgba(255,255,255,.7); text-shadow: none; font-weight: 400; }
 
-	#info-toggle { position: absolute; right: 24px; top: 24px; width: 36px; height: 36px;
+	/* Panel de info */
+	#info-toggle { position: absolute; right: 24px; top: 90px; width: 36px; height: 36px;
 		background: rgba(0,0,0,.55); border: 1px solid rgba(150,150,255,.3);
 		border-radius: 50%; color: #a78bfa; font: bold 18px/34px monospace;
 		text-align: center; cursor: pointer; backdrop-filter: blur(6px);
@@ -158,7 +350,7 @@
 	#info-toggle:hover { background: rgba(120,90,255,.25); transform: scale(1.08); }
 	#info-toggle.active { background: rgba(120,90,255,.4); color: #fff; }
 
-	#info-panel { position: absolute; right: 24px; top: 70px; width: 340px;
+	#info-panel { position: absolute; right: 24px; top: 136px; width: 340px;
 		padding: 14px 16px; background: rgba(0,0,0,.85);
 		border: 1px solid rgba(150,150,255,.18); border-radius: 6px;
 		backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
@@ -181,7 +373,8 @@
 		line-height: 1.5; text-align: justify; }
 	#info-panel .legal b { color: rgba(180,180,220,.85); font-weight: 600; }
 
-	#ls-bars { position: absolute; right: 96px; top: 642px; display: flex; gap: 3px; }
+	/* Barras inferiores / botones de modo */
+	#ls-bars { position: absolute; right: 96px; top: 642px; display: flex; gap: 3px; z-index: 15; }
 	.ls-bar { height: 24px; padding: 0 6px; display: flex; align-items: center;
 		background: rgba(0,0,0,.706); border-radius: 2.4px; white-space: nowrap; }
 	#modes { gap: 8px; }
@@ -204,18 +397,19 @@
 	#ls-log { position: absolute; left: 8px; right: 8px; bottom: 6px; display: flex;
 		flex-direction: column; align-items: center; font: 10px/1.35 Consolas,monospace;
 		color: rgba(190,190,190,.75); text-shadow: 0 0 2px #000, 1px 1px 1px #000;
-		white-space: pre; pointer-events: none; }
+		white-space: pre; pointer-events: none; z-index: 15; }
 	#console { max-width: 100%; overflow: hidden; text-overflow: ellipsis; }
 	#data { color: #6a9; }
+
 	#bar { position: absolute; left: 0; right: 0; bottom: 0; height: 3px;
-		background: rgba(255,255,255,.08); }
+		background: rgba(255,255,255,.08); z-index: 15; }
 	#fill { height: 100%; width: 0;
 		background: linear-gradient(90deg, #7c5cff, #6ac3ff);
 		box-shadow: 0 0 12px rgba(124,92,255,.7); }
 
 	#hud { position: fixed; left: 8px; bottom: 8px; max-width: 60vw;
 		white-space: pre-wrap; opacity: .8; pointer-events: none;
-		font: 11px Consolas,monospace; color: #9ad; }
+		font: 11px Consolas,monospace; color: #9ad; z-index: 20; }
 	#fps { position: fixed; left: 8px; top: 6px; display: none; color: #0f0;
 		font: bold 18px/1.2 Consolas,monospace; font-variant-numeric: tabular-nums;
 		text-shadow: 1px 1px 2px #000, 0 0 3px #000; pointer-events: none; z-index: 10; }
@@ -227,36 +421,41 @@
 <div id="hud"></div>
 <div id="fps"></div>
 
-<!-- PANTALLA DE ESPERA INICIAL -->
-<div id="boot-screen">
+<!-- ============================================================
+     CLICK TO START — obligatorio para desbloquear audio
+     ============================================================ -->
+<div id="click-to-start">
+  <div class="cts-logo">KITO</div>
+  <div class="cts-sub">Web Edition</div>
+  <div class="cts-prompt">CLIC PARA COMENZAR</div>
+  <div class="cts-note">
+    Proyecto fan-made sin ánimo de lucro · Sin afiliación con Rockstar Games o Take-Two
+  </div>
+</div>
+
+<!-- ============================================================
+     BOTÓN DE SONIDO
+     ============================================================ -->
+<button id="sound-toggle" title="Activar/desactivar sonido">🔊</button>
+
+<!-- ============================================================
+     PANTALLA DE ESPERA / BOOT
+     ============================================================ -->
+<div id="boot-screen" style="display:none;">
   <div class="boot-spinner"></div>
   <div class="boot-title">KITO</div>
   <div class="boot-sub">Web Edition</div>
   <div class="boot-status" id="boot-status">Inicializando...</div>
   <div class="boot-bar"><div class="boot-bar-fill" id="boot-bar-fill"></div></div>
-  <div class="boot-disclaimer">
-    Proyecto fan-made sin ánimo de lucro · Sin afiliación con Rockstar Games o Take-Two
-  </div>
 </div>
 
-<!-- PANTALLA DE CARGA PRINCIPAL -->
+<!-- ============================================================
+     PANTALLA DE CARGA PRINCIPAL
+     ============================================================ -->
 <div id="loading">
   <div id="ls-stage">
-    <div id="ls-screens">
-      <div id="kito-bg">
-        <div class="kito-grad"></div>
-        <div class="kito-glow"></div>
-        <div class="kito-grid"></div>
-        <div class="kito-watermark">KITO</div>
-        <div class="kito-particles">
-          <span></span><span></span><span></span><span></span>
-          <span></span><span></span><span></span><span></span>
-          <span></span><span></span><span></span><span></span>
-        </div>
-        <div class="kito-scanlines"></div>
-        <div class="kito-vignette"></div>
-      </div>
-    </div>
+    <div id="ls-screens"></div>
+
     <div id="kito-logo">KITO<small>WEB EDITION</small></div>
 
     <button id="info-toggle" title="Mostrar/ocultar panel (F8)">ℹ</button>
@@ -264,7 +463,7 @@
     <div id="info-panel">
       <div class="title">Estado del sistema</div>
       <div class="row"><span class="label">Proyecto</span><span class="value">Fan-made / Educativo</span></div>
-      <div class="row"><span class="label">Build</span><span class="value" id="info-version">v21</span></div>
+      <div class="row"><span class="label">Build</span><span class="value" id="info-version">v25</span></div>
       <div class="row"><span class="label">Service Worker</span><span class="value" id="info-sw">registrando…</span></div>
 
       <hr>
@@ -310,6 +509,7 @@
       </div>
     </div>
   </div>
+
   <div id="ls-log">
     <div id="data"></div>
     <div id="console"></div>
@@ -319,7 +519,7 @@
 
 <script type="module">
 // ============================================================
-// FILTRO DE ERRORES COSMÉTICOS (no bloquean, solo ensucian la consola)
+// FILTRO DE ERRORES COSMÉTICOS
 // ============================================================
 (function() {
   const ignore = [
@@ -345,6 +545,10 @@
     /writes colour output/i,
     /Old version of rage effect/i,
     /Fatal Error: common:\/shaders/i,
+    /cloudflareinsights/i,
+    /AudioContext was not allowed/i,
+    /flip invoke buffers/i,
+    /Initialise: failed to load mp tint data/i,
   ];
   const origE = console.error.bind(console);
   const origW = console.warn.bind(console);
@@ -357,12 +561,142 @@
 })();
 
 // ============================================================
-// PANTALLA DE ESPERA
+// SISTEMA DE AUDIO — Genera música ambiente con Web Audio API
 // ============================================================
+const AmbientAudio = (function() {
+  let ctx = null;
+  let masterGain = null;
+  let playing = false;
+  let oscillators = [];
+  let lfo = null;
+
+  function init() {
+    if (ctx) return;
+    ctx = new (window.AudioContext || window.webkitAudioContext)();
+    masterGain = ctx.createGain();
+    masterGain.gain.value = 0;
+    masterGain.connect(ctx.destination);
+  }
+
+  function start() {
+    init();
+    if (ctx.state === 'suspended') ctx.resume();
+    if (playing) return;
+    playing = true;
+
+    // Pad de fondo: 3 osciladores en un acorde menor
+    const freqs = [110, 164.81, 220]; // A2, E3, A3
+    oscillators = freqs.map((freq, i) => {
+      const osc = ctx.createOscillator();
+      osc.type = i === 0 ? 'sine' : 'triangle';
+      osc.frequency.value = freq;
+
+      const gain = ctx.createGain();
+      gain.gain.value = 0.15;
+
+      const filter = ctx.createBiquadFilter();
+      filter.type = 'lowpass';
+      filter.frequency.value = 800;
+      filter.Q.value = 2;
+
+      osc.connect(gain);
+      gain.connect(filter);
+      filter.connect(masterGain);
+      osc.start();
+      return { osc, gain, filter };
+    });
+
+    // LFO para modular el volumen (respiración)
+    lfo = ctx.createOscillator();
+    lfo.frequency.value = 0.1;
+    const lfoGain = ctx.createGain();
+    lfoGain.gain.value = 0.08;
+    lfo.connect(lfoGain);
+    lfoGain.connect(masterGain.gain);
+    lfo.start();
+
+    // Fade in suave
+    masterGain.gain.setValueAtTime(0, ctx.currentTime);
+    masterGain.gain.linearRampToValueAtTime(0.35, ctx.currentTime + 3);
+  }
+
+  function stop() {
+    if (!playing) return;
+    playing = false;
+    masterGain.gain.cancelScheduledValues(ctx.currentTime);
+    masterGain.gain.setValueAtTime(masterGain.gain.value, ctx.currentTime);
+    masterGain.gain.linearRampToValueAtTime(0, ctx.currentTime + 1.2);
+    setTimeout(() => {
+      oscillators.forEach(o => { try { o.osc.stop(); } catch(e) {} });
+      oscillators = [];
+      try { lfo.stop(); } catch(e) {}
+      lfo = null;
+    }, 1300);
+  }
+
+  function toggle() {
+    if (playing) stop(); else start();
+    return playing;
+  }
+
+  return { init, start, stop, toggle, isPlaying: () => playing };
+})();
+
+// ============================================================
+// CLICK TO START — desbloquea el audio y arranca todo
+// ============================================================
+const clickScreen = document.getElementById('click-to-start');
 const bootScreen = document.getElementById('boot-screen');
+const loadingEl = document.getElementById('loading');
+const soundToggle = document.getElementById('sound-toggle');
+let audioStarted = false;
+
+clickScreen.addEventListener('click', () => {
+  if (audioStarted) return;
+  audioStarted = true;
+
+  // Inicia audio (requiere gesto del usuario)
+  try {
+    AmbientAudio.init();
+    AmbientAudio.start();
+    soundToggle.textContent = '🔊';
+    soundToggle.classList.remove('muted');
+  } catch (e) {
+    console.warn('[Audio] No se pudo iniciar:', e);
+  }
+
+  // Oculta click screen
+  clickScreen.classList.add('hidden');
+  setTimeout(() => clickScreen.remove(), 900);
+
+  // Muestra boot screen
+  bootScreen.style.display = 'flex';
+  setTimeout(() => bootScreen.classList.add('visible'), 100);
+
+  // Arranca el resto del flujo
+  window.dispatchEvent(new Event('game-start'));
+});
+
+// ============================================================
+// BOTÓN DE SONIDO
+// ============================================================
+soundToggle.addEventListener('click', (e) => {
+  e.stopPropagation();
+  const isPlaying = AmbientAudio.toggle();
+  if (isPlaying) {
+    soundToggle.textContent = '🔊';
+    soundToggle.classList.remove('muted');
+  } else {
+    soundToggle.textContent = '🔇';
+    soundToggle.classList.add('muted');
+  }
+});
+
+// ============================================================
+// PANTALLA DE BOOT
+// ============================================================
 const bootStatus = document.getElementById('boot-status');
 const bootBar = document.getElementById('boot-bar-fill');
-const loadingEl = document.getElementById('loading');
 
 function setBoot(pct, text) {
   if (bootStatus && text) bootStatus.textContent = text;
@@ -380,9 +714,128 @@ function hideBootScreen() {
 }
 
 // ============================================================
+// PANTALLAS DESLIZANTES ESTILO GTA V
+// ============================================================
+(function initSlidingScreens() {
+  const holder = document.getElementById('ls-screens');
+  if (!holder) return;
+
+  const SCREENS = [
+    { class: 'screen-1', label: 'LOS SANTOS', sub: 'CITY OF ANGELS' },
+    { class: 'screen-2', label: 'VINEWOOD', sub: 'STARS & SUNSET' },
+    { class: 'screen-3', label: 'SANDY SHORES', sub: 'DESERT HIGHWAY' },
+    { class: 'screen-4', label: 'PALETO BAY', sub: 'FOREST & FOG' },
+    { class: 'screen-5', label: 'DOWNTOWN', sub: 'NEON LIGHTS' },
+    { class: 'screen-6', label: 'MT. CHILIAD', sub: 'FROZEN PEAK' },
+    { class: 'screen-7', label: 'DEL PERRO', sub: 'PIER & OCEAN' },
+    { class: 'screen-8', label: 'ROCKFORD HILLS', sub: 'WEALTH & POWER' },
+  ];
+
+  let currentIndex = 0;
+  let currentEl = null;
+  let nextIndex = 0;
+  let alt = -1; // lado alterno
+  let stopped = false;
+
+  function cubicInOut(t) {
+    return t < 0.5 ? 4 * t * t * t : 1 - Math.pow(2 - 2 * t, 3) / 2;
+  }
+
+  function createScreen(def) {
+    const el = document.createElement('div');
+    el.className = 'ls-screen ' + def.class;
+    el.innerHTML = `
+      <div class="screen-bg"></div>
+      <div class="screen-foreground"></div>
+      <div class="screen-label">${def.label}<small>${def.sub}</small></div>
+    `;
+    return el;
+  }
+
+  function showScreen(index, animateFrom = null) {
+    const def = SCREENS[index];
+    const el = createScreen(def);
+    holder.appendChild(el);
+
+    const duration = 900; // ms
+    const startTime = performance.now();
+    const fromX = animateFrom !== null ? animateFrom : 1280;
+    const toX = 0;
+
+    // Fuerza layout
+    el.style.transform = `translateX(${fromX}px)`;
+
+    function tick() {
+      if (stopped) return;
+      const now = performance.now();
+      const t = Math.min(1, (now - startTime) / duration);
+      const eased = cubicInOut(t);
+      const x = fromX + (toX - fromX) * eased;
+      el.style.transform = `translateX(${x}px)`;
+
+      // El label se mueve ligeramente (efecto parallax)
+      const label = el.querySelector('.screen-label');
+      if (label) {
+        const labelX = 40 * (1 - eased);
+        label.style.transform = `translateX(${labelX}px)`;
+        label.style.opacity = eased;
+      }
+
+      if (t < 1) {
+        requestAnimationFrame(tick);
+      }
+    }
+    requestAnimationFrame(tick);
+
+    return el;
+  }
+
+  function slideOut(el, direction) {
+    if (!el) return;
+    const duration = 900;
+    const startTime = performance.now();
+    const fromX = 0;
+    const toX = direction * -1280;
+
+    function tick() {
+      const now = performance.now();
+      const t = Math.min(1, (now - startTime) / duration);
+      const eased = cubicInOut(t);
+      const x = fromX + (toX - fromX) * eased;
+      el.style.transform = `translateX(${x}px)`;
+      if (t < 1) requestAnimationFrame(tick);
+      else el.remove();
+    }
+    requestAnimationFrame(tick);
+  }
+
+  function next() {
+    if (stopped) return;
+
+    // Alterna el lado
+    alt = alt <= 0 ? 1 : -1;
+
+    const oldEl = currentEl;
+    const newEl = showScreen(nextIndex, alt * 1280);
+
+    if (oldEl) slideOut(oldEl, alt);
+
+    currentEl = newEl;
+    currentIndex = nextIndex;
+    nextIndex = (nextIndex + 1) % SCREENS.length;
+
+    setTimeout(next, 8000); // Cada 8 segundos
+  }
+
+  // Arranca
+  setTimeout(next, 500);
+
+  window.__stopSlidingScreens = () => { stopped = true; };
+})();
+
+// ============================================================
 // SERVICE WORKER
 // ============================================================
-setBoot(10, 'Registrando Service Worker...');
 const swReady = (async () => {
   if (!('serviceWorker' in navigator)) return null;
   try {
@@ -489,9 +942,8 @@ setInterval(() => {
 }
 
 // ============================================================
-// TITLE FIT
+// TITLE STAGE FIT
 // ============================================================
-let stopTitle = () => {};
 {
   const stage = document.getElementById('ls-stage');
   const fit = () => {
@@ -511,8 +963,8 @@ const ACTS = {
   back: ['Atrás','Backspace',['Backspace']],
   map5: ['Mapa GTA V','5',['Digit5','Numpad5']],
   map6: ['Mapa GTA VI','6',['Digit6','Numpad6']],
-  sandbox: ['Modo Sandbox','Espacio',['Space']],
-  story: ['Modo Historia','Enter',['Enter','NumpadEnter']],
+  sandbox: ['Modo Sandbox','ESPACIO',['Space']],
+  story: ['Modo Historia','ENTER',['Enter','NumpadEnter']],
 };
 const LOADING = { 1: 'Cargando Historia', 2: 'Cargando Sandbox: Mapa GTA V', 3: 'Cargando Sandbox: Mapa GTA VI' };
 const modesEl = document.getElementById('modes');
@@ -591,7 +1043,14 @@ showModes();
     if (m.choice && !startMode) { waitingChoice = true; modesEl.classList.add('ask'); showModes(); }
     if (m.commit) { startCommitted = true; pickingMap = false; if (m.mode) startMode = m.mode; showModes(); }
     if (m.compiling !== undefined && !waitingChoice) { label.textContent = lastLabel = 'Preparando shaders'; target = Math.max(target, 99); setValue(info.phase, 'Compilando shaders', 'warn'); }
-    if (m.world) { ready = true; document.getElementById('hud').textContent = 'clic para capturar el ratón (Esc libera, = FPS)'; setValue(info.phase, 'Listo', 'ok'); setTimeout(() => { document.getElementById('hud').textContent = ''; }, 15000); }
+    if (m.world) {
+      ready = true;
+      document.getElementById('hud').textContent = 'clic para capturar el ratón (Esc libera, = FPS)';
+      setValue(info.phase, 'Listo', 'ok');
+      setTimeout(() => { document.getElementById('hud').textContent = ''; }, 15000);
+      // Detén las pantallas deslizantes
+      if (window.__stopSlidingScreens) window.__stopSlidingScreens();
+    }
   };
   const dataEl = document.getElementById('data');
   const WORLD_BYTES = 1.2e9;
@@ -621,7 +1080,7 @@ showModes();
     if (dirty) { dirty = false; consoleEl.textContent = lastLine; }
     fill.style.width = shown.toFixed(1) + '%';
     pct.textContent = Math.round(shown) + '%';
-    if (ready && shown > 99.5) { loading.classList.add('done'); setTimeout(() => { loading.remove(); stopTitle(); }, 1000); loadingGone = true; clearInterval(progressTimer); }
+    if (ready && shown > 99.5) { loading.classList.add('done'); setTimeout(() => { loading.remove(); }, 1000); loadingGone = true; clearInterval(progressTimer); }
   }, 50);
 }
 const hud = document.getElementById('hud');
@@ -639,39 +1098,42 @@ const hud = document.getElementById('hud');
 }
 
 // ============================================================
-// WORKER
+// WORKER (espera a que el usuario haga click)
 // ============================================================
-setBoot(40, 'Comprobando compatibilidad...');
-const canvas = document.getElementById('canvas');
-if (remoteLog) {
-  const queue = []; let sending = false;
-  const pump = async () => {
-    if (sending || !queue.length) return; sending = true;
-    const body = queue.splice(0).join('\n');
-    try { await fetch('/log', { method: 'POST', body, keepalive: body.length < 60000 }); } catch (e) {}
-    sending = false; pump();
-  };
-  new BroadcastChannel('game-log').onmessage = (ev) => { queue.push(ev.data); if (queue.length > 20000) queue.splice(0, queue.length - 20000); pump(); };
-}
-addEventListener('pagehide', () => { try { new BroadcastChannel('game-io').postMessage('close'); } catch (e) {} });
+window.addEventListener('game-start', async () => {
+  setBoot(40, 'Comprobando compatibilidad...');
+  const canvas = document.getElementById('canvas');
 
-let lowMemory = false;
-let startSize = [1280, 720], wantSize = null;
+  if (remoteLog) {
+    const queue = []; let sending = false;
+    const pump = async () => {
+      if (sending || !queue.length) return; sending = true;
+      const body = queue.splice(0).join('\n');
+      try { await fetch('/log', { method: 'POST', body, keepalive: body.length < 60000 }); } catch (e) {}
+      sending = false; pump();
+    };
+    new BroadcastChannel('game-log').onmessage = (ev) => { queue.push(ev.data); if (queue.length > 20000) queue.splice(0, queue.length - 20000); pump(); };
+  }
+  addEventListener('pagehide', () => { try { new BroadcastChannel('game-io').postMessage('close'); } catch (e) {} });
 
-if (!crossOriginIsolated) {
-  document.getElementById('label').textContent = 'sin aislamiento cross-origin: abre por HTTPS.';
-  document.getElementById('label').style.color = '#e66';
-  setValue(info.phase, 'sin aislamiento', 'error');
-  setBoot(100, 'Error: sin aislamiento');
-  setTimeout(hideBootScreen, 2000);
-} else {
+  let lowMemory = false;
+  let startSize = [1280, 720], wantSize = null;
+
+  if (!crossOriginIsolated) {
+    document.getElementById('label').textContent = 'sin aislamiento cross-origin: abre por HTTPS.';
+    document.getElementById('label').style.color = '#e66';
+    setValue(info.phase, 'sin aislamiento', 'error');
+    setBoot(100, 'Error: sin aislamiento');
+    setTimeout(hideBootScreen, 2000);
+    return;
+  }
+
   setValue(info.phase, 'arrancando', 'ok');
   setBoot(60, 'Preparando canvas...');
   const offscreen = canvas.transferControlToOffscreen();
 
-  // FORZADO: low=1 siempre (así funcionaba bien)
-  const lowParam = '1';
-  lowMemory = true;
+  const lowParam = q.get('low') || '1';
+  lowMemory = lowParam === '1';
 
   const LOW_ARGS = ['-textureQuality=0', '-pedVariety=0', '-vehicleVariety=0',
     '-shadowQuality=' + (q.get('shadows') === '1' ? 0 : -1),
@@ -685,17 +1147,52 @@ if (!crossOriginIsolated) {
     if (forced) return [+forced[1], +forced[2]];
     const sc = Math.max(0.25, Math.min(2, +(q.get('scale') || 1)));
     let w = innerWidth * devicePixelRatio * sc, h = innerHeight * devicePixelRatio * sc;
-    const cap = [2560, 1440];
+    const cap = lowMemory ? [2560, 1440] : [3840, 2160];
     const k = Math.min(1, cap[0] / w, cap[1] / h);
     w *= k; h *= k;
     return [Math.max(320, Math.round(w / 2) * 2), Math.max(240, Math.round(h / 2) * 2)];
   };
   startSize = wantSize();
+
   const LOG_ARGS = q.get('verbose') ? [] : ['-Script_all=warning', '-replay_all=warning'];
   const ENGINE_ARGS = ['-fastscriptcore'];
   setInterval(() => {}, 1);
 
-  setBoot(80, 'Descargando motor...');
+  // ============================================================
+  // PRELOAD DE ASSETS CRÍTICOS
+  // ============================================================
+  setBoot(70, 'Descargando assets críticos...');
+
+  const PRELOAD_LIST = [
+    { url: '/data/manifest.json',       label: 'Manifest' },
+    { url: '/data/bootset.json',        label: 'Bootset' },
+    { url: '/data/bootset_low.json',    label: 'Bootset low' },
+    { url: '/game.wasm',                label: 'Motor WebAssembly' },
+    { url: '/shaders/index.json',       label: 'Índice de shaders' },
+    { url: '/shaders/pipelines.json',   label: 'Pipelines' },
+    { url: '/shaders/pipelines_low.json', label: 'Pipelines low' },
+  ];
+
+  let preloadCount = 0;
+  for (const item of PRELOAD_LIST) {
+    try {
+      const res = await fetch(item.url, { cache: 'default' });
+      if (res.ok) {
+        const blob = await res.blob();
+        preloadCount++;
+        const pct = 70 + (preloadCount / PRELOAD_LIST.length) * 25;
+        setBoot(pct, `Descargando ${item.label} (${preloadCount}/${PRELOAD_LIST.length})`);
+      }
+    } catch (e) {
+      console.warn(`[Preload] ${item.label}: ${e.message}`);
+    }
+  }
+
+  setBoot(95, 'Iniciando motor...');
+
+  // ============================================================
+  // WORKER
+  // ============================================================
   const worker = new Worker(BASE + '/loader.js');
   worker.onmessage = (ev) => {
     if (ev.data.hud) hud.textContent = ev.data.hud;
@@ -725,17 +1222,17 @@ if (!crossOriginIsolated) {
     fullConsole: !!q.get('console'), remoteLog, trace: !!q.get('trace'),
     slots: +(q.get('slots') || 4),
     syncPipelines: true,
-    record: !!q.get('record'), lowMemory: true,
+    record: !!q.get('record'), lowMemory,
   }, [offscreen]);
 
   setTimeout(() => {
     setBoot(100, 'Iniciando motor...');
     hideBootScreen();
-  }, 800);
-}
+  }, 500);
+});
 
 // ============================================================
-// AUDIO
+// AUDIO DEL JUEGO (AudioWorklet del motor)
 // ============================================================
 let audioPending = null, audioGesture = false, audioStarted = false;
 function tryStartAudio() {
