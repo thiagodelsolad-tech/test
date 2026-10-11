@@ -1,88 +1,61 @@
 /**
  * sw.js — Service Worker para GTA V Web Edition
- *
- * - Inyecta COOP/COEP/CORP (imprescindible para SharedArrayBuffer + WebGPU)
- * - Proxea a R2 los recursos pesados (wasm, shaders, data, mirror, runtime)
- * - Prueba varias rutas candidatas en R2 hasta encontrar la correcta (fallback automático)
- * - Cache-First en disco para cargas posteriores
+ * 
+ * IMPORTANTE: los archivos en R2 están bajo un prefijo. Si los mueves,
+ * solo cambia R2_PREFIX aquí abajo.
  */
 
-const R2_BASE_URL = 'https://r2.dev';
-const CACHE = 'gta5-v3';
+const R2_BASE_URL = 'https://pub-a092af97260c44d9b24dcb93dbfbb9ef.r2.dev';
+
+// Prefijo donde están game.wasm, shaders/ y el resto en R2
+const R2_PREFIX = 'mirror/playgta5.com/b/8b0b5899ed';
+
+const CACHE = 'gta5-v5';
 const MAX_BYTES = 2 * 1024 * 1024 * 1024;
 
-// ============================================================
-// RUTAS LOCALES DEL FRONTEND (viven en GitHub Pages, no se proxean)
-// ============================================================
 const LOCAL_EXACT = new Set([
   '/', '/index.html', '/sw.js', '/CNAME', '/README.md',
   '/loader.js', '/game.js', '/wgpu_worker.js', '/io_worker.js', '/audio-worklet.js',
   '/chalet.woff', '/favicon.ico', '/robots.txt', '/google88b6175162f03564.html',
 ]);
 
-function isLocal(pathname) {
+function isFrontend(pathname) {
   if (LOCAL_EXACT.has(pathname)) return true;
   if (pathname.startsWith('/img/')) return true;
   if (pathname.startsWith('/.github/')) return true;
   return false;
 }
 
-// ============================================================
-// CANDIDATOS EN R2 (se prueban en orden hasta encontrar uno con 200)
-// ============================================================
+// Candidatos en R2: se prueban en orden con el prefijo y sin el
 function candidatesFor(localPath) {
-  // /data/manifest.json, /data/bootset.json, /data/mirror/... etc
-  if (localPath.startsWith('/data/')) {
-    const rest = localPath.slice(6); // quita "/data/"
-    return [
-      rest,                 // →  /manifest.json
-      'data/' + rest,       // →  /data/manifest.json
-    ];
-  }
+  const paths = [];
+  let inner = null;
 
-  // /shaders/index.json, /shaders/pack0.bin, /shaders/<hash>.wgsl
-  if (localPath.startsWith('/shaders/')) {
-    const rest = localPath.slice(9); // quita "/shaders/"
-    return [
-      'common/shaders/' + rest,       // →  /common/shaders/index.json
-      'shaders/' + rest,              // →  /shaders/index.json
-      'data/common/shaders/' + rest,  // →  /data/common/shaders/index.json
-      'runtime/shaders/' + rest,      // →  /runtime/shaders/index.json
-    ];
-  }
-
-  // /game.wasm
   if (localPath === '/game.wasm') {
-    return [
-      'x64/game.wasm',        // →  /x64/game.wasm
-      'game.wasm',            // →  /game.wasm
-      'data/x64/game.wasm',   // →  /data/x64/game.wasm
-      'runtime/game.wasm',    // →  /runtime/game.wasm
-    ];
+    inner = ['game.wasm', 'x64/game.wasm'];
+  } else if (localPath.startsWith('/shaders/')) {
+    const rest = localPath.slice(9);
+    inner = ['shaders/' + rest, 'common/shaders/' + rest];
+  } else if (localPath.startsWith('/data/')) {
+    const rest = localPath.slice(6);
+    inner = [rest, 'data/' + rest];
+  } else if (localPath.startsWith('/mirror/') || localPath.startsWith('/runtime/')) {
+    inner = [localPath.slice(1)];
+  } else if (localPath.startsWith('/x64/') || localPath.startsWith('/common/')) {
+    inner = [localPath.slice(1)];
+  } else {
+    // Ruta desconocida: prueba tal cual
+    inner = [localPath.slice(1)];
   }
 
-  // /mirror/..., /runtime/...
-  if (localPath.startsWith('/mirror/') || localPath.startsWith('/runtime/')) {
-    return [
-      localPath.slice(1),            // →  /mirror/...
-      'data' + localPath,            // →  /data/mirror/...
-    ];
+  // Primero con el prefijo (donde TÚ los subiste), luego sin él
+  for (const p of inner) {
+    paths.push(R2_PREFIX + '/' + p);       // mirror/playgta5.com/b/8b0b5899ed/game.wasm
+    paths.push(p);                          // game.wasm (por si algún día los mueves)
   }
-
-  // /x64/..., /common/... (por si el motor los pide directos)
-  if (localPath.startsWith('/x64/') || localPath.startsWith('/common/')) {
-    return [
-      localPath.slice(1),
-      'data' + localPath,
-    ];
-  }
-
-  return null;
+  return paths;
 }
 
-// ============================================================
-// AISLAMIENTO CROSS-ORIGIN (crítico para SharedArrayBuffer)
-// ============================================================
 function injectIsolation(response) {
   const h = new Headers(response.headers);
   h.set('Cross-Origin-Opener-Policy', 'same-origin');
@@ -95,12 +68,9 @@ function injectIsolation(response) {
   });
 }
 
-// ============================================================
-// CICLO DE VIDA
-// ============================================================
 self.addEventListener('install', () => {
   self.skipWaiting();
-  console.log('[SW] Instalado.');
+  console.log('[SW] Instalado. Prefijo R2:', R2_PREFIX);
 });
 
 self.addEventListener('activate', (event) => {
@@ -114,9 +84,6 @@ self.addEventListener('activate', (event) => {
   );
 });
 
-// ============================================================
-// RECORTE DE CACHÉ
-// ============================================================
 async function trimCache() {
   try {
     const c = await caches.open(CACHE);
@@ -137,51 +104,57 @@ async function trimCache() {
       await c.delete(r);
       removed += len;
     }
-    console.log(`[SW] Caché recortada: ${(removed / 1048576).toFixed(1)} MB.`);
   } catch (e) { console.warn('[SW] trimCache:', e); }
 }
 
-// ============================================================
-// PROXY CON FALLBACK AUTOMÁTICO + CACHE-FIRST
-// ============================================================
-async function handleProxy(event, candidates) {
+async function tryFetch(url, originalRequest) {
+  try {
+    const res = await fetch(url, {
+      method: originalRequest.method,
+      headers: originalRequest.headers,
+      mode: 'cors',
+      credentials: 'omit',
+      redirect: 'follow',
+    });
+    return (res.ok || res.status === 206) ? res : null;
+  } catch (e) {
+    return null;
+  }
+}
+
+async function handleAsset(event) {
   const req = event.request;
+  const url = new URL(req.url);
   const cache = await caches.open(CACHE);
 
   // 1. Cache-First
   const cached = await cache.match(req);
   if (cached) return injectIsolation(cached);
 
-  // 2. Prueba cada candidato en R2 hasta que uno responda 200/206
+  // 2. Local primero (GitHub Pages)
+  const localRes = await tryFetch(url.origin + url.pathname, req);
+  if (localRes) {
+    console.log(`[SW] LOCAL: ${url.pathname}`);
+    return injectIsolation(localRes);
+  }
+
+  // 3. Fallback a R2 (con prefijo y sin él)
+  const candidates = candidatesFor(url.pathname);
   for (let i = 0; i < candidates.length; i++) {
     const path = candidates[i];
     const r2Url = R2_BASE_URL + '/' + path;
-    try {
-      const res = await fetch(r2Url, {
-        method: req.method,
-        headers: req.headers,
-        mode: 'cors',
-        credentials: 'omit',
-        redirect: 'follow',
-      });
-
-      if (res.ok || res.status === 206) {
-        if (i > 0) console.log(`[SW] Fallback OK: ${path}`);
-        if (res.status === 200) {
-          cache.put(req, res.clone()).then(trimCache).catch(() => {});
-        }
-        return injectIsolation(res);
+    const r2Res = await tryFetch(r2Url, req);
+    if (r2Res) {
+      console.log(`[SW] R2 OK: ${path}`);
+      if (r2Res.status === 200) {
+        cache.put(req, r2Res.clone()).then(trimCache).catch(() => {});
       }
-      // 404/403 → prueba el siguiente candidato
-      console.log(`[SW] ${res.status} en ${path}, probando siguiente…`);
-    } catch (err) {
-      console.warn(`[SW] Error en ${path}:`, err.message);
+      return injectIsolation(r2Res);
     }
   }
 
-  // Ningún candidato funcionó
-  console.error(`[SW] Ningún candidato funcionó para ${req.url}`);
-  return new Response('Recurso no encontrado en R2', {
+  console.error(`[SW] No encontrado: ${url.pathname}`);
+  return new Response('Recurso no encontrado', {
     status: 404,
     headers: {
       'Cross-Origin-Opener-Policy': 'same-origin',
@@ -191,18 +164,13 @@ async function handleProxy(event, candidates) {
   });
 }
 
-// ============================================================
-// FETCH PRINCIPAL
-// ============================================================
 self.addEventListener('fetch', (event) => {
   const url = new URL(event.request.url);
-
   if (url.origin !== self.location.origin) return;
   if (event.request.method !== 'GET' && event.request.method !== 'HEAD') return;
   if (event.request.cache === 'only-if-cached' && event.request.mode !== 'same-origin') return;
 
-  // Local (GitHub Pages): solo inyecta COOP/COEP
-  if (isLocal(url.pathname)) {
+  if (isFrontend(url.pathname)) {
     event.respondWith(
       (async () => {
         try {
@@ -219,19 +187,9 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // Intenta proxy a R2
-  const candidates = candidatesFor(url.pathname);
-  if (candidates) {
-    event.respondWith(handleProxy(event, candidates));
-  } else {
-    // Ruta desconocida → la deja pasar (a GitHub Pages)
-    event.respondWith(fetch(event.request));
-  }
+  event.respondWith(handleAsset(event));
 });
 
-// ============================================================
-// PING (para debugging)
-// ============================================================
 self.addEventListener('message', (e) => {
   if (e.data?.type === 'PING') e.source?.postMessage({ type: 'PONG', status: 'ready' });
 });
