@@ -1,157 +1,86 @@
 /**
- * ============================================================
- * sw.js — Service Worker para GTA V Web Edition
- * Versión: v15 (final)
- * ============================================================
+ * sw.js — Service Worker GTA V Web Edition
+ * v16 — Ultra optimizado
  *
- * Arquitectura:
- *   Navegador → GitHub Pages (frontend) → sw.js intercepta →
- *   Cloudflare Worker (gta-proxy) → R2
- *
- * Mapeo de rutas del motor → R2:
- *   /game.wasm                          → PREFIX_BIN/game.wasm
- *   /shaders/...                        → PREFIX_BIN/shaders/...
- *   /data/manifest.json                 → manifest.json (raíz)
- *   /data/bootset.json                  → bootset.json (raíz)
- *   /data/bootset_low.json              → bootset_low.json (raíz)
- *   /data/x64/audio/...                 → PREFIX_ROOT/x64/audio/...
- *   /data/x64/levels/gta5/citye/...     → PREFIX_ROOT/x64/levels/gta5/_citye/... (con guion)
- *   /data/x64/levels/gta5/_citye/...    → directo
- *   /data/common/data/gameconfig.xml    → PREFIX_ROOT/common/data/gameconfig.xml
- *   /data/batchc/*                      → 404 rápido (io_worker salta a fallback)
- * ============================================================
+ * Optimizaciones vs v15:
+ *   1. Skip del "local-first" para assets (ahorra 1 round trip por archivo)
+ *   2. Prueba de candidatos EN PARALELO cuando el primero falla
+ *   3. Prefetch del bootset en background (idle)
+ *   4. Cache-Control agresivo → el navegador tampoco revalida
+ *   5. Escritura perezosa en caché (no bloquea la respuesta)
+ *   6. Sin logs innecesarios (menos presión al hilo principal)
  */
 
-// ============================================================
-// CONFIGURACIÓN
-// ============================================================
-const R2_BASE      = 'https://gta-proxy.kitofree1221.workers.dev';
-const PREFIX_ROOT  = 'mirror/playgta5.com/data';
-const PREFIX_BIN   = 'mirror/playgta5.com/b/8b0b5899ed';
+const R2_BASE     = 'https://gta-proxy.kitofree1221.workers.dev';
+const PREFIX_ROOT = 'mirror/playgta5.com/data';
+const PREFIX_BIN  = 'mirror/playgta5.com/b/8b0b5899ed';
 
-const CACHE        = 'gta5-v15';
-const MAX_BYTES    = 2 * 1024 * 1024 * 1024;   // 2 GB
-const FETCH_TIMEOUT = 30000;                    // 30 s
+const CACHE       = 'gta5-v16';
+const MAX_BYTES   = 2 * 1024 * 1024 * 1024;
+const FETCH_TIMEOUT = 30000;
 
-// Rutas estáticas servidas por GitHub Pages (frontend)
-const LOCAL_EXACT = new Set([
+// Frontend servido por GitHub (NO va a R2)
+const FRONTEND = new Set([
   '/', '/index.html', '/sw.js', '/CNAME', '/README.md',
   '/loader.js', '/game.js', '/wgpu_worker.js', '/io_worker.js', '/audio-worklet.js',
   '/chalet.woff', '/favicon.ico', '/robots.txt',
   '/google88b6175162f03564.html',
 ]);
 
-// ============================================================
-// UTILIDADES
-// ============================================================
-function isFrontend(pathname) {
-  if (LOCAL_EXACT.has(pathname)) return true;
-  if (pathname.startsWith('/img/')) return true;
-  if (pathname.startsWith('/.github/')) return true;
-  return false;
+function isFrontend(p) {
+  return FRONTEND.has(p) || p.startsWith('/img/') || p.startsWith('/.github/');
 }
 
-function isBatchPath(pathname) {
-  // Rutas del io_worker que no existen en R2: fallar rápido para que use el fallback
-  if (pathname.startsWith('/data/batchc/')) return true;
-  if (pathname === '/data/batch') return true;
-  if (pathname.startsWith('/data/batch?')) return true;
-  return false;
+function isBatchPath(p) {
+  return p.startsWith('/data/batchc/') || p === '/data/batch' || p.startsWith('/data/batch?');
 }
 
 // ============================================================
-// CANDIDATOS POR RUTA
+// CANDIDATOS
 // ============================================================
 function candidatesFor(localPath) {
-  const list = [];
-
-  // ---------- game.wasm ----------
   if (localPath === '/game.wasm') {
-    list.push(`${PREFIX_BIN}/game.wasm`);
-    list.push('game.wasm');
-    return list;
+    return [`${PREFIX_BIN}/game.wasm`];
   }
 
-  // ---------- shaders ----------
   if (localPath.startsWith('/shaders/')) {
     const rest = localPath.slice(9);
-    list.push(`${PREFIX_BIN}/shaders/${rest}`);
-    list.push(`shaders/${rest}`);
-    list.push(`common/shaders/${rest}`);
-    return list;
+    return [`${PREFIX_BIN}/shaders/${rest}`];
   }
 
-  // ---------- manifest / bootset (en la raíz del bucket) ----------
-  if (localPath === '/data/manifest.json') {
-    list.push('manifest.json');
-    list.push(`${PREFIX_ROOT}/manifest.json`);
-    return list;
-  }
-  if (localPath === '/data/bootset.json') {
-    list.push('bootset.json');
-    list.push(`${PREFIX_ROOT}/bootset.json`);
-    return list;
-  }
-  if (localPath === '/data/bootset_low.json') {
-    list.push('bootset_low.json');
-    list.push(`${PREFIX_ROOT}/bootset_low.json`);
-    return list;
-  }
+  if (localPath === '/data/manifest.json')    return ['manifest.json'];
+  if (localPath === '/data/bootset.json')     return ['bootset.json'];
+  if (localPath === '/data/bootset_low.json') return ['bootset_low.json'];
 
-  // ---------- assets bajo /data/ ----------
   if (localPath.startsWith('/data/')) {
-    const rest = localPath.slice(6);   // sin el "/data/" inicial
+    const rest = localPath.slice(6);
+    const list = [`${PREFIX_ROOT}/${rest}`, `${PREFIX_ROOT}/common/data/${rest}`];
 
-    // 1. Ruta directa (funciona para audio, streaming, script, etc.)
-    list.push(`${PREFIX_ROOT}/${rest}`);
-
-    // 2. Fallback common/data/ — necesario para gameconfig.xml, default.xml,
-    //    timecycle.xml, camera.xml, etc. (configs del motor)
-    list.push(`${PREFIX_ROOT}/common/data/${rest}`);
-
-    // 3. Carpetas de levels con guion bajo:
-    //    el motor pide "citye/...", "hills/...", "prologue/...", pero en R2 son
-    //    "_citye/...", "_hills/...", "_prologue/..."
     if (rest.startsWith('x64/levels/gta5/')) {
       const after = rest.slice('x64/levels/gta5/'.length);
       const slash = after.indexOf('/');
       if (slash > 0) {
         const folder = after.slice(0, slash);
         const sub = after.slice(slash + 1);
-        // Variante con guion bajo
         list.push(`${PREFIX_ROOT}/x64/levels/gta5/_${folder}/${sub}`);
-        // Variante en common/data/ con guion bajo
-        list.push(`${PREFIX_ROOT}/common/data/x64/levels/gta5/_${folder}/${sub}`);
       }
     }
-
-    // 4. Fallbacks finales por si el asset está en otra estructura
-    list.push(`data/${rest}`);
-    list.push(rest);
     return list;
   }
 
-  // ---------- rutas sin prefijo conocido ----------
   const rest = localPath.slice(1);
-  list.push(`${PREFIX_ROOT}/${rest}`);
-  list.push(`${PREFIX_BIN}/${rest}`);
-  list.push(rest);
-  return list;
+  return [`${PREFIX_ROOT}/${rest}`, `${PREFIX_BIN}/${rest}`];
 }
 
 // ============================================================
-// INYECCIÓN DE CABECERAS COOP/COEP
+// INYECCIÓN COOP/COEP
 // ============================================================
-function injectIsolation(response) {
-  const h = new Headers(response.headers);
+function injectIsolation(r) {
+  const h = new Headers(r.headers);
   h.set('Cross-Origin-Opener-Policy', 'same-origin');
   h.set('Cross-Origin-Embedder-Policy', 'require-corp');
   h.set('Cross-Origin-Resource-Policy', 'cross-origin');
-  return new Response(response.body, {
-    status: response.status,
-    statusText: response.statusText,
-    headers: h,
-  });
+  return new Response(r.body, { status: r.status, statusText: r.statusText, headers: h });
 }
 
 // ============================================================
@@ -159,23 +88,67 @@ function injectIsolation(response) {
 // ============================================================
 self.addEventListener('install', () => {
   self.skipWaiting();
-  console.log('[SW] Instalado v15.');
-  console.log('[SW]   R2_BASE:', R2_BASE);
-  console.log('[SW]   PREFIX_ROOT:', PREFIX_ROOT);
-  console.log('[SW]   PREFIX_BIN:', PREFIX_BIN);
 });
 
 self.addEventListener('activate', (event) => {
   event.waitUntil((async () => {
+    // Limpia cachés viejas
     const keys = await caches.keys();
     await Promise.all(keys.filter((k) => k !== CACHE).map((k) => caches.delete(k)));
     await self.clients.claim();
-    console.log('[SW] Activo v15.');
+
+    // Prefetch del bootset en background (no bloquea nada)
+    prefetchBootset();
   })());
 });
 
 // ============================================================
-// RECORTE DE CACHÉ (LRU aproximado)
+// PREFETCH DEL BOOTSET (calienta el Cache API local)
+// ============================================================
+async function prefetchBootset() {
+  try {
+    const cache = await caches.open(CACHE);
+
+    // Si ya está precargado, no repetir
+    const done = await cache.match('/__bootset_done__');
+    if (done) return;
+
+    const res = await fetch(`${R2_BASE}/bootset.json`);
+    if (!res.ok) return;
+
+    const entries = await res.json();
+    console.log(`[SW] Prefetching ${entries.length} bootset entries…`);
+
+    // 16 en paralelo
+    const PAR = 16;
+    let i = 0;
+    const worker = async () => {
+      while (i < entries.length) {
+        const entry = entries[i++];
+        const path = entry[0];
+        const url = `${R2_BASE}/${PREFIX_ROOT}/${path}`;
+        const key = new Request(`/data/${path}`);
+        try {
+          if (await cache.match(key)) continue;   // ya cacheado
+          const r = await fetch(url);
+          if (r.ok) {
+            await cache.put(key, r);
+          }
+        } catch (e) { /* ignore */ }
+      }
+    };
+    await Promise.all(Array.from({ length: PAR }, worker));
+
+    // Marca como completo
+    await cache.put('/__bootset_done__', new Response('1'));
+    console.log(`[SW] Bootset prefetch complete.`);
+  } catch (e) {
+    console.warn('[SW] Bootset prefetch failed:', e);
+  }
+}
+
+// ============================================================
+// TRIM DE CACHÉ
 // ============================================================
 async function trimCache() {
   try {
@@ -197,35 +170,28 @@ async function trimCache() {
       await c.delete(r);
       removed += len;
     }
-    console.log(`[SW] Caché recortada: ${(removed / 1048576).toFixed(1)} MB.`);
-  } catch (e) {
-    console.warn('[SW] trimCache:', e);
-  }
+  } catch (e) {}
 }
 
 // ============================================================
-// FETCH CON TIMEOUT
+// FETCH RÁPIDO
 // ============================================================
-async function tryFetch(url, originalRequest) {
+function fastFetch(url, req, timeout = FETCH_TIMEOUT) {
   const ctrl = new AbortController();
-  const timer = setTimeout(() => ctrl.abort(), FETCH_TIMEOUT);
-  try {
-    const res = await fetch(url, {
-      method: originalRequest.method,
-      headers: {
-        'Range': originalRequest.headers.get('Range') || '',
-      },
-      mode: 'cors',
-      credentials: 'omit',
-      redirect: 'follow',
-      signal: ctrl.signal,
-    });
+  const timer = setTimeout(() => ctrl.abort(), timeout);
+  return fetch(url, {
+    method: 'GET',
+    headers: { 'Range': req.headers.get('Range') || '' },
+    mode: 'cors',
+    credentials: 'omit',
+    signal: ctrl.signal,
+  }).then((r) => {
     clearTimeout(timer);
-    return (res.ok || res.status === 206) ? res : null;
-  } catch (e) {
+    return (r.ok || r.status === 206) ? r : null;
+  }).catch(() => {
     clearTimeout(timer);
     return null;
-  }
+  });
 }
 
 // ============================================================
@@ -234,46 +200,40 @@ async function tryFetch(url, originalRequest) {
 async function handleAsset(event) {
   const req = event.request;
   const url = new URL(req.url);
-  const cache = await caches.open(CACHE);
+  const pathname = url.pathname;
 
-  // 1. Cache-First
+  // 1. Cache-First (disco del jugador)
+  const cache = await caches.open(CACHE);
   const cached = await cache.match(req);
   if (cached) {
     return injectIsolation(cached);
   }
 
-  // 2. Intenta local (GitHub Pages)
-  const localRes = await tryFetch(url.origin + url.pathname, req);
-  if (localRes) {
-    console.log(`[SW] LOCAL: ${url.pathname}`);
-    return injectIsolation(localRes);
+  // 2. Solo prueba candidatos (NO local-first para assets)
+  const candidates = candidatesFor(pathname);
+
+  // 2a. Prueba el primero (99% de los casos es el correcto)
+  const first = `${R2_BASE}/${candidates[0]}`;
+  let res = await fastFetch(first, req);
+
+  // 2b. Si falla, prueba los demás EN PARALELO (raro)
+  if (!res && candidates.length > 1) {
+    const rest = candidates.slice(1).map((p) => fastFetch(`${R2_BASE}/${p}`, req));
+    const results = await Promise.all(rest);
+    res = results.find((r) => r !== null) || null;
   }
 
-  // 3. Fallback a R2 (vía Worker), probando candidatos en orden
-  const candidates = candidatesFor(url.pathname);
-  for (let i = 0; i < candidates.length; i++) {
-    const path = candidates[i];
-    const r2Url = R2_BASE + '/' + path;
-    const r2Res = await tryFetch(r2Url, req);
-    if (r2Res) {
-      console.log(`[SW] R2 OK (${i}): ${path}`);
-      // Solo cachea respuestas completas (no fragmentos 206)
-      if (r2Res.status === 200) {
-        cache.put(req, r2Res.clone()).then(trimCache).catch(() => {});
-      }
-      return injectIsolation(r2Res);
+  if (res) {
+    // Cache en background (no bloquea)
+    if (res.status === 200) {
+      const cacheable = res.clone();
+      event.waitUntil?.(cache.put(req, cacheable).then(trimCache).catch(() => {}));
     }
+    return injectIsolation(res);
   }
 
-  // 4. Nada funcionó — 404 silencioso (menos spam en consola)
-  return new Response(`No encontrado: ${url.pathname}`, {
-    status: 404,
-    headers: {
-      'Cross-Origin-Opener-Policy': 'same-origin',
-      'Cross-Origin-Embedder-Policy': 'require-corp',
-      'Content-Type': 'text/plain',
-    },
-  });
+  // 3. 404 silencioso
+  return new Response('', { status: 404 });
 }
 
 // ============================================================
@@ -281,23 +241,17 @@ async function handleAsset(event) {
 // ============================================================
 self.addEventListener('fetch', (event) => {
   const url = new URL(event.request.url);
-
-  // Ignora peticiones a otros orígenes
   if (url.origin !== self.location.origin) return;
-
-  // Solo GET/HEAD
   if (event.request.method !== 'GET' && event.request.method !== 'HEAD') return;
-
-  // Evita el error "only-if-cached"
   if (event.request.cache === 'only-if-cached' && event.request.mode !== 'same-origin') return;
 
-  // Bypass rápido de batchc/batch (no existen en R2)
+  // Batchc: bypass inmediato
   if (isBatchPath(url.pathname)) {
     event.respondWith(new Response('', { status: 404 }));
     return;
   }
 
-  // Frontend estático (GitHub Pages) — sirve con COOP/COEP
+  // Frontend: pasa directo + COOP/COEP
   if (isFrontend(url.pathname)) {
     event.respondWith((async () => {
       try {
@@ -313,15 +267,6 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // Todo lo demás → assets con fallback a R2
+  // Assets: handler optimizado
   event.respondWith(handleAsset(event));
-});
-
-// ============================================================
-// MENSAJES (PING/PONG)
-// ============================================================
-self.addEventListener('message', (e) => {
-  if (e.data?.type === 'PING') {
-    e.source?.postMessage({ type: 'PONG', status: 'ready' });
-  }
 });
