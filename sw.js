@@ -1,10 +1,9 @@
-
 /**
  * sw.js — Service Worker GTA V Web Edition
  * v16 — Ultra optimizado
  */
 
-const R2_BASE     = 'https://gta-proxy.kitofree1221.workers.dev';
+const R2_BASE     = 'https://r2-api.apkrprojects.xyz';
 const PREFIX_ROOT = 'mirror/playgta5.com/data';
 const PREFIX_BIN  = 'mirror/playgta5.com/b/8b0b5899ed';
 
