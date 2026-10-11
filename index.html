@@ -242,7 +242,7 @@
     <div id="info-panel">
       <div class="title">Estado del sistema</div>
       <div class="row"><span class="label">Proyecto</span><span class="value">Fan-made</span></div>
-      <div class="row"><span class="label">Build</span><span class="value" id="info-version">v28</span></div>
+      <div class="row"><span class="label">Build</span><span class="value" id="info-version">v29</span></div>
       <div class="row"><span class="label">Service Worker</span><span class="value" id="info-sw">registrando…</span></div>
 
       <hr>
@@ -294,7 +294,7 @@
 </div>
 
 <script type="module">
-console.log('[KITO] index.html cargado — v28');
+console.log('[KITO] index.html cargado — v29');
 window.addEventListener('error', (e) => {
   console.error('[KITO] ERROR:', e.message, 'en', e.filename, ':', e.lineno);
   const hud = document.getElementById('hud');
@@ -636,13 +636,13 @@ const swReady = (async () => {
   try {
     const reg = await navigator.serviceWorker.register('/sw.js', { scope: '/' });
     if (!navigator.serviceWorker.controller) {
-      if (!sessionStorage.getItem('sw_reloaded_v28')) {
-        sessionStorage.setItem('sw_reloaded_v28', '1');
+      if (!sessionStorage.getItem('sw_reloaded_v29')) {
+        sessionStorage.setItem('sw_reloaded_v29', '1');
         location.reload();
         return null;
       }
     } else {
-      sessionStorage.removeItem('sw_reloaded_v28');
+      sessionStorage.removeItem('sw_reloaded_v29');
     }
     await navigator.serviceWorker.ready;
     return reg;
@@ -920,25 +920,21 @@ window.addEventListener('game-start', async () => {
 
   setBoot(70, 'Descargando assets críticos...');
 
-  // ✅ NUEVO: añadidos los RPF de audio a la lista de precarga
+  // ✅ CORREGIDO: solo los assets que SÍ existen en R2
   const CRITICAL = [
-    { url: '/game.wasm',          label: 'Motor WASM' },
-    { url: '/shaders/index.json', label: 'Índice shaders' },
-    { url: '/data/manifest.json', label: 'Manifest' },
-    { url: '/game/x64/audio/sfx/RESIDENT.rpf', label: 'Audio resident' },
-    { url: '/game/x64/audio/sfx/STREAMED_VEHICLES_GRANULAR.rpf', label: 'Audio vehículos' },
+    { url: '/data/manifest.json',  label: 'Manifest' },
+    { url: '/shaders/index.json',  label: 'Índice shaders' },
   ];
   const OPTIONAL = [
     { url: '/shaders/pipelines.json',      label: 'Pipelines' },
     { url: '/data/bootset.json',           label: 'Bootset' },
     { url: '/shaders/pipelines_low.json',  label: 'Pipelines low' },
     { url: '/data/bootset_low.json',       label: 'Bootset low' },
-    { url: '/game/x64/audio/sfx/ANIMALS.rpf', label: 'Audio animales' },
   ];
 
   // Lanza los opcionales en background sin bloquear
   for (const item of OPTIONAL) {
-    fetchWithTimeout(item.url, { cache: 'reload' }, 20000)
+    fetchWithTimeout(item.url, { cache: 'reload' }, 60000)
       .then((r) => { if (!r.ok) console.warn(`[Preload opt] ${item.label}: HTTP ${r.status}`); })
       .catch((e) => console.warn(`[Preload opt] ${item.label}: ${e.message || e}`));
   }
@@ -947,7 +943,7 @@ window.addEventListener('game-start', async () => {
   let preloadCount = 0;
   await Promise.all(CRITICAL.map(async (item) => {
     try {
-      const res = await fetchWithTimeout(item.url, { cache: 'reload' }, 12000);
+      const res = await fetchWithTimeout(item.url, { cache: 'reload' }, 60000);
       if (res.ok) {
         await res.blob();
         console.log(`[Preload] ✓ ${item.label}`);
