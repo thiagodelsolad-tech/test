@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
 <meta name="theme-color" content="#05060a">
 <meta name="description" content="Clon web no oficial de GTA V — Proyecto educativo, sin afiliación con Rockstar Games o Take-Two.">
-<title>GTA V — Web Edition (Fan Project)</title>
+<title>GTA V (Fan Project)</title>
 
 <link rel="preconnect" href="https://gta-proxy.kitofree1221.workers.dev" crossorigin>
 <link rel="dns-prefetch" href="https://gta-proxy.kitofree1221.workers.dev">
@@ -17,9 +17,7 @@
 	#canvas { display: block; position: absolute; left: 0; top: 0;
 		width: 100vw; height: 100vh; background: #000; }
 
-	/* ============================================================
-	   PANTALLA DE ESPERA INICIAL
-	   ============================================================ */
+	/* PANTALLA DE ESPERA INICIAL */
 	#boot-screen {
 		position: fixed; inset: 0; background: #05060a;
 		z-index: 1000;
@@ -75,9 +73,7 @@
 		max-width: 600px; line-height: 1.5;
 	}
 
-	/* ============================================================
-	   PANTALLA DE CARGA PRINCIPAL
-	   ============================================================ */
+	/* PANTALLA DE CARGA PRINCIPAL */
 	#loading { position: fixed; inset: 0; background: #000; overflow: hidden;
 		transition: opacity .8s; z-index: 5; opacity: 0; }
 	#loading.done { opacity: 0; pointer-events: none; }
@@ -268,7 +264,7 @@
     <div id="info-panel">
       <div class="title">Estado del sistema</div>
       <div class="row"><span class="label">Proyecto</span><span class="value">Fan-made / Educativo</span></div>
-      <div class="row"><span class="label">Build</span><span class="value" id="info-version">v20</span></div>
+      <div class="row"><span class="label">Build</span><span class="value" id="info-version">v21</span></div>
       <div class="row"><span class="label">Service Worker</span><span class="value" id="info-sw">registrando…</span></div>
 
       <hr>
@@ -322,6 +318,44 @@
 </div>
 
 <script type="module">
+// ============================================================
+// FILTRO DE ERRORES COSMÉTICOS (no bloquean, solo ensucian la consola)
+// ============================================================
+(function() {
+  const ignore = [
+    /Bink is not available/i,
+    /LookupVar\(.+\) failed/i,
+    /ASSET\.SetPath works best/i,
+    /Unknown option 'wgpu'/i,
+    /POSSIBLE STALL/i,
+    /hang report \d+/i,
+    /Settings file missing/i,
+    /ped HD assets/i,
+    /Couldn't find an enum name/i,
+    /Couldn't find structure definition/i,
+    /Attempting to release NULL/i,
+    /Failed to load resource.*favicon/i,
+    /NetworkAssertf/i,
+    /NetworkVerifyf/i,
+    /Profile Stats Flush/i,
+    /cCommerceManager/i,
+    /camReplayDirector/i,
+    /grcResourceCache::/i,
+    /grcDevice::/i,
+    /writes colour output/i,
+    /Old version of rage effect/i,
+    /Fatal Error: common:\/shaders/i,
+  ];
+  const origE = console.error.bind(console);
+  const origW = console.warn.bind(console);
+  const skip = (args) => {
+    const m = args.map(a => typeof a === 'string' ? a : (a?.message || String(a))).join(' ');
+    return ignore.some(r => r.test(m));
+  };
+  console.error = (...a) => { if (!skip(a)) origE(...a); };
+  console.warn = (...a) => { if (!skip(a)) origW(...a); };
+})();
+
 // ============================================================
 // PANTALLA DE ESPERA
 // ============================================================
@@ -635,8 +669,9 @@ if (!crossOriginIsolated) {
   setBoot(60, 'Preparando canvas...');
   const offscreen = canvas.transferControlToOffscreen();
 
-  const lowParam = q.get('low') || '1';
-  lowMemory = lowParam === '1' || (lowParam !== '0' && navigator.deviceMemory && navigator.deviceMemory <= 4);
+  // FORZADO: low=1 siempre (así funcionaba bien)
+  const lowParam = '1';
+  lowMemory = true;
 
   const LOW_ARGS = ['-textureQuality=0', '-pedVariety=0', '-vehicleVariety=0',
     '-shadowQuality=' + (q.get('shadows') === '1' ? 0 : -1),
@@ -650,7 +685,7 @@ if (!crossOriginIsolated) {
     if (forced) return [+forced[1], +forced[2]];
     const sc = Math.max(0.25, Math.min(2, +(q.get('scale') || 1)));
     let w = innerWidth * devicePixelRatio * sc, h = innerHeight * devicePixelRatio * sc;
-    const cap = lowMemory ? [2560, 1440] : [3840, 2160];
+    const cap = [2560, 1440];
     const k = Math.min(1, cap[0] / w, cap[1] / h);
     w *= k; h *= k;
     return [Math.max(320, Math.round(w / 2) * 2), Math.max(240, Math.round(h / 2) * 2)];
@@ -679,7 +714,7 @@ if (!crossOriginIsolated) {
       ...LOG_ARGS, ...ENGINE_ARGS,
       '-frameLimit=' + (q.get('fps') === '30' ? 2 : q.get('fps') === '0' ? 0 : 1),
       ...(cores <= 2 ? ['-numCores=' + cores] : []),
-      ...(lowMemory ? LOW_ARGS : []),
+      ...LOW_ARGS,
       ...(q.get('args') || '').split(',').filter(Boolean)],
     shotEvery: +(q.get('shot') || 0), shotRt: q.get('shotrt') === '1',
     noHints: q.get('nohints') === '1', noPack: q.get('nopack') === '1',
@@ -690,7 +725,7 @@ if (!crossOriginIsolated) {
     fullConsole: !!q.get('console'), remoteLog, trace: !!q.get('trace'),
     slots: +(q.get('slots') || 4),
     syncPipelines: true,
-    record: !!q.get('record'), lowMemory,
+    record: !!q.get('record'), lowMemory: true,
   }, [offscreen]);
 
   setTimeout(() => {
