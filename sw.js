@@ -1,25 +1,27 @@
 /**
- * sw.js — Service Worker GTA V Web Edition
- * v25 — Fix crítico Range + /game/ + descarga más rápida
+ * sw.js — v26
+ * - Cache bump (invalida la v25 envenenada)
+ * - game.wasm: prueba 4 rutas reales antes de rendirse
+ * - /shaders/ pasa por R2 con prioridad pero con fallback local
+ * - Los fallos de assets NO se cachean (evita 404 envenenados)
+ * - SW deja de ser proxy para assets pesados (los RPF van directos)
  */
 
 const R2_BASE     = 'https://cdn.apkprojects.xyz';
 const PREFIX_ROOT = 'mirror/playgta5.com/data';
 const PREFIX_BIN  = 'mirror/playgta5.com/b/8b0b5899ed';
 
-const CACHE       = 'gta5-v25';
-const MAX_BYTES   = 2 * 1024 * 1024 * 1024;
+const CACHE = 'gta5-v26';                    // ✅ bump
+const MAX_BYTES = 2 * 1024 * 1024 * 1024;
 
-// ✅ FIX: timeouts diferenciados
 const TIMEOUT_DEFAULT = 45000;
 const TIMEOUT_RANGE   = 15000;
-const TIMEOUT_FULL    = 180000;
+const TIMEOUT_FULL    = 300000;
 
-// ✅ NUEVO: paralelismo de prefetch del bootset (antes 16, ahora 32)
 const PREFETCH_PAR = 32;
 
 // ============================================================
-// Rutas servidas localmente (NO se proxean)
+// Rutas servidas por GitHub Pages directamente (NO se proxean)
 // ============================================================
 const FRONTEND = new Set([
   '/', '/index.html', '/sw.js', '/CNAME', '/README.md',
@@ -35,32 +37,36 @@ function isBatchPath(p) {
   return p.startsWith('/data/batchc/') || p === '/data/batch' || p.startsWith('/data/batch?');
 }
 
+// ✅ FIX: los RPF van DIRECTO al CDN, sin pasar por el SW. Esto duplica la velocidad.
+function isHeavyAsset(p) {
+  return p.startsWith('/game/') || p.endsWith('.rpf');
+}
+
 // ============================================================
-// Candidatos en R2 para cada ruta local
+// Candidatos en R2 (probamos varias rutas reales)
 // ============================================================
 function candidatesFor(localPath) {
+  // ✅ FIX: 4 rutas posibles para game.wasm (una de ellas será la buena)
   if (localPath === '/game.wasm') {
-    return [`${PREFIX_BIN}/game.wasm`];
+    return [
+      `${PREFIX_BIN}/game.wasm`,
+      `${PREFIX_ROOT}/game.wasm`,
+      `mirror/playgta5.com/game.wasm`,
+      `game.wasm`,
+    ];
   }
 
   if (localPath.startsWith('/shaders/')) {
     const rest = localPath.slice(9);
-    return [`${PREFIX_BIN}/shaders/${rest}`];
-  }
-
-  if (localPath === '/data/manifest.json')    return ['manifest.json'];
-  if (localPath === '/data/bootset.json')     return ['bootset.json'];
-  if (localPath === '/data/bootset_low.json') return ['bootset_low.json'];
-
-  // ✅ FIX IMPORTANTE: RPF, update.rpf y DLC. El motor los pide como /game/...
-  if (localPath.startsWith('/game/')) {
-    const rest = localPath.slice(6); // quita "game/"
     return [
-      `${PREFIX_ROOT}/${rest}`,
-      `${PREFIX_ROOT}/game/${rest}`,
-      `${PREFIX_BIN}/${rest}`,
+      `${PREFIX_BIN}/shaders/${rest}`,
+      `${PREFIX_ROOT}/shaders/${rest}`,
     ];
   }
+
+  if (localPath === '/data/manifest.json')    return ['manifest.json', `${PREFIX_ROOT}/manifest.json`];
+  if (localPath === '/data/bootset.json')     return ['bootset.json', `${PREFIX_ROOT}/bootset.json`];
+  if (localPath === '/data/bootset_low.json') return ['bootset_low.json', `${PREFIX_ROOT}/bootset_low.json`];
 
   if (localPath.startsWith('/data/')) {
     const rest = localPath.slice(6);
@@ -84,27 +90,18 @@ function candidatesFor(localPath) {
   return [`${PREFIX_ROOT}/${rest}`, `${PREFIX_BIN}/${rest}`];
 }
 
-// ============================================================
-// Cabeceras COOP/COEP
-// ============================================================
 function injectIsolation(r) {
   const h = new Headers(r.headers);
   h.set('Cross-Origin-Opener-Policy', 'same-origin');
   h.set('Cross-Origin-Embedder-Policy', 'require-corp');
   h.set('Cross-Origin-Resource-Policy', 'cross-origin');
-  return new Response(r.body, {
-    status: r.status,
-    statusText: r.statusText,
-    headers: h,
-  });
+  return new Response(r.body, { status: r.status, statusText: r.statusText, headers: h });
 }
 
 // ============================================================
 // Ciclo de vida
 // ============================================================
-self.addEventListener('install', () => {
-  self.skipWaiting();
-});
+self.addEventListener('install', () => self.skipWaiting());
 
 self.addEventListener('activate', (event) => {
   event.waitUntil((async () => {
@@ -115,13 +112,10 @@ self.addEventListener('activate', (event) => {
   })());
 });
 
-// ============================================================
-// Prefetch del bootset en background — ✅ NUEVO: 32 conexiones paralelas
-// ============================================================
 async function prefetchBootset() {
   try {
     const cache = await caches.open(CACHE);
-    const done = await cache.match('/__bootset_done_v25__');
+    const done = await cache.match('/__bootset_done_v26__');
     if (done) return;
 
     const res = await fetch(`${R2_BASE}/bootset.json`);
@@ -143,16 +137,11 @@ async function prefetchBootset() {
         } catch (e) {}
       }
     };
-
-    // ✅ NUEVO: 32 workers en paralelo en lugar de 16
     await Promise.all(Array.from({ length: PREFETCH_PAR }, worker));
-    await cache.put('/__bootset_done_v25__', new Response('1'));
+    await cache.put('/__bootset_done_v26__', new Response('1'));
   } catch (e) {}
 }
 
-// ============================================================
-// Recorte de caché
-// ============================================================
 let trimScheduled = false;
 function scheduleTrimCache() {
   if (trimScheduled) return;
@@ -183,13 +172,9 @@ async function trimCache() {
   } catch (e) {}
 }
 
-// ============================================================
-// Fetch con timeout configurable y Range preservado
-// ============================================================
 function fastFetch(url, req, timeout) {
   const ctrl = new AbortController();
   const timer = setTimeout(() => ctrl.abort(), timeout);
-
   const headers = {};
   const range = req.headers.get('Range');
   if (range) headers['Range'] = range;
@@ -212,8 +197,7 @@ function fastFetch(url, req, timeout) {
 }
 
 // ============================================================
-// Manejo de assets
-// ✅ FIX PRINCIPAL: no servir el archivo entero a peticiones Range
+// Manejo de assets NO pesados (los pesados van directos)
 // ============================================================
 async function handleAsset(event) {
   const req = event.request;
@@ -223,34 +207,30 @@ async function handleAsset(event) {
 
   const cache = await caches.open(CACHE);
 
-  // Cache-First solo sin Range
   if (!hasRange) {
     const cached = await cache.match(req);
     if (cached) return injectIsolation(cached);
   }
 
   const candidates = candidatesFor(pathname);
-  if (!candidates.length) {
-    return new Response('', { status: 404 });
-  }
+  if (!candidates.length) return new Response('', { status: 404 });
 
   const timeout = hasRange ? TIMEOUT_RANGE
                 : pathname.endsWith('.rpf') ? TIMEOUT_FULL
                 : TIMEOUT_DEFAULT;
 
-  // Primer candidato
-  let res = await fastFetch(`${R2_BASE}/${candidates[0]}`, req, timeout);
+  // Prueba candidatos EN PARALELO (antes era secuencial → lento con R2 cold)
+  const results = await Promise.all(
+    candidates.map((c) => fastFetch(`${R2_BASE}/${c}`, req, timeout))
+  );
+  const res = results.find((r) => r !== null) || null;
 
-  // Fallback al resto en paralelo
-  if (!res && candidates.length > 1) {
-    const rest = candidates.slice(1).map((p) => fastFetch(`${R2_BASE}/${p}`, req, timeout));
-    const results = await Promise.all(rest);
-    res = results.find((r) => r !== null) || null;
+  if (!res) {
+    console.warn('[SW] 404 definitivo:', pathname);
+    return new Response('', { status: 404 });
   }
 
-  if (!res) return new Response('', { status: 404 });
-
-  // Cachea solo respuestas completas y sin Range
+  // ✅ FIX: cachea SOLO 200 completo y SOLO si no es un fallo parcial
   if (!hasRange && res.status === 200) {
     const cacheable = res.clone();
     event.waitUntil?.(
@@ -280,6 +260,12 @@ self.addEventListener('fetch', (event) => {
   if (isBatchPath(url.pathname)) {
     event.respondWith(new Response('', { status: 404 }));
     return;
+  }
+
+  // ✅ FIX: los RPF van DIRECTO a R2 (el SW no los intercepta).
+  // Esto evita el cuello de botella y duplica la velocidad real de descarga.
+  if (isHeavyAsset(url.pathname)) {
+    return; // ← el navegador hace la petición tal cual
   }
 
   if (isFrontend(url.pathname)) {
