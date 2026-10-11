@@ -182,9 +182,9 @@
 	#kito-logo small { display: block; font-size: 10px; letter-spacing: 10px;
 		margin-top: 4px; color: rgba(255,255,255,.7); text-shadow: none; font-weight: 400; }
 
-	#info-toggle { position: absolute; right: 24px; top: 90px; width: 36px; height: 36px;
+	#info-toggle { position: absolute; right: 24px; top: 90px; width: 40px; height: 40px;
 		background: rgba(0,0,0,.55); border: 1px solid rgba(150,150,255,.3);
-		border-radius: 50%; color: #a78bfa; font: bold 18px/34px monospace; text-align: center;
+		border-radius: 50%; color: #a78bfa; font: bold 18px/36px monospace; text-align: center;
 		cursor: pointer; backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px);
 		transition: background .2s, transform .2s; z-index: 20; }
 	#info-panel { position: absolute; right: 24px; top: 136px; width: 340px;
@@ -247,6 +247,56 @@
 		font: bold 18px/1.2 Consolas,monospace; font-variant-numeric: tabular-nums;
 		text-shadow: 1px 1px 2px #000, 0 0 3px #000; pointer-events: none; z-index: 10; }
 
+	/* ==================== MOBILE MODE SELECTOR ==================== */
+	#mobile-modes {
+		position: fixed; inset: 0; z-index: 4500;
+		background: rgba(0,0,0,0.88);
+		backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
+		display: none; flex-direction: column; align-items: center; justify-content: center;
+		padding: 20px; gap: 16px;
+		touch-action: manipulation;
+	}
+	#mobile-modes.visible { display: flex; }
+	#mobile-modes .mm-title {
+		font-family: 'Arial Black', sans-serif; font-size: 18px; font-weight: 900;
+		letter-spacing: 4px; color: #fff; margin-bottom: 8px; text-align: center;
+		text-shadow: 0 0 12px rgba(180,120,255,0.6);
+	}
+	#mobile-modes .mm-sub {
+		font-size: 11px; letter-spacing: 3px; color: rgba(200,200,255,0.55);
+		text-transform: uppercase; margin-bottom: 12px; text-align: center;
+	}
+	#mobile-modes .mm-btn {
+		width: 100%; max-width: 380px;
+		padding: 22px 24px;
+		background: rgba(20,15,40,0.7);
+		border: 2px solid rgba(150,150,255,0.35);
+		border-radius: 12px;
+		color: #fff;
+		font-family: 'Arial Black', sans-serif;
+		font-size: 16px; letter-spacing: 2px;
+		cursor: pointer;
+		display: flex; align-items: center; justify-content: space-between;
+		transition: all 0.15s;
+		touch-action: manipulation; -webkit-appearance: none; appearance: none;
+	}
+	#mobile-modes .mm-btn:active {
+		background: rgba(120,90,255,0.55);
+		border-color: #a78bfa;
+		transform: scale(0.98);
+	}
+	#mobile-modes .mm-btn .mm-icon { font-size: 26px; }
+	#mobile-modes .mm-btn .mm-desc {
+		display: block; font-family: 'Consolas', monospace;
+		font-size: 10px; color: rgba(200,200,255,0.55);
+		letter-spacing: 1px; font-weight: 400; margin-top: 3px;
+	}
+	#mobile-modes .mm-btn.back {
+		border-color: rgba(150,150,200,0.3);
+		background: rgba(20,20,30,0.6);
+		font-size: 14px;
+	}
+
 	/* ==================== TOUCH CONTROLS ==================== */
 	#touch-ui {
 		position: fixed; inset: 0; z-index: 4000;
@@ -255,7 +305,6 @@
 	}
 	#touch-ui.active { display: block; }
 
-	/* Zona de look: SOLO mitad derecha, z-index 0 */
 	#touch-look {
 		position: absolute;
 		left: 50%; right: 0; top: 0; bottom: 0;
@@ -315,7 +364,6 @@
 		transform: scale(0.92);
 	}
 
-	/* Diamond A/B/X/Y (bottom-right) */
 	.touch-btn-a, .touch-btn-b, .touch-btn-x, .touch-btn-y {
 		width: 62px; height: 62px; font-size: 20px;
 	}
@@ -324,7 +372,6 @@
 	.touch-btn-b { right: calc(max(20px, env(safe-area-inset-right)) + 32px);  bottom: calc(max(20px, env(safe-area-inset-bottom)) + 88px); }
 	.touch-btn-a { right: calc(max(20px, env(safe-area-inset-right)) + 96px); bottom: calc(max(20px, env(safe-area-inset-bottom)) + 24px); }
 
-	/* Shoulders */
 	.touch-btn-lb, .touch-btn-rb {
 		width: 76px; height: 46px; border-radius: 12px; font-size: 14px;
 	}
@@ -400,11 +447,11 @@
   <div id="ls-stage">
     <div id="ls-screens"></div>
     <div id="kito-logo">KITO<small>WEB EDITION</small></div>
-    <button id="info-toggle" title="Mostrar/ocultar panel (F8)">ℹ</button>
+    <button id="info-toggle" title="Panel (F8)">ℹ</button>
     <div id="info-panel">
       <div class="title">Estado del sistema</div>
       <div class="row"><span class="label">Proyecto</span><span class="value">Fan-made</span></div>
-      <div class="row"><span class="label">Build</span><span class="value" id="info-version">v31</span></div>
+      <div class="row"><span class="label">Build</span><span class="value" id="info-version">v32</span></div>
       <div class="row"><span class="label">Service Worker</span><span class="value" id="info-sw">registrando…</span></div>
       <hr>
       <div class="title">Red</div>
@@ -446,6 +493,13 @@
   <div id="bar"><div id="fill"></div></div>
 </div>
 
+<!-- MOBILE MODE SELECTOR -->
+<div id="mobile-modes">
+  <div class="mm-title" id="mm-title">ELIGE MODO</div>
+  <div class="mm-sub" id="mm-sub">Cómo quieres jugar</div>
+  <div id="mm-buttons"></div>
+</div>
+
 <!-- TOUCH CONTROLS -->
 <div id="touch-ui">
   <div id="touch-look"></div>
@@ -460,12 +514,12 @@
 </div>
 
 <script type="module">
-console.log('[KITO] index.html cargado — v31');
+console.log('[KITO] index.html cargado — v32');
 
 const isTouchDevice = ('ontouchstart' in window) || (navigator.maxTouchPoints || 0) > 0;
 const forceTouchUI = new URLSearchParams(location.search).get('touch') === '1';
 const touchMode = isTouchDevice || forceTouchUI;
-console.log('[KITO] touch=' + isTouchDevice + ' maxTouchPoints=' + navigator.maxTouchPoints + ' forceTouchUI=' + forceTouchUI);
+console.log('[KITO] touch=' + isTouchDevice + ' maxTouchPoints=' + navigator.maxTouchPoints + ' forceTouchUI=' + forceTouchUI + ' → touchMode=' + touchMode);
 
 // Filtro de errores cosméticos
 (function() {
@@ -490,7 +544,7 @@ console.log('[KITO] touch=' + isTouchDevice + ' maxTouchPoints=' + navigator.max
 })();
 
 // ============================================================
-// MÚSICA DE INTRO
+// MÚSICA
 // ============================================================
 const AmbientAudio = (function() {
   let ctx = null, masterGain = null, playing = false;
@@ -675,7 +729,7 @@ const AmbientAudio = (function() {
 })();
 
 // ============================================================
-// DOM refs
+// DOM
 // ============================================================
 const clickScreen = document.getElementById('click-to-start');
 const ctsButton = document.getElementById('cts-button');
@@ -737,14 +791,13 @@ function hideBootScreen() {
 
   const ua = navigator.userAgent || '';
   const isMobileUA = /Android|iPhone|iPad|iPod|Mobile|Tablet|Windows Phone/i.test(ua);
-  const hasTouch = isTouchDevice;
   const smallScreen = Math.min(innerWidth, innerHeight) < 768;
   const hasWebGPU = !!navigator.gpu;
-  const isMobile = isMobileUA || (hasTouch && smallScreen);
+  const isMobile = isMobileUA || (isTouchDevice && smallScreen);
 
   const detected = isMobile ? 'mobile' : 'pc';
   (detected === 'mobile' ? dsMobile : dsPc).classList.add('detected');
-  console.log('[KITO] Device: ' + detected + ' (UA=' + isMobileUA + ' touch=' + hasTouch + ' small=' + smallScreen + ' WebGPU=' + hasWebGPU + ')');
+  console.log('[KITO] Device: ' + detected + ' (UA=' + isMobileUA + ' touch=' + isTouchDevice + ' small=' + smallScreen + ' WebGPU=' + hasWebGPU + ')');
 
   let proceeded = false;
   function proceed() {
@@ -754,7 +807,6 @@ function hideBootScreen() {
     if (cts) cts.style.display = '';
     setTimeout(() => { try { sel.remove(); } catch(e) {} }, 500);
   }
-
   function bind(el, handler) {
     el.addEventListener('click', handler);
     el.addEventListener('touchend', (e) => { e.preventDefault(); handler(e); }, { passive: false });
@@ -838,13 +890,13 @@ const swReady = (async () => {
   try {
     const reg = await navigator.serviceWorker.register('/sw.js', { scope: '/' });
     if (!navigator.serviceWorker.controller) {
-      if (!sessionStorage.getItem('sw_reloaded_v31')) {
-        sessionStorage.setItem('sw_reloaded_v31', '1');
+      if (!sessionStorage.getItem('sw_reloaded_v32')) {
+        sessionStorage.setItem('sw_reloaded_v32', '1');
         location.reload();
         return null;
       }
     } else {
-      sessionStorage.removeItem('sw_reloaded_v31');
+      sessionStorage.removeItem('sw_reloaded_v32');
     }
     await navigator.serviceWorker.ready;
     return reg;
@@ -967,6 +1019,7 @@ const showModes = () => {
   if (waitingChoice && !startMode) {
     document.getElementById('label').textContent = pickingMap ? 'Elige un mapa para continuar' : 'Elige Modo Historia o Sandbox para continuar';
   }
+  syncMobileModeOverlay();
 };
 const choose = (m) => {
   pickingMap = false;
@@ -989,6 +1042,57 @@ addEventListener('keydown', (e) => {
   act(b.dataset.act);
   e.preventDefault(); e.stopImmediatePropagation();
 }, { capture: true });
+
+// ============================================================
+// MOBILE MODE OVERLAY
+// ============================================================
+const mobileModes = document.getElementById('mobile-modes');
+const mmTitle = document.getElementById('mm-title');
+const mmSub = document.getElementById('mm-sub');
+const mmButtons = document.getElementById('mm-buttons');
+let mmBound = false;
+
+function rebuildMobileModeButtons() {
+  mmButtons.innerHTML = '';
+  if (pickingMap) {
+    mmTitle.textContent = 'ELIGE MAPA';
+    mmSub.textContent = 'Qué mapa cargar en Sandbox';
+    addMMButton('map5', '🗺️', 'Mapa GTA V', 'Los Santos + Blaine County', 'mm-btn');
+    addMMButton('map6', '🌆', 'Mapa GTA VI', 'Vice City (experimental)', 'mm-btn');
+    addMMButton('back', '←', 'Atrás', 'Volver a elegir modo', 'mm-btn back');
+  } else {
+    mmTitle.textContent = 'ELIGE MODO';
+    mmSub.textContent = 'Cómo quieres jugar';
+    addMMButton('story', '📖', 'Modo Historia', 'Campaña completa (recomendado)', 'mm-btn');
+    addMMButton('sandbox', '🎮', 'Modo Sandbox', 'Elige mapa libremente', 'mm-btn');
+  }
+}
+function addMMButton(actName, icon, label, desc, cls) {
+  const b = document.createElement('button');
+  b.type = 'button';
+  b.className = cls;
+  b.innerHTML = '<div style="display:flex;align-items:center;gap:14px;text-align:left;">' +
+    '<span class="mm-icon">' + icon + '</span>' +
+    '<span><span>' + label + '</span><span class="mm-desc">' + desc + '</span></span>' +
+    '</div>';
+  const handler = (e) => { e.preventDefault(); e.stopPropagation(); act(actName); };
+  b.addEventListener('click', handler);
+  b.addEventListener('touchend', handler, { passive: false });
+  mmButtons.appendChild(b);
+}
+
+function syncMobileModeOverlay() {
+  if (!touchMode) { mobileModes.classList.remove('visible'); return; }
+  if (waitingChoice && !startCommitted && !startMode) {
+    if (!mmBound) { rebuildMobileModeButtons(); mmBound = true; }
+    else rebuildMobileModeButtons();
+    mobileModes.classList.add('visible');
+  } else {
+    mobileModes.classList.remove('visible');
+    mmBound = false;
+  }
+}
+
 showModes();
 
 // ============================================================
@@ -1028,6 +1132,7 @@ showModes();
       setTimeout(() => { document.getElementById('hud').textContent = ''; }, 15000);
       if (window.__stopSlidingScreens) window.__stopSlidingScreens();
       AmbientAudio.stop();
+      mobileModes.classList.remove('visible');
     }
   };
   const dataEl = document.getElementById('data');
@@ -1115,23 +1220,26 @@ window.addEventListener('game-start', async () => {
 
   const lowParam = q.get('low');
   const lowMemory = lowParam === '1' || (lowParam !== '0' && ((navigator.deviceMemory || 8) <= 4 || touchMode));
+
+  // ✅ MÁS AGRESIVO en móvil
   const LOW_ARGS = lowMemory ? [
     '-textureQuality=0', '-pedVariety=0', '-vehicleVariety=0',
-    '-shadowQuality=' + (q.get('shadows') === '1' ? 0 : -1),
-    '-reflectionQuality=0', '-particleQuality=0', '-grassQuality=0',
+    '-shadowQuality=-1', '-reflectionQuality=0', '-particleQuality=0', '-grassQuality=0',
     '-cityDensity=0', '-lodScale=0', '-pedLodBias=0', '-vehicleLodBias=0',
   ] : [];
-  const cores = +(q.get('cores') || 0) || Math.min(navigator.hardwareConcurrency * 2, touchMode ? 8 : 32);
+
+  const cores = +(q.get('cores') || 0) || Math.min(navigator.hardwareConcurrency * 2, touchMode ? 4 : 32);
+
   const wantSize = () => {
     const forced = /^(\d+)x(\d+)$/.exec(q.get('res') || '');
     if (forced) return [+forced[1], +forced[2]];
-    const sc = Math.max(0.25, Math.min(2, +(q.get('scale') || (touchMode ? 0.6 : 1))));
+    const sc = Math.max(0.25, Math.min(2, +(q.get('scale') || (touchMode ? 0.5 : 1))));
     let w = innerWidth * (devicePixelRatio || 1) * sc;
     let h = innerHeight * (devicePixelRatio || 1) * sc;
-    const cap = lowMemory ? [1280, 720] : [2560, 1440];
+    const cap = lowMemory ? [1024, 600] : [2560, 1440];
     const k = Math.min(1, cap[0] / w, cap[1] / h);
     w *= k; h *= k;
-    return [Math.max(640, Math.round(w / 2) * 2), Math.max(360, Math.round(h / 2) * 2)];
+    return [Math.max(480, Math.round(w / 2) * 2), Math.max(270, Math.round(h / 2) * 2)];
   };
   const startSize = wantSize();
   canvasEl.width = startSize[0];
@@ -1186,6 +1294,10 @@ window.addEventListener('game-start', async () => {
   };
   worker.onerror = (e) => { hud.textContent = 'worker error: ' + e.message; console.error('[KITO] worker error:', e); };
 
+  // ✅ frameLimit fijo a 30 en móvil para reducir carga
+  const fpsParam = q.get('fps');
+  const frameLimit = fpsParam === '0' ? 0 : fpsParam === '60' ? 1 : (touchMode ? 2 : 1);
+
   worker.postMessage({
     canvas: offscreen, base: BASE,
     args: ['-rootdir=/game/', ...(q.get('nogpu') ? [] : ['-wgpu']),
@@ -1194,13 +1306,14 @@ window.addEventListener('game-start', async () => {
       '-nonetwork', '-output',
       '-width=' + startSize[0], '-height=' + startSize[1], '-forceResolution',
       ...LOG_ARGS, ...ENGINE_ARGS,
-      '-frameLimit=' + (q.get('fps') === '30' ? 2 : q.get('fps') === '0' ? 0 : 1),
+      '-frameLimit=' + frameLimit,
       ...(cores <= 2 ? ['-numCores=' + cores] : []),
       ...LOW_ARGS,
       ...(q.get('args') || '').split(',').filter(Boolean)],
     shotEvery: +(q.get('shot') || 0),
     cores, lowMemory,
-    slots: lowMemory ? 2 : 4,
+    // ✅ 2 slots en móvil (menos presión)
+    slots: touchMode ? 2 : (lowMemory ? 2 : 4),
     syncPipelines: false,
     remoteLog: !!remoteLog,
   }, [offscreen]);
@@ -1234,7 +1347,7 @@ for (const type of ['pointerdown', 'keydown']) {
 }
 
 // ============================================================
-// INPUT (keyboard + mouse)
+// INPUT
 // ============================================================
 const VK = {
   Backspace:0x08,Tab:0x09,Enter:0x0D,NumpadEnter:0xFD,Pause:0x13,CapsLock:0x14,Escape:0x1B,Space:0x20,
@@ -1321,13 +1434,14 @@ function installInput(memory, block) {
 }
 
 // ============================================================
-// TOUCH CONTROLS (móvil)
+// TOUCH CONTROLS
 // ============================================================
 function setupTouchControls() {
-  if (!inputRef) { console.warn('[Touch] inputRef no listo todavía'); return; }
+  if (!inputRef) { console.warn('[Touch] inputRef no listo'); return; }
   const ui = document.getElementById('touch-ui');
+  if (ui.classList.contains('active')) return;
   ui.classList.add('active');
-  console.log('[Touch] Controles táctiles activados');
+  console.log('[Touch] Controles activados');
 
   const { keys, w, MX, MY, DX, DY, BTN } = inputRef;
 
@@ -1337,7 +1451,6 @@ function setupTouchControls() {
     Atomics.store(keys, vk, down ? 0x80 : 0);
   }
 
-  // ---- Botones táctiles ----
   document.querySelectorAll('.touch-btn').forEach((btn) => {
     const keyCode = btn.dataset.key;
     const btnId = btn.dataset.btn;
@@ -1361,11 +1474,9 @@ function setupTouchControls() {
     btn.addEventListener('mouseleave', release);
   });
 
-  // ---- Joystick izquierdo ----
   const stick = document.getElementById('touch-stick');
   const knob = document.getElementById('touch-stick-knob');
-  let stickId = null;
-  let stickCX = 0, stickCY = 0, stickR = 0;
+  let stickId = null, stickCX = 0, stickCY = 0, stickR = 0;
 
   function stickStart(e) {
     e.preventDefault(); e.stopPropagation();
@@ -1413,7 +1524,6 @@ function setupTouchControls() {
   stick.addEventListener('touchend', stickEnd, { passive: false });
   stick.addEventListener('touchcancel', stickEnd, { passive: false });
 
-  // ---- Look (mitad derecha) ----
   const look = document.getElementById('touch-look');
   let lookId = null, lastLX = 0, lastLY = 0, lookStartTime = 0, lookMoved = false;
 
@@ -1445,7 +1555,6 @@ function setupTouchControls() {
     for (const t of e.changedTouches) {
       if (t.identifier !== lookId) continue;
       const dur = performance.now() - lookStartTime;
-      // Tap corto = disparo
       if (!lookMoved && dur < 250) {
         Atomics.or(w, BTN, 1 << 0);
         setTimeout(() => { Atomics.and(w, BTN, ~(1 << 0)); }, 120);
