@@ -7,7 +7,6 @@
 <meta name="description" content="Clon web no oficial de GTA V — Proyecto educativo, sin afiliación con Rockstar Games o Take-Two.">
 <title>GTA V — Web Edition (Fan Project)</title>
 
-<!-- Pre-conexión al Worker (sin preload para evitar warnings) -->
 <link rel="preconnect" href="https://gta-proxy.kitofree1221.workers.dev" crossorigin>
 <link rel="dns-prefetch" href="https://gta-proxy.kitofree1221.workers.dev">
 
@@ -147,7 +146,7 @@
 	   LOGO KITO
 	   ============================================================ */
 	#kito-logo {
-		position: absolute; left: 95px; top: 512px;
+		position: absolute; left: 95px; top: 380px;
 		font-family: 'Arial Black', sans-serif;
 		font-size: 92px; font-weight: 900; letter-spacing: 8px; color: #fff;
 		text-shadow:
@@ -187,23 +186,24 @@
 	}
 
 	/* ============================================================
-	   PANEL DE INFORMACIÓN (oculto por defecto)
+	   PANEL DE INFORMACIÓN — AHORA ABAJO
 	   ============================================================ */
 	#info-panel {
-		position: absolute; right: 24px; top: 70px;
-		width: 320px; padding: 14px 16px;
-		background: rgba(0, 0, 0, 0.65);
+		position: absolute; left: 24px; bottom: 36px;
+		width: 300px; padding: 12px 14px;
+		background: rgba(0, 0, 0, 0.75);
 		border: 1px solid rgba(150, 150, 255, 0.18);
 		border-radius: 6px;
 		backdrop-filter: blur(8px);
 		-webkit-backdrop-filter: blur(8px);
 		font-family: 'Consolas', 'Menlo', monospace;
-		font-size: 11px; line-height: 1.6; color: #cdd6f4;
+		font-size: 10.5px; line-height: 1.5; color: #cdd6f4;
 		box-shadow: 0 4px 24px rgba(0, 0, 0, 0.6);
 		z-index: 19;
 		opacity: 0; pointer-events: none;
-		transform: translateY(-8px);
+		transform: translateY(8px);
 		transition: opacity .25s, transform .25s;
+		max-height: 70vh; overflow-y: auto;
 	}
 	#info-panel.visible {
 		opacity: 1; pointer-events: auto;
@@ -216,13 +216,13 @@
 	#info-panel .value.warn  { color: #ffb37c; }
 	#info-panel .value.error { color: #ff7c7c; }
 	#info-panel .title {
-		font-size: 10px; letter-spacing: 3px; text-transform: uppercase;
-		color: #a78bfa; margin-bottom: 8px;
-		padding-bottom: 6px; border-bottom: 1px solid rgba(150, 150, 255, 0.15);
+		font-size: 9px; letter-spacing: 3px; text-transform: uppercase;
+		color: #a78bfa; margin-bottom: 6px;
+		padding-bottom: 5px; border-bottom: 1px solid rgba(150, 150, 255, 0.15);
 	}
 	#info-panel hr {
 		border: 0; border-top: 1px solid rgba(150, 150, 255, 0.1);
-		margin: 8px 0;
+		margin: 6px 0;
 	}
 
 	/* ============================================================
@@ -323,9 +323,6 @@
 <div id="hud"></div>
 <div id="fps"></div>
 
-<!-- ============================================================
-     PANTALLA DE CARGA
-     ============================================================ -->
 <div id="loading">
   <div id="ls-stage">
     <div id="ls-screens">
@@ -346,17 +343,13 @@
 
     <div id="kito-logo">KITO<small>WEB EDITION</small></div>
 
-    <!-- Botón toggle del panel -->
     <button id="info-toggle" title="Mostrar/ocultar panel de información (F8)">ℹ</button>
 
-    <!-- ============================================================
-         PANEL DE INFORMACIÓN (oculto por defecto)
-         ============================================================ -->
     <div id="info-panel">
       <div class="title">Estado del sistema</div>
 
       <div class="row"><span class="label">Proyecto</span><span class="value">Fan-made / Educativo</span></div>
-      <div class="row"><span class="label">Build</span><span class="value" id="info-version">v17</span></div>
+      <div class="row"><span class="label">Build</span><span class="value" id="info-version">v18</span></div>
       <div class="row"><span class="label">Service Worker</span><span class="value" id="info-sw">registrando…</span></div>
 
       <hr>
@@ -377,9 +370,6 @@
       <div class="row"><span class="label">Tiempo</span><span class="value" id="info-time">0s</span></div>
     </div>
 
-    <!-- ============================================================
-         BOTONES DE MODO
-         ============================================================ -->
     <div id="ls-bars">
       <div id="modes" class="ls-bar">
         <button data-act="back"></button>
@@ -410,9 +400,6 @@
   </div>
 </div>
 
-<!-- ============================================================
-     SCRIPT PRINCIPAL
-     ============================================================ -->
 <script type="module">
 // ============================================================
 // 0. PRE-REGISTRO DEL SERVICE WORKER
@@ -469,7 +456,6 @@ function setValue(el, text, cls) {
   el.className = 'value' + (cls ? ' ' + cls : '');
 }
 
-// Toggle del panel con botón
 const infoPanel = document.getElementById('info-panel');
 const infoToggle = document.getElementById('info-toggle');
 infoToggle.addEventListener('click', (e) => {
@@ -477,7 +463,6 @@ infoToggle.addEventListener('click', (e) => {
   infoPanel.classList.toggle('visible');
   infoToggle.classList.toggle('active');
 });
-// Toggle con F8
 addEventListener('keydown', (e) => {
   if (e.code === 'F8') {
     e.preventDefault();
@@ -486,11 +471,9 @@ addEventListener('keydown', (e) => {
   }
 });
 
-// Hardware
 if (navigator.hardwareConcurrency) setValue(info.cores, navigator.hardwareConcurrency);
 if (navigator.deviceMemory) setValue(info.mem, navigator.deviceMemory + ' GB');
 
-// GPU
 (async () => {
   try {
     if (!navigator.gpu) { setValue(info.gpu, 'sin WebGPU', 'error'); return; }
@@ -501,7 +484,6 @@ if (navigator.deviceMemory) setValue(info.mem, navigator.deviceMemory + ' GB');
   } catch (e) { setValue(info.gpu, 'error', 'error'); }
 })();
 
-// Conexión
 if (navigator.connection) {
   const c = navigator.connection;
   const eff = c.effectiveType || '?';
@@ -511,13 +493,11 @@ if (navigator.connection) {
   setValue(info.net, '—');
 }
 
-// SW
 swReady.then((reg) => {
   if (reg) setValue(info.sw, 'activo', 'ok');
   else setValue(info.sw, 'sin SW', 'warn');
 });
 
-// Tiempo
 setInterval(() => {
   const sec = Math.floor((performance.now() - t0) / 1000);
   setValue(info.time, sec + 's');
@@ -532,15 +512,12 @@ setInterval(() => {
     const m = ev.data;
     const memory = /memory|OOM|Aborted\(|RangeError|grow/i.test(m.text);
     if (remoteLog && posted++ < 3) {
-      fetch('/log', {
-        method: 'POST',
-        body: '[page] CRASH (' + m.kind + ', ' + m.thread + '): ' + m.text + '\n',
-      }).catch(() => {});
+      fetch('/log', { method: 'POST', body: '[page] CRASH (' + m.kind + '): ' + m.text + '\n' }).catch(() => {});
     }
     const el = document.getElementById('hud');
     if (el) {
       el.textContent = 'El juego se detuvo (' + m.kind + '): ' + m.text.split('\n')[0].slice(0, 200) +
-        (memory ? ' — parece falta de memoria: cierra otras pestañas y recarga.' : ' — recarga la página.');
+        (memory ? ' — parece falta de memoria.' : ' — recarga la página.');
       el.style.color = '#f96';
     }
     setValue(info.phase, 'error', 'error');
@@ -578,11 +555,7 @@ const ACTS = {
   sandbox: ['Modo Sandbox', 'Espacio',   ['Space']],
   story:   ['Modo Historia','Enter',     ['Enter', 'NumpadEnter']],
 };
-const LOADING = {
-  1: 'Cargando Historia',
-  2: 'Cargando Sandbox: Mapa GTA V',
-  3: 'Cargando Sandbox: Mapa GTA VI',
-};
+const LOADING = { 1: 'Cargando Historia', 2: 'Cargando Sandbox: Mapa GTA V', 3: 'Cargando Sandbox: Mapa GTA VI' };
 
 const modesEl = document.getElementById('modes');
 const modeButtons = [...modesEl.querySelectorAll('button')];
@@ -635,7 +608,7 @@ modesEl.addEventListener('click', (e) => {
 });
 addEventListener('keydown', (e) => {
   if (startCommitted || e.ctrlKey || e.altKey || e.metaKey || !document.getElementById('loading')) return;
-  if (e.code === 'F8') return;   // no interferir con el toggle del panel
+  if (e.code === 'F8') return;
   const b = modeButtons.find((x) => !x.hidden && ACTS[x.dataset.act][2].includes(e.code));
   if (!b) return;
   act(b.dataset.act);
@@ -825,8 +798,7 @@ let lowMemory = false;
 let startSize = [1280, 720], wantSize = null;
 
 if (!crossOriginIsolated) {
-  document.getElementById('label').textContent =
-    'sin aislamiento cross-origin: abre la página por HTTPS.';
+  document.getElementById('label').textContent = 'sin aislamiento cross-origin: abre por HTTPS.';
   document.getElementById('label').style.color = '#e66';
   setValue(info.phase, 'sin aislamiento', 'error');
 } else {
