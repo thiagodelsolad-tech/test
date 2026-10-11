@@ -242,7 +242,7 @@
     <div id="info-panel">
       <div class="title">Estado del sistema</div>
       <div class="row"><span class="label">Proyecto</span><span class="value">Fan-made</span></div>
-      <div class="row"><span class="label">Build</span><span class="value" id="info-version">v27</span></div>
+      <div class="row"><span class="label">Build</span><span class="value" id="info-version">v28</span></div>
       <div class="row"><span class="label">Service Worker</span><span class="value" id="info-sw">registrando…</span></div>
 
       <hr>
@@ -294,7 +294,7 @@
 </div>
 
 <script type="module">
-console.log('[KITO] index.html cargado — v27');
+console.log('[KITO] index.html cargado — v28');
 window.addEventListener('error', (e) => {
   console.error('[KITO] ERROR:', e.message, 'en', e.filename, ':', e.lineno);
   const hud = document.getElementById('hud');
@@ -324,7 +324,7 @@ window.addEventListener('error', (e) => {
 })();
 
 // ============================================================
-// PLAYLIST (mismo bloque que ya tenías)
+// PLAYLIST synthwave (4 pistas rotando)
 // ============================================================
 const AmbientAudio = (function() {
   let ctx = null, masterGain = null, playing = false;
@@ -636,13 +636,13 @@ const swReady = (async () => {
   try {
     const reg = await navigator.serviceWorker.register('/sw.js', { scope: '/' });
     if (!navigator.serviceWorker.controller) {
-      if (!sessionStorage.getItem('sw_reloaded_v27')) {
-        sessionStorage.setItem('sw_reloaded_v27', '1');
+      if (!sessionStorage.getItem('sw_reloaded_v28')) {
+        sessionStorage.setItem('sw_reloaded_v28', '1');
         location.reload();
         return null;
       }
     } else {
-      sessionStorage.removeItem('sw_reloaded_v27');
+      sessionStorage.removeItem('sw_reloaded_v28');
     }
     await navigator.serviceWorker.ready;
     return reg;
@@ -692,7 +692,6 @@ if (navigator.connection) {
 swReady.then((reg) => setValue(info.sw, reg ? 'activo' : 'sin SW', reg ? 'ok' : 'warn'));
 setInterval(() => { const sec = Math.floor((performance.now() - t0) / 1000); setValue(info.time, sec + 's'); }, 1000);
 
-// ✅ NUEVO: muestra el nombre de la pista
 AmbientAudio.onTrack((t) => { if (info.phase && info.phase.textContent.startsWith('♪')) setValue(info.phase, '♪ ' + t.name, 'ok'); });
 
 {
@@ -808,7 +807,7 @@ showModes();
       setValue(info.phase, 'Listo', 'ok');
       setTimeout(() => { document.getElementById('hud').textContent = ''; }, 15000);
       if (window.__stopSlidingScreens) window.__stopSlidingScreens();
-      AmbientAudio.stop(); // ✅ para la música
+      AmbientAudio.stop();
     }
   };
   const dataEl = document.getElementById('data');
@@ -855,6 +854,13 @@ const hud = document.getElementById('hud');
 
 let audioPending = null, audioGesture = false, audioStarted = false;
 let canvasEl = document.getElementById('canvas');
+
+// ✅ NUEVO: fetch con timeout. Evita el cuelgue "6/7" para siempre.
+function fetchWithTimeout(url, opts = {}, timeoutMs = 12000) {
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), timeoutMs);
+  return fetch(url, { ...opts, signal: ctrl.signal }).finally(() => clearTimeout(timer));
+}
 
 window.addEventListener('game-start', async () => {
   setBoot(40, 'Comprobando compatibilidad...');
@@ -914,28 +920,45 @@ window.addEventListener('game-start', async () => {
 
   setBoot(70, 'Descargando assets críticos...');
 
-  // ✅ FIX: preload tolerante. Si un asset falla, NO rompe todo; solo se loguea.
-  const PRELOAD_LIST = [
-    { url: '/data/manifest.json',       label: 'Manifest',  priority: 'high' },
-    { url: '/data/bootset.json',        label: 'Bootset',   priority: 'high' },
-    { url: '/shaders/index.json',       label: 'Shaders',   priority: 'high' },
-    { url: '/shaders/pipelines.json',   label: 'Pipelines', priority: 'high' },
-    { url: '/game.wasm',                label: 'Motor',     priority: 'high' },
-    { url: '/data/bootset_low.json',    label: 'Bootset low', priority: 'low' },
-    { url: '/shaders/pipelines_low.json', label: 'Pipelines low', priority: 'low' },
+  // ✅ CRÍTICO: dos listas separadas.
+  // Los CRÍTICOS bloquean el arranque (con timeout).
+  // Los OPCIONALES se lanzan sin await y no retrasan nada.
+  const CRITICAL = [
+    { url: '/game.wasm',          label: 'Motor WASM' },
+    { url: '/shaders/index.json', label: 'Índice shaders' },
+    { url: '/data/manifest.json', label: 'Manifest' },
   ];
+  const OPTIONAL = [
+    { url: '/shaders/pipelines.json',      label: 'Pipelines' },
+    { url: '/data/bootset.json',           label: 'Bootset' },
+    { url: '/shaders/pipelines_low.json',  label: 'Pipelines low' },
+    { url: '/data/bootset_low.json',       label: 'Bootset low' },
+  ];
+
+  // Lanza los opcionales en background sin bloquear
+  for (const item of OPTIONAL) {
+    fetchWithTimeout(item.url, { cache: 'reload' }, 20000)
+      .then((r) => { if (!r.ok) console.warn(`[Preload opt] ${item.label}: HTTP ${r.status}`); })
+      .catch((e) => console.warn(`[Preload opt] ${item.label}: ${e.message || e}`));
+  }
+
+  // Espera SOLO los críticos, con timeout por item, sin abortar los demás
   let preloadCount = 0;
-  await Promise.all(PRELOAD_LIST.map(async (item) => {
+  await Promise.all(CRITICAL.map(async (item) => {
     try {
-      const res = await fetch(item.url, { cache: 'reload', priority: item.priority, fetchPriority: item.priority });
-      if (res.ok) await res.blob();
-      else console.warn(`[Preload] ${item.label} → HTTP ${res.status} (${item.url})`);
+      const res = await fetchWithTimeout(item.url, { cache: 'reload' }, 12000);
+      if (res.ok) {
+        await res.blob();
+        console.log(`[Preload] ✓ ${item.label}`);
+      } else {
+        console.warn(`[Preload] ${item.label} → HTTP ${res.status} (${item.url})`);
+      }
     } catch (e) {
       console.warn(`[Preload] ${item.label} → ${e.message || e} (${item.url})`);
     }
     preloadCount++;
-    const p = 70 + (preloadCount / PRELOAD_LIST.length) * 25;
-    setBoot(p, `Preparando ${item.label} (${preloadCount}/${PRELOAD_LIST.length})`);
+    const p = 70 + (preloadCount / CRITICAL.length) * 25;
+    setBoot(p, `Preparando ${item.label} (${preloadCount}/${CRITICAL.length})`);
   }));
 
   setBoot(95, 'Iniciando motor...');
@@ -962,8 +985,11 @@ window.addEventListener('game-start', async () => {
       ...(q.get('args') || '').split(',').filter(Boolean)],
     shotEvery: +(q.get('shot') || 0),
     cores, lowMemory,
-    slots: lowMemory ? 4 : 8,
-    syncPipelines: true,
+    // ✅ FIX: 4 slots (menos presión sobre el hilo principal)
+    slots: lowMemory ? 2 : 4,
+    // ✅ FIX CLAVE: false → presenta frames mientras compila pipelines.
+    // Con true el motor bloquea todo hasta terminar las 720 compilaciones → 0 FPS.
+    syncPipelines: false,
     remoteLog: !!remoteLog,
   }, [offscreen]);
 
