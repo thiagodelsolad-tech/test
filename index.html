@@ -62,7 +62,7 @@
 		transition: opacity 0.5s ease-out;
 	}
 	#quality-select.visible { opacity: 1; pointer-events: auto; }
-	.qs-inner { width: min(920px, 92vw); text-align: center; }
+	.qs-inner { width: min(1100px, 94vw); text-align: center; }
 	.qs-title {
 		font-family: 'Arial Black', sans-serif; font-size: 34px; font-weight: 900;
 		letter-spacing: 8px; color: #fff; margin-bottom: 8px;
@@ -73,13 +73,16 @@
 		color: rgba(200, 200, 255, 0.55); margin-bottom: 40px;
 	}
 	.qs-grid {
-		display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px;
+		display: grid; grid-template-columns: repeat(5, 1fr); gap: 12px;
 		margin-bottom: 26px;
+	}
+	@media (max-width: 900px) {
+		.qs-grid { grid-template-columns: repeat(2, 1fr); }
 	}
 	.qs-card {
 		background: rgba(20, 14, 40, 0.65);
 		border: 2px solid rgba(150, 130, 255, 0.25);
-		border-radius: 10px; padding: 22px 12px;
+		border-radius: 10px; padding: 22px 10px;
 		color: #fff; cursor: pointer; font-family: inherit;
 		transition: all 0.2s; text-align: center;
 		backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px);
@@ -98,13 +101,14 @@
 		content: ' ★'; color: #6ac3ff; font-size: 14px;
 	}
 	.qs-name {
-		font-family: 'Arial Black', sans-serif; font-size: 20px; font-weight: 900;
-		letter-spacing: 3px; margin-bottom: 8px;
+		font-family: 'Arial Black', sans-serif; font-size: 18px; font-weight: 900;
+		letter-spacing: 2px; margin-bottom: 8px;
 	}
-	.qs-card[data-q="baja"]  .qs-name { color: #7cffb2; }
-	.qs-card[data-q="media"] .qs-name { color: #6ac3ff; }
-	.qs-card[data-q="alta"]  .qs-name { color: #a78bfa; }
-	.qs-card[data-q="ultra"] .qs-name { color: #ffb37c; }
+	.qs-card[data-q="potato"] .qs-name { color: #ff7c7c; }
+	.qs-card[data-q="baja"]   .qs-name { color: #7cffb2; }
+	.qs-card[data-q="media"]  .qs-name { color: #6ac3ff; }
+	.qs-card[data-q="alta"]   .qs-name { color: #a78bfa; }
+	.qs-card[data-q="ultra"]  .qs-name { color: #ffb37c; }
 	.qs-desc { font-size: 10px; letter-spacing: 1px; color: rgba(220, 220, 255, 0.75); margin-bottom: 10px; }
 	.qs-specs { font-size: 9px; letter-spacing: 0.5px; color: rgba(180, 180, 220, 0.55); line-height: 1.6; }
 	.qs-foot { font-size: 10px; letter-spacing: 3px; text-transform: uppercase; color: rgba(180, 180, 220, 0.5); }
@@ -154,7 +158,7 @@
 	}
 
 	/* ── Pantalla de carga in-game ── */
-	/* FIX: base ya no captura clics y .done ahora gana a .visible por orden + !important */
+	/* FIX: base sin pointer-events, .done gana a .visible con !important */
 	#loading { position: fixed; inset: 0; background: #000; overflow: hidden;
 		transition: opacity .8s; z-index: 5; opacity: 0; pointer-events: none; }
 	#loading.visible { opacity: 1; pointer-events: auto; }
@@ -231,7 +235,6 @@
 		border: 0; background: none; color: #fff; font: 12px sans-serif; cursor: pointer; }
 	#modes button:disabled { cursor: default; }
 	#modes button[hidden] { display: none; }
-	/* FIX: estado .chosen ahora sí tiene estilo (opción activa) */
 	#modes button.chosen { color: #7cffb2; text-shadow: 0 0 6px rgba(124,255,178,.6); }
 	#modes.ask button:not(:disabled) .ls-key { animation: ls-ask 1.2s ease-in-out infinite; }
 	@keyframes ls-ask { 50% { opacity: .35; } }
@@ -324,12 +327,17 @@
 <div id="quality-select">
   <div class="qs-inner">
     <div class="qs-title">CONFIGURACIÓN GRÁFICA</div>
-    <div class="qs-sub">Elige un preset · teclas 1-4 · podrás cambiarlo recargando</div>
+    <div class="qs-sub">Elige un preset · teclas 0-4 · podrás cambiarlo recargando</div>
     <div class="qs-grid">
+      <button class="qs-card" data-q="potato" type="button">
+        <div class="qs-name">MÍNIMO</div>
+        <div class="qs-desc">1 GB VRAM · 2 GB RAM</div>
+        <div class="qs-specs">480p · sin sombras<br>texturas comprimidas · 2 hilos IO</div>
+      </button>
       <button class="qs-card" data-q="baja" type="button">
         <div class="qs-name">BAJA</div>
         <div class="qs-desc">PC básico · 4 GB RAM</div>
-        <div class="qs-specs">720p · sin sombras<br>texturas compat · 6 hilos IO</div>
+        <div class="qs-specs">720p · sin sombras<br>texturas compat · 4 hilos IO</div>
       </button>
       <button class="qs-card" data-q="media" type="button">
         <div class="qs-name">MEDIA</div>
@@ -360,7 +368,7 @@
   <div class="ee-msg" id="ee-msg">El motor 3D no ha respondido en el tiempo esperado.</div>
   <div class="ee-hint" id="ee-hint">
     Prueba una de estas soluciones:<br>
-    · Elige un preset más bajo (BAJA)<br>
+    · Elige un preset más bajo (MÍNIMO)<br>
     · Añade <b>?nogpu=1</b> a la URL para desactivar WebGPU<br>
     · Cierra otras pestañas y programas pesados<br>
     · Actualiza Chrome/Edge a la última versión
@@ -368,7 +376,7 @@
   <div class="ee-actions">
     <button class="ee-primary" id="ee-retry">REINTENTAR</button>
     <button class="ee-secondary" id="ee-nogpu">PROBAR SIN GPU (?nogpu=1)</button>
-    <button class="ee-secondary" id="ee-lower">PROBAR PRESET BAJA</button>
+    <button class="ee-secondary" id="ee-lower">PROBAR PRESET MÍNIMO</button>
     <button class="ee-secondary" id="ee-clearcache">LIMPIAR CACHÉ Y REINTENTAR</button>
   </div>
 </div>
@@ -392,7 +400,7 @@
     <div id="info-panel">
       <div class="title">Estado del sistema</div>
       <div class="row"><span class="label">Proyecto</span><span class="value">Fan-made</span></div>
-      <div class="row"><span class="label">Build</span><span class="value" id="info-version">v30</span></div>
+      <div class="row"><span class="label">Build</span><span class="value" id="info-version">v31</span></div>
       <div class="row"><span class="label">Service Worker</span><span class="value" id="info-sw">registrando…</span></div>
 
       <hr>
@@ -404,6 +412,7 @@
       <hr>
       <div class="title">Hardware</div>
       <div class="row"><span class="label">GPU</span><span class="value" id="info-gpu">detectando…</span></div>
+      <div class="row"><span class="label">VRAM</span><span class="value" id="info-vram">— MB</span></div>
       <div class="row"><span class="label">Núcleos</span><span class="value" id="info-cores">—</span></div>
       <div class="row"><span class="label">Memoria</span><span class="value" id="info-mem">— GB</span></div>
 
@@ -444,12 +453,7 @@
 </div>
 
 <script type="module">
-console.log('[KITO] index.html cargado — v30 + fix texturas + watchdog');
-window.addEventListener('error', (e) => {
-  console.error('[KITO] ERROR:', e.message, 'en', e.filename, ':', e.lineno);
-  const hud = document.getElementById('hud');
-  if (hud && !hud.textContent) hud.textContent = 'Error: ' + e.message;
-});
+console.log('[KITO] index.html cargado — v31 + fix texturas + watchdog + VRAM detection');
 
 /* FIX: helper seguro para sessionStorage (modo privado / iframes sandbox) */
 const safeSession = {
@@ -459,13 +463,22 @@ const safeSession = {
   clear() { try { sessionStorage.clear(); } catch (e) {} },
 };
 
+window.addEventListener('error', (e) => {
+  console.error('[KITO] ERROR:', e.message, 'en', e.filename, ':', e.lineno);
+  const hud = document.getElementById('hud');
+  if (hud && !hud.textContent) hud.textContent = 'Error: ' + e.message;
+});
+
 // Filtro cosmético
 (function() {
   const ignore = [
     /Bink is not available/i, /LookupVar\(.+\) failed/i,
     /ASSET\.SetPath works best/i, /Unknown option 'wgpu'/i,
     /Unknown option 'textureCompression'/i, /Unknown option 'noCompressedTextures'/i,
-    /Unknown option 'srgbMode'/i,
+    /Unknown option 'srgbMode'/i, /Unknown option 'mipBias'/i,
+    /Unknown option 'maxTextureSize'/i, /Unknown option 'texturePoolMB'/i,
+    /Unknown option 'textureStreamingMB'/i, /Unknown option 'noReflections'/i,
+    /Unknown option 'noShadowCache'/i,
     /Settings file missing/i, /ped HD assets/i,
     /Attempting to release NULL/i, /Failed to load resource.*favicon/i,
     /NetworkAssertf/i, /NetworkVerifyf/i, /Profile Stats Flush/i,
@@ -696,71 +709,127 @@ let worldReady = false;
 let watchdogTimer = null;
 const WATCHDOG_MS = 90000;
 
-// ── Presets de calidad gráfica (con fix de texturas) ───────
+// ── Presets de calidad gráfica ─────────────────────────────
+// Notas sobre texturas:
+//  · -textureCompression=1  → texturas comprimidas (MENOS VRAM, ~4×)
+//  · -textureCompression=0  → descomprimidas (más VRAM, GPUs potentes)
+//  · -noCompressedTextures  → NUNCA en GPUs con poca VRAM (bloquea carga)
+//  · -mipBias=N             → fuerza mipmaps más pequeños (VRAM ↓)
+//  · -maxTextureSize=N      → corta texturas grandes (VRAM ↓↓)
 const QUALITY = {
+  // ─── NUEVO: 1 GB VRAM / iGPU vieja / 2-4 GB RAM ───
+  potato: {
+    label: 'Mínimo', res: [854, 480], slots: 2, coresCap: 1,
+    lowVram: true,
+    args: [
+      '-textureQuality=0', '-shadowQuality=-1', '-reflectionQuality=-1',
+      '-particleQuality=0', '-grassQuality=0', '-cityDensity=0',
+      '-lodScale=0', '-pedVariety=0', '-vehicleVariety=0',
+      '-pedLodBias=0', '-vehicleLodBias=0',
+      '-textureCompression=1',     // comprimidas = ahorra VRAM
+      '-mipBias=2',                // baja 2 niveles de mipmap
+      '-maxTextureSize=256',       // nada >256×256
+      '-texturePoolMB=96',
+      '-textureStreamingMB=64',
+      '-srgbMode=linear',
+      '-noReflections',
+      '-noShadowCache',
+    ],
+    preloadOptional: false,
+  },
   baja: {
-    label: 'Baja', res: [1280, 720], slots: 6, coresCap: 2,
+    label: 'Baja', res: [1280, 720], slots: 4, coresCap: 2,
+    lowVram: false,
     args: [
       '-textureQuality=0', '-shadowQuality=-1', '-reflectionQuality=0',
       '-particleQuality=0', '-grassQuality=0', '-cityDensity=0',
       '-lodScale=0', '-pedVariety=0', '-vehicleVariety=0',
       '-pedLodBias=0', '-vehicleLodBias=0',
-      '-textureCompression=0',
-      '-noCompressedTextures',
+      '-textureCompression=1',     // FIX: comprimidas, NO -noCompressedTextures
+      '-mipBias=1',
+      '-maxTextureSize=512',
       '-srgbMode=linear',
     ],
     preloadOptional: false,
   },
   media: {
-    label: 'Media', res: [1600, 900], slots: 8, coresCap: 4,
+    label: 'Media', res: [1600, 900], slots: 6, coresCap: 4,
+    lowVram: false,
     args: [
       '-textureQuality=1', '-shadowQuality=0', '-reflectionQuality=0',
       '-particleQuality=1', '-grassQuality=1', '-cityDensity=1',
       '-lodScale=1', '-pedVariety=1', '-vehicleVariety=1',
-      '-textureCompression=0',
-      '-noCompressedTextures',
+      '-textureCompression=1',
       '-srgbMode=linear',
     ],
     preloadOptional: true,
   },
   alta: {
     label: 'Alta', res: [1920, 1080], slots: 10, coresCap: 6,
+    lowVram: false,
     args: [
       '-textureQuality=2', '-shadowQuality=1', '-reflectionQuality=1',
       '-particleQuality=2', '-grassQuality=2', '-cityDensity=2',
       '-lodScale=2', '-pedVariety=2', '-vehicleVariety=2',
       '-textureCompression=0',
-      '-noCompressedTextures',
       '-srgbMode=linear',
     ],
     preloadOptional: true,
   },
   ultra: {
     label: 'Ultra', res: [2560, 1440], slots: 12, coresCap: 8,
+    lowVram: false,
     args: [
       '-textureQuality=3', '-shadowQuality=2', '-reflectionQuality=2',
       '-particleQuality=3', '-grassQuality=3', '-cityDensity=3',
       '-lodScale=3', '-pedVariety=3', '-vehicleVariety=3',
       '-textureCompression=0',
-      '-noCompressedTextures',
       '-srgbMode=linear',
     ],
     preloadOptional: true,
   },
 };
 
-function recommendQuality() {
-  const mem = navigator.deviceMemory || 8;
-  const cores = navigator.hardwareConcurrency || 4;
-  const gpuTxt = document.getElementById('info-gpu')?.textContent || '';
-  if (mem <= 4 || cores <= 2) return 'baja';
-  if (mem <= 8 || /intel|uhd|iris|integrated|sin adaptador|error/i.test(gpuTxt)) return 'media';
-  if (mem <= 16) return 'alta';
-  return 'ultra';
-}
+// ── Detección de VRAM vía WebGL (rápida, síncrona después del await) ──
+let detectedVramMB = 0;
+const vramPromise = (async () => {
+  try {
+    const c = document.createElement('canvas');
+    const gl = c.getContext('webgl2') || c.getContext('webgl');
+    if (!gl) return 0;
+    const dbg = gl.getExtension('WEBGL_debug_renderer_info');
+    const renderer = (dbg && gl.getParameter(dbg.UNMASKED_RENDERER_WEBGL)) || '';
 
-// ── Detección temprana de WebGPU ───────────────────────────
-/* FIX: convertir en promesa para evitar race condition con el arranque */
+    // 1) Algunos drivers exponen memoria directamente:
+    const memExt = gl.getParameter(0x9049 /* GPU_MEMORY_INFO_DEDICATED_VIDMEM_NVX */) ||
+                   gl.getParameter(gl.GPU_MEMORY_INFO_DEDICATED_VIDMEM_NVX);
+    if (typeof memExt === 'number' && memExt > 0 && memExt < 1e9) {
+      detectedVramMB = Math.round(memExt / 1024);
+    }
+
+    // 2) Heurística si no la expone:
+    if (!detectedVramMB) {
+      if (/nvidia|geforce|rtx|gtx|radeon rx|arc a/i.test(renderer))     detectedVramMB = 2048;
+      else if (/iris xe|radeon vega|radeon 6|radeon 7/i.test(renderer)) detectedVramMB = 1024;
+      else if (/intel.*(hd|uhd) ?[2-5]/i.test(renderer))                detectedVramMB = 512;
+      else if (/intel|uhd|gma|mali|adreno|powervr|swiftshader|llvmpipe/i.test(renderer)) detectedVramMB = 512;
+      else detectedVramMB = 1024; // conservador por defecto
+    }
+    console.log('[KITO] VRAM ~' + detectedVramMB + ' MB (' + renderer.slice(0, 60) + ')');
+
+    // Si <1.5 GB y el usuario no ha elegido aún, forzar potato UNA vez
+    if (detectedVramMB < 1536 && !safeSession.get('gta5_quality') && !safeSession.get('vram_forced')) {
+      safeSession.set('gta5_quality', 'potato');
+      safeSession.set('vram_forced', '1');
+      console.warn('[KITO] VRAM baja detectada → forzando preset MÍNIMO');
+      location.reload();
+      return detectedVramMB;
+    }
+    return detectedVramMB;
+  } catch (e) { return 0; }
+})();
+
+// ── Detección temprana de WebGPU (promesa para evitar race) ──
 let hasWebGPU = false;
 const hasWebGPUPromise = (async () => {
   try {
@@ -770,6 +839,24 @@ const hasWebGPUPromise = (async () => {
     return hasWebGPU;
   } catch (e) { hasWebGPU = false; return false; }
 })();
+
+function recommendQuality() {
+  // 0) VRAM detectada manda
+  if (detectedVramMB && detectedVramMB < 1536) return 'potato';
+  if (detectedVramMB && detectedVramMB < 2560) return 'baja';
+
+  const mem   = navigator.deviceMemory  || 8;
+  const cores = navigator.hardwareConcurrency || 4;
+  const gpuTxt = (document.getElementById('info-gpu')?.textContent || '').toLowerCase();
+
+  if (mem <= 2 || cores <= 2) return 'potato';
+  const lowGpuRe = /(intel.*(hd|uhd) ?[2-5]\d{2}|gma|mali-4|adreno [1-4]\d{2}|powervr|swiftshader|llvmpipe|microsoft basic)/i;
+  if (lowGpuRe.test(gpuTxt)) return 'potato';
+  if (mem <= 4 || /intel|uhd|iris|integrated|sin adaptador|error/i.test(gpuTxt)) return 'baja';
+  if (mem <= 8)  return 'media';
+  if (mem <= 16) return 'alta';
+  return 'ultra';
+}
 
 const qualitySelect = document.getElementById('quality-select');
 const qsFoot = document.getElementById('qs-foot');
@@ -784,14 +871,15 @@ function showEngineError(reason) {
   if (bootScreen) { bootScreen.classList.add('hidden'); }
   eeMsg.textContent = reason || 'Error desconocido en el motor.';
   engineError.classList.add('visible');
-  if (/wgpu|webgpu|adapter/i.test(reason || '')) {
+  const r = reason || '';
+  if (/wgpu|webgpu|adapter/i.test(r)) {
     eeHint.innerHTML = 'Parece un problema con WebGPU. Prueba:<br>· Añade <b>?nogpu=1</b> a la URL (usa WebGL2)<br>· Actualiza los drivers de tu GPU<br>· Prueba en Chrome/Edge actualizado';
-  } else if (/memoria|memory|OOM|allocation/i.test(reason || '')) {
-    eeHint.innerHTML = 'Parece falta de memoria. Prueba:<br>· Cierra otras pestañas y programas<br>· Elige <b>BAJA</b><br>· Reduce la resolución del monitor';
-  } else if (/textura|texture/i.test(reason || '')) {
-    eeHint.innerHTML = 'Problema con el streaming de texturas. Prueba:<br>· <b>LIMPIAR CACHÉ Y REINTENTAR</b> (borra SW + caché corrupto)<br>· Elige <b>BAJA</b><br>· Añade <b>?nogpu=1</b>';
+  } else if (/memoria|memory|OOM|allocation|vram/i.test(r)) {
+    eeHint.innerHTML = 'Parece falta de memoria/VRAM. Prueba:<br>· Cierra otras pestañas y programas<br>· Elige <b>MÍNIMO</b><br>· Reduce la resolución del monitor';
+  } else if (/textura|texture/i.test(r)) {
+    eeHint.innerHTML = 'Problema con el streaming de texturas. Prueba:<br>· <b>LIMPIAR CACHÉ Y REINTENTAR</b> (borra SW + caché corrupto)<br>· Elige <b>MÍNIMO</b><br>· Añade <b>?nogpu=1</b>';
   } else {
-    eeHint.innerHTML = 'Prueba una de estas soluciones:<br>· Elige un preset más bajo (BAJA)<br>· Añade <b>?nogpu=1</b> a la URL<br>· Cierra otras pestañas y programas<br>· Limpia la caché del navegador';
+    eeHint.innerHTML = 'Prueba una de estas soluciones:<br>· Elige un preset más bajo (MÍNIMO)<br>· Añade <b>?nogpu=1</b> a la URL<br>· Cierra otras pestañas y programas<br>· Limpia la caché del navegador';
   }
 }
 function hideEngineError() { engineError.classList.remove('visible'); }
@@ -806,7 +894,7 @@ document.getElementById('ee-nogpu').addEventListener('click', () => {
   location.href = u.toString();
 });
 document.getElementById('ee-lower').addEventListener('click', () => {
-  safeSession.set('gta5_quality', 'baja');
+  safeSession.set('gta5_quality', 'potato');
   const u = new URL(location.href);
   u.searchParams.set('nogpu', '1');
   location.href = u.toString();
@@ -855,11 +943,13 @@ function startGame() {
     qualitySelect.classList.add('visible');
     const rec = recommendQuality();
     document.querySelectorAll('.qs-card').forEach((c) => c.classList.toggle('recommended', c.dataset.q === rec));
-    qsFoot.textContent = 'Recomendado para tu equipo: ' + QUALITY[rec].label;
+    qsFoot.textContent = 'Recomendado para tu equipo: ' + QUALITY[rec].label +
+      (detectedVramMB ? ' · VRAM ~' + detectedVramMB + ' MB' : '');
   }, 700);
 }
 
 function launchWithQuality(q) {
+  if (!QUALITY[q]) q = 'baja';
   selectedQuality = q;
   safeSession.set('gta5_quality', q);
   qualitySelect.classList.remove('visible');
@@ -875,8 +965,13 @@ qualitySelect.addEventListener('click', (e) => {
 });
 addEventListener('keydown', (e) => {
   if (!gameStarted || selectedQuality) return;
-  const map = { Digit1: 'baja', Digit2: 'media', Digit3: 'alta', Digit4: 'ultra',
-                Numpad1: 'baja', Numpad2: 'media', Numpad3: 'alta', Numpad4: 'ultra' };
+  const map = {
+    Digit0: 'potato', Numpad0: 'potato',
+    Digit1: 'baja',   Numpad1: 'baja',
+    Digit2: 'media',  Numpad2: 'media',
+    Digit3: 'alta',   Numpad3: 'alta',
+    Digit4: 'ultra',  Numpad4: 'ultra',
+  };
   if (map[e.code]) { e.preventDefault(); launchWithQuality(map[e.code]); }
 }, { capture: true });
 
@@ -979,7 +1074,6 @@ const swReady = (async () => {
   try {
     const reg = await navigator.serviceWorker.register('/sw.js', { scope: '/' });
     if (!navigator.serviceWorker.controller) {
-      /* FIX: sessionStorage envuelto en try/catch */
       if (!safeSession.get('sw_reloaded_v30')) {
         safeSession.set('sw_reloaded_v30', '1');
         location.reload();
@@ -1006,6 +1100,7 @@ const info = {
   speed: document.getElementById('info-speed'),
   bytes: document.getElementById('info-bytes'),
   gpu: document.getElementById('info-gpu'),
+  vram: document.getElementById('info-vram'),
   cores: document.getElementById('info-cores'),
   mem: document.getElementById('info-mem'),
   phase: document.getElementById('info-phase'),
@@ -1018,11 +1113,18 @@ infoToggle.addEventListener('click', (e) => { e.stopPropagation(); infoPanel.cla
 addEventListener('keydown', (e) => { if (e.code === 'F8') { e.preventDefault(); infoPanel.classList.toggle('visible'); } });
 if (navigator.hardwareConcurrency) setValue(info.cores, navigator.hardwareConcurrency);
 if (navigator.deviceMemory) setValue(info.mem, navigator.deviceMemory + ' GB');
+
+// VRAM en panel
+vramPromise.then((mb) => {
+  if (mb > 0) setValue(info.vram, mb + ' MB', mb < 1536 ? 'error' : mb < 2560 ? 'warn' : 'ok');
+  else setValue(info.vram, '—');
+});
+
 (async () => {
   try {
-    if (!navigator.gpu) { setValue(info.gpu, 'sin WebGPU', 'error'); return; }
+    if (!navigator.gpu) { setValue(info.gpu, 'sin WebGPU', 'warn'); return; }
     const adapter = await navigator.gpu.requestAdapter();
-    if (!adapter) { setValue(info.gpu, 'sin adaptador', 'error'); return; }
+    if (!adapter) { setValue(info.gpu, 'sin adaptador', 'warn'); return; }
     const i = adapter.info || {};
     setValue(info.gpu, (i.description || i.vendor || 'GPU').slice(0, 24), 'ok');
   } catch (e) { setValue(info.gpu, 'error', 'error'); }
@@ -1042,19 +1144,19 @@ AmbientAudio.onTrack((t) => { if (info.phase && info.phase.textContent.startsWit
   let posted = 0;
   new BroadcastChannel('game-crash').onmessage = (ev) => {
     const m = ev.data;
-    const memory = /memory|OOM|Aborted\(|RangeError|grow/i.test(m.text);
+    const memory = /memory|OOM|Aborted\(|RangeError|grow|vram|allocate/i.test(m.text);
     const texIssue = /texture|textura|rpf|stream/i.test(m.text);
     if (remoteLog && posted++ < 3) fetch('/log', { method: 'POST', body: '[page] CRASH (' + m.kind + '): ' + m.text + '\n' }).catch(() => {});
     const el = document.getElementById('hud');
     if (el) {
       el.textContent = 'El juego se detuvo (' + m.kind + '): ' + m.text.split('\n')[0].slice(0, 200)
-        + (memory ? ' — falta de memoria.' : texIssue ? ' — problema de texturas.' : ' — recarga.');
+        + (memory ? ' — falta de memoria/VRAM.' : texIssue ? ' — problema de texturas.' : ' — recarga.');
       el.style.color = '#f96';
     }
     setValue(info.phase, 'error', 'error');
     if (!worldReady) {
       showEngineError('El motor se detuvo antes de cargar el mundo. '
-        + (memory ? 'Parece falta de memoria.' : texIssue ? 'Parece problema con el streaming de texturas.' : m.text.split('\n')[0].slice(0, 120)));
+        + (memory ? 'Parece falta de memoria/VRAM.' : texIssue ? 'Parece problema con el streaming de texturas.' : m.text.split('\n')[0].slice(0, 120)));
     }
   };
 }
@@ -1195,5 +1297,342 @@ showModes();
     if (dirty) { dirty = false; consoleEl.textContent = lastLine; }
     fill.style.width = shown.toFixed(1) + '%';
     pct.textContent = Math.round(shown) + '%';
-    /* FIX: quitar .visible al pasar a .done para que el overlay desaparezca de verdad */
-    if
+    if (ready && shown > 99.5) {
+      loading.classList.remove('visible');
+      loading.classList.add('done');
+      setTimeout(() => { try { loading.remove(); } catch(e) {} }, 1000);
+      loadingGone = true;
+      clearInterval(progressTimer);
+    }
+  }, 50);
+}
+const hud = document.getElementById('hud');
+
+{
+  const el = document.getElementById('fps');
+  let on = false;
+  new BroadcastChannel('game-fps').onmessage = (ev) => { if (on) el.textContent = Math.round(ev.data.fps) + ' FPS'; };
+  const isToggle = (e) => e.code === 'Equal' && !e.ctrlKey && !e.altKey && !e.metaKey;
+  addEventListener('keydown', (e) => { if (!isToggle(e)) return; e.stopImmediatePropagation(); e.preventDefault(); if (e.repeat) return; on = !on; el.style.display = on ? 'block' : 'none'; if (on) el.textContent = '-- FPS'; }, { capture: true });
+  addEventListener('keyup', (e) => { if (isToggle(e)) { e.stopImmediatePropagation(); e.preventDefault(); } }, { capture: true });
+}
+
+let audioPending = null, audioGesture = false, audioStarted = false;
+let canvasEl = document.getElementById('canvas');
+
+function fetchWithTimeout(url, opts = {}, timeoutMs = 12000) {
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), timeoutMs);
+  return fetch(url, { ...opts, signal: ctrl.signal }).finally(() => clearTimeout(timer));
+}
+
+function autoFallbackNoGpu(reason) {
+  if (q.get('nogpu') === '1') return false;
+  if (safeSession.get('auto_nogpu_v30') === '1') return false;
+  safeSession.set('auto_nogpu_v30', '1');
+  console.warn('[KITO] Auto-fallback a nogpu:', reason);
+  const u = new URL(location.href);
+  u.searchParams.set('nogpu', '1');
+  location.href = u.toString();
+  return true;
+}
+
+window.addEventListener('game-start', async () => {
+  setBoot(40, 'Comprobando compatibilidad...');
+  if (remoteLog) {
+    const queue = []; let sending = false;
+    const pump = async () => {
+      if (sending || !queue.length) return; sending = true;
+      const body = queue.splice(0).join('\n');
+      try { await fetch('/log', { method: 'POST', body, keepalive: body.length < 60000 }); } catch (e) {}
+      sending = false; pump();
+    };
+    new BroadcastChannel('game-log').onmessage = (ev) => { queue.push(ev.data); if (queue.length > 20000) queue.splice(0, queue.length - 20000); pump(); };
+  }
+  addEventListener('pagehide', () => { try { new BroadcastChannel('game-io').postMessage('close'); } catch (e) {} });
+
+  if (!crossOriginIsolated) {
+    document.getElementById('label').textContent = 'sin aislamiento cross-origin: usa HTTPS o http://localhost';
+    document.getElementById('label').style.color = '#e66';
+    setValue(info.phase, 'sin aislamiento', 'error');
+    setBoot(100, 'Error: sin aislamiento');
+    setTimeout(() => {
+      hideBootScreen();
+      showEngineError('La página no está aislada cross-origin. Necesitas servir por HTTPS o por http://localhost (no por IP LAN).');
+    }, 500);
+    return;
+  }
+
+  setValue(info.phase, 'arrancando', 'ok');
+  setBoot(60, 'Preparando canvas...');
+
+  const cfg = QUALITY[selectedQuality] || QUALITY[recommendQuality()];
+  const lowMemory = !!cfg.lowVram || cfg === QUALITY.baja;
+  const LOW_ARGS = cfg.args;
+  const cores = Math.min(cfg.coresCap, navigator.hardwareConcurrency || 4) * 2;
+  const wantSize = () => {
+    const forced = /^(\d+)x(\d+)$/.exec(q.get('res') || '');
+    if (forced) return [+forced[1], +forced[2]];
+    const sc = Math.max(0.25, Math.min(2, +(q.get('scale') || 1)));
+    let w = innerWidth * (devicePixelRatio || 1) * sc;
+    let h = innerHeight * (devicePixelRatio || 1) * sc;
+    const [capW, capH] = cfg.res;
+    const k = Math.min(1, capW / w, capH / h);
+    w *= k; h *= k;
+    return [Math.max(640, Math.round(w / 2) * 2), Math.max(360, Math.round(h / 2) * 2)];
+  };
+  const startSize = wantSize();
+
+  // FIX: forzar resolución más baja en potato (1 GB no aguanta 854×480 con DPR 2)
+  if (cfg === QUALITY.potato) {
+    startSize[0] = Math.min(startSize[0], 854);
+    startSize[1] = Math.min(startSize[1], 480);
+  }
+
+  setValue(info.phase, 'preset ' + cfg.label, 'ok');
+  canvasEl.width = startSize[0];
+  canvasEl.height = startSize[1];
+  canvasEl.style.width = '100vw';
+  canvasEl.style.height = '100vh';
+  if (cfg === QUALITY.potato) canvasEl.style.imageRendering = 'pixelated';
+  const offscreen = canvasEl.transferControlToOffscreen();
+
+  const LOG_ARGS = q.get('verbose') ? [] : ['-Script_all=warning', '-replay_all=warning'];
+  const ENGINE_ARGS = ['-fastscriptcore'];
+
+  setBoot(70, 'Descargando assets críticos...');
+
+  const CRITICAL = [
+    { url: '/data/manifest.json',  label: 'Manifest' },
+    { url: '/shaders/index.json',  label: 'Índice shaders' },
+  ];
+  const OPTIONAL = [
+    { url: '/shaders/pipelines.json',      label: 'Pipelines' },
+    { url: '/data/bootset.json',           label: 'Bootset' },
+    { url: '/shaders/pipelines_low.json',  label: 'Pipelines low' },
+    { url: '/data/bootset_low.json',       label: 'Bootset low' },
+  ];
+
+  if (cfg.preloadOptional) {
+    for (const item of OPTIONAL) {
+      fetchWithTimeout(item.url, { cache: 'force-cache' }, 90000)
+        .then((r) => { if (!r.ok) console.warn(`[Preload opt] ${item.label}: HTTP ${r.status}`); })
+        .catch((e) => console.warn(`[Preload opt] ${item.label}: ${e.message || e}`));
+    }
+  }
+
+  let preloadDone = 0;
+  await Promise.allSettled(CRITICAL.map(async (item) => {
+    try {
+      const res = await fetchWithTimeout(item.url, { cache: 'reload' }, 45000);
+      if (res.ok) { await res.blob(); console.log(`[Preload] ✓ ${item.label}`); }
+      else console.warn(`[Preload] ${item.label} → HTTP ${res.status}`);
+    } catch (e) { console.warn(`[Preload] ${item.label} → ${e.message || e}`); }
+    preloadDone++;
+    const p = 70 + (preloadDone / CRITICAL.length) * 25;
+    setBoot(p, `Cargando ${preloadDone}/${CRITICAL.length} — ${item.label}`);
+  }));
+
+  setBoot(95, 'Iniciando motor (' + cfg.label + ')...');
+
+  const wantsNoGpu = q.get('nogpu') === '1';
+  // FIX: esperar a la promesa de WebGPU para evitar race
+  const webgpuOk = await hasWebGPUPromise;
+  if (!wantsNoGpu && !webgpuOk) {
+    if (autoFallbackNoGpu('WebGPU no disponible')) return;
+  }
+
+  const worker = new Worker(BASE + '/loader.js');
+  worker.onmessage = (ev) => {
+    if (ev.data.hud) hud.textContent = ev.data.hud;
+    if (ev.data.input) installInput(ev.data.input.memory, ev.data.input.block);
+    if (ev.data.audio) { audioPending = ev.data.audio; tryStartAudio(); }
+  };
+  worker.onerror = (e) => {
+    const msg = (e && (e.error && e.error.message)) || e.message || 'worker error';
+
+    // FIX: OOM de VRAM → fallback automático a potato + WebGL2 (una sola vez)
+    if (/out of memory|oom|vram|texture.*alloc|failed to allocate/i.test(msg)
+        && selectedQuality !== 'potato'
+        && !safeSession.get('oom_fallback')) {
+      console.warn('[KITO] OOM de VRAM → fallback a potato + WebGL2');
+      safeSession.set('oom_fallback', '1');
+      safeSession.set('gta5_quality', 'potato');
+      const u = new URL(location.href);
+      u.searchParams.set('nogpu', '1');
+      location.href = u.toString();
+      return;
+    }
+
+    hud.textContent = 'worker error: ' + msg;
+    console.error('[KITO] worker error:', e);
+    if (/wgpu|webgpu|adapter|device.*lost/i.test(msg)) {
+      if (autoFallbackNoGpu('worker: ' + msg)) return;
+    }
+    if (!worldReady) showEngineError('El motor 3D se detuvo: ' + msg);
+  };
+
+  engineStarted = true;
+  armWatchdog();
+
+  const workerArgs = [
+    '-rootdir=/game/',
+    ...(wantsNoGpu ? [] : ['-wgpu']),
+    '-nodisplaycalibration', '-noSocialClub', '-pc:nosocialclub',
+    ...(q.get('newgame') === '1' ? ['-noautoload'] : []),
+    '-nonetwork', '-output',
+    '-width=' + startSize[0], '-height=' + startSize[1], '-forceResolution',
+    ...LOG_ARGS, ...ENGINE_ARGS,
+    '-frameLimit=' + (q.get('fps') === '30' ? 2 : q.get('fps') === '0' ? 0 : 1),
+    ...(cfg === QUALITY.potato || cfg === QUALITY.baja ? ['-numCores=2'] : []),
+    ...LOW_ARGS,
+    ...(q.get('args') || '').split(',').filter(Boolean)
+  ];
+
+  worker.postMessage({
+    canvas: offscreen, base: BASE,
+    args: workerArgs,
+    shotEvery: +(q.get('shot') || 0),
+    cores, lowMemory,
+    slots: cfg.slots,
+    syncPipelines: false,
+    remoteLog: !!remoteLog,
+  }, [offscreen]);
+
+  setTimeout(() => { setBoot(100, 'Iniciando motor...'); hideBootScreen(); }, 500);
+});
+
+function tryStartAudio() {
+  if (!audioPending || !audioGesture || audioStarted) return;
+  audioStarted = true;
+  (async () => {
+    try {
+      const ctx = new AudioContext({ sampleRate: 48000, latencyHint: 'interactive' });
+      await ctx.audioWorklet.addModule(BASE + '/audio-worklet.js');
+      const node = new AudioWorkletNode(ctx, 'game-audio', {
+        numberOfInputs: 0, numberOfOutputs: 1, outputChannelCount: [2],
+        processorOptions: audioPending,
+      });
+      node.connect(ctx.destination);
+      await ctx.resume();
+      addEventListener('pointerdown', () => ctx.resume());
+      addEventListener('keydown', () => ctx.resume());
+    } catch (e) { audioStarted = false; postLog('[page] audio failed: ' + e); }
+  })();
+}
+for (const type of ['pointerdown', 'keydown']) {
+  addEventListener(type, () => { audioGesture = true; tryStartAudio(); }, { capture: true });
+}
+
+const VK = {
+  Backspace:0x08,Tab:0x09,Enter:0x0D,NumpadEnter:0xFD,Pause:0x13,CapsLock:0x14,Escape:0x1B,Space:0x20,
+  PageUp:0x21,PageDown:0x22,End:0x23,Home:0x24,ArrowLeft:0x25,ArrowUp:0x26,ArrowRight:0x27,ArrowDown:0x28,
+  PrintScreen:0x2C,Insert:0x2D,Delete:0x2E,MetaLeft:0x5B,MetaRight:0x5C,ContextMenu:0x5D,
+  NumpadMultiply:0x6A,NumpadAdd:0x6B,NumpadSubtract:0x6D,NumpadDecimal:0x6E,NumpadDivide:0x6F,
+  NumLock:0x90,ScrollLock:0x91,ShiftLeft:0xA0,ShiftRight:0xA1,ControlLeft:0xA2,ControlRight:0xA3,
+  AltLeft:0xA4,AltRight:0xA5,Semicolon:0xBA,Equal:0xBB,Comma:0xBC,Minus:0xBD,Period:0xBE,
+  Slash:0xBF,Backquote:0xC0,BracketLeft:0xDB,Backslash:0xDC,BracketRight:0xDD,Quote:0xDE,IntlBackslash:0xE2,
+};
+for (let i = 0; i < 10; i++) { VK['Digit' + i] = 0x30 + i; VK['Numpad' + i] = 0x60 + i; }
+for (let i = 0; i < 26; i++) VK['Key' + String.fromCharCode(65 + i)] = 0x41 + i;
+for (let i = 1; i <= 24; i++) VK['F' + i] = 0x6F + i;
+
+// FIX: protección contra buffer no compartido (Atomics falla en SAB normales)
+function installInput(memory, block) {
+  let keys, w, U16;
+  try {
+    keys = new Uint8Array(memory.buffer, block, 256);
+    w = new Int32Array(memory.buffer, block + 256, 10);
+    U16 = new Uint16Array(memory.buffer, block + 256 + 40, 64);
+  } catch (e) {
+    console.error('[KITO] installInput: buffer no válido', e);
+    return;
+  }
+  const useAtomics = typeof SharedArrayBuffer !== 'undefined' && memory.buffer instanceof SharedArrayBuffer;
+  const A = {
+    store: (arr, i, v) => { try { if (useAtomics) Atomics.store(arr, i, v); else arr[i] = v; } catch(e) { arr[i] = v; } },
+    load:  (arr, i)    => { try { if (useAtomics) return Atomics.load(arr, i); return arr[i]; } catch(e) { return arr[i]; } },
+    add:   (arr, i, v) => { try { if (useAtomics) Atomics.add(arr, i, v); else arr[i] += v; } catch(e) { arr[i] += v; } },
+    or:    (arr, i, v) => { try { if (useAtomics) Atomics.or(arr, i, v); else arr[i] |= v; } catch(e) { arr[i] |= v; } },
+    and:   (arr, i, v) => { try { if (useAtomics) Atomics.and(arr, i, v); else arr[i] &= v; } catch(e) { arr[i] &= v; } },
+  };
+  const MX=0,MY=1,DX=2,DY=3,DZ=4,BTN=5,FOCUS=6,LOCKED=7,HEAD=8,TAIL=9;
+  let W = canvasEl.width || 1280, H = canvasEl.height || 720;
+  let ext, startModeWordLocal = null;
+  try {
+    ext = new Int32Array(memory.buffer, block + 424, 4);
+    startModeWordLocal = new Int32Array(memory.buffer, block + 440, 1);
+    startModeWord = startModeWordLocal;
+    if (startMode) A.store(startModeWordLocal, 0, startMode);
+    A.store(ext, 2, W); A.store(ext, 3, H);
+  } catch (e) {
+    console.warn('[KITO] extensiones de input no disponibles', e);
+  }
+  A.store(w, FOCUS, document.hasFocus() ? 1 : 0);
+  A.store(w, MX, W >> 1); A.store(w, MY, H >> 1);
+  const passThrough = (e) => e.code === 'F12' || e.code === 'F11' ||
+    (e.ctrlKey && e.shiftKey && (e.code === 'KeyI' || e.code === 'KeyJ')) || e.code === 'F5' || e.code === 'F8';
+  const FLY_ALIAS = { KeyI:'Numpad8',KeyK:'Numpad2',KeyJ:'Numpad4',KeyL:'Numpad6',KeyU:'Numpad7',KeyO:'Numpad9' };
+  const held = new Set();
+  const syncFlyAlias = () => { for (const [src, target] of Object.entries(FLY_ALIAS)) A.store(keys, VK[target], held.has(src) || held.has(target) ? 0x80 : 0); };
+  addEventListener('keydown', (e) => {
+    if (passThrough(e)) return;
+    e.preventDefault();
+    const vk = VK[e.code];
+    if (vk) A.store(keys, vk, 0x80);
+    held.add(e.code); syncFlyAlias();
+    if (e.key.length === 1 && !e.ctrlKey && !e.metaKey) {
+      const head = A.load(w, HEAD);
+      if (((head - A.load(w, TAIL)) >>> 0) < 64) { U16[head & 63] = e.key.charCodeAt(0); A.store(w, HEAD, (head + 1) | 0); }
+    } else if (e.code === 'Backspace' || e.code === 'Enter') {
+      const head = A.load(w, HEAD);
+      if (((head - A.load(w, TAIL)) >>> 0) < 64) { U16[head & 63] = e.code === 'Enter' ? 13 : 8; A.store(w, HEAD, (head + 1) | 0); }
+    }
+  });
+  addEventListener('keyup', (e) => {
+    if (passThrough(e)) return;
+    e.preventDefault();
+    const vk = VK[e.code];
+    if (vk) A.store(keys, vk, 0);
+    held.delete(e.code); syncFlyAlias();
+  });
+  const releaseAll = () => { held.clear(); for (let i = 0; i < 256; i++) A.store(keys, i, 0); A.store(w, BTN, 0); };
+  addEventListener('focus', () => A.store(w, FOCUS, 1));
+  addEventListener('blur', () => { A.store(w, FOCUS, 0); releaseAll(); });
+  const locked = () => document.pointerLockElement === canvasEl;
+
+  // FIX: bounds check de e.button (evita undefined → bit 0)
+  const BTN_MAP = [0, 2, 1, 3, 4];
+  const btnBit = (b) => (b >= 0 && b < BTN_MAP.length) ? (1 << BTN_MAP[b]) : 0;
+
+  canvasEl.addEventListener('mousedown', (e) => {
+    if (!locked()) canvasEl.requestPointerLock({ unadjustedMovement: true }).catch(() => canvasEl.requestPointerLock());
+    const bit = btnBit(e.button);
+    if (bit) A.or(w, BTN, bit);
+    e.preventDefault();
+  });
+  addEventListener('mouseup', (e) => {
+    const bit = btnBit(e.button);
+    if (bit) A.and(w, BTN, ~bit);
+  });
+  addEventListener('contextmenu', (e) => e.preventDefault());
+  document.addEventListener('pointerlockchange', () => A.store(w, LOCKED, locked() ? 1 : 0));
+  addEventListener('mousemove', (e) => {
+    const r = canvasEl.getBoundingClientRect();
+    if (locked()) {
+      A.add(w, DX, e.movementX); A.add(w, DY, e.movementY);
+      A.store(w, MX, Math.max(0, Math.min(W - 1, A.load(w, MX) + e.movementX)));
+      A.store(w, MY, Math.max(0, Math.min(H - 1, A.load(w, MY) + e.movementY)));
+    } else {
+      const x = Math.max(0, Math.min(W - 1, Math.round((e.clientX - r.left) * W / r.width)));
+      const y = Math.max(0, Math.min(H - 1, Math.round((e.clientY - r.top) * H / r.height)));
+      A.add(w, DX, x - A.load(w, MX)); A.add(w, DY, y - A.load(w, MY));
+      A.store(w, MX, x); A.store(w, MY, y);
+    }
+  });
+  let wheelAccum = 0;
+  addEventListener('wheel', (e) => { e.preventDefault(); wheelAccum += -e.deltaY / (e.deltaMode === 0 ? 100 : e.deltaMode === 1 ? 3 : 1); const n = Math.trunc(wheelAccum); if (n) { wheelAccum -= n; A.add(w, DZ, n); } }, { passive: false });
+}
+</script>
+</body>
+</html>
