@@ -1,8 +1,9 @@
+
 <!doctype html>
 <html lang="es">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<meta name="viewport" content="width=device-width,initial-scale=1">
 <meta name="theme-color" content="#05060a">
 <meta name="description" content="Clon web no oficial de GTA V — Proyecto educativo.">
 <title>GTA V — Web Edition (Fan Project)</title>
@@ -52,6 +53,62 @@
 		position: absolute; bottom: 40px; font-size: 10px; color: rgba(180, 180, 200, 0.4);
 		text-align: center; padding: 0 40px; max-width: 600px; line-height: 1.6; pointer-events: none;
 	}
+
+	/* ── Selector de calidad gráfica ── */
+	#quality-select {
+		position: fixed; inset: 0; z-index: 6000;
+		background: radial-gradient(ellipse at center, #0a0618 0%, #000 100%);
+		display: flex; align-items: center; justify-content: center;
+		opacity: 0; pointer-events: none;
+		transition: opacity 0.5s ease-out;
+	}
+	#quality-select.visible { opacity: 1; pointer-events: auto; }
+	.qs-inner { width: min(920px, 92vw); text-align: center; }
+	.qs-title {
+		font-family: 'Arial Black', sans-serif; font-size: 34px; font-weight: 900;
+		letter-spacing: 8px; color: #fff; margin-bottom: 8px;
+		text-shadow: 0 0 20px rgba(180, 120, 255, 0.7);
+	}
+	.qs-sub {
+		font-size: 11px; letter-spacing: 4px; text-transform: uppercase;
+		color: rgba(200, 200, 255, 0.55); margin-bottom: 40px;
+	}
+	.qs-grid {
+		display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px;
+		margin-bottom: 26px;
+	}
+	.qs-card {
+		background: rgba(20, 14, 40, 0.65);
+		border: 2px solid rgba(150, 130, 255, 0.25);
+		border-radius: 10px; padding: 22px 12px;
+		color: #fff; cursor: pointer; font-family: inherit;
+		transition: all 0.2s; text-align: center;
+		backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px);
+	}
+	.qs-card:hover {
+		background: rgba(120, 90, 255, 0.25);
+		border-color: #a78bfa; transform: translateY(-3px);
+		box-shadow: 0 8px 24px rgba(120, 90, 255, 0.3);
+	}
+	.qs-card:active { transform: translateY(0); }
+	.qs-card.recommended {
+		border-color: #6ac3ff;
+		box-shadow: 0 0 20px rgba(106, 195, 255, 0.4);
+	}
+	.qs-card.recommended .qs-name::after {
+		content: ' ★'; color: #6ac3ff; font-size: 14px;
+	}
+	.qs-name {
+		font-family: 'Arial Black', sans-serif; font-size: 20px; font-weight: 900;
+		letter-spacing: 3px; margin-bottom: 8px;
+	}
+	.qs-card[data-q="baja"]  .qs-name { color: #7cffb2; }
+	.qs-card[data-q="media"] .qs-name { color: #6ac3ff; }
+	.qs-card[data-q="alta"]  .qs-name { color: #a78bfa; }
+	.qs-card[data-q="ultra"] .qs-name { color: #ffb37c; }
+	.qs-desc { font-size: 10px; letter-spacing: 1px; color: rgba(220, 220, 255, 0.75); margin-bottom: 10px; }
+	.qs-specs { font-size: 9px; letter-spacing: 0.5px; color: rgba(180, 180, 220, 0.55); line-height: 1.6; }
+	.qs-foot { font-size: 10px; letter-spacing: 3px; text-transform: uppercase; color: rgba(180, 180, 220, 0.5); }
 
 	#sound-toggle {
 		position: fixed; top: 24px; right: 24px; width: 40px; height: 40px;
@@ -221,6 +278,36 @@
   </div>
 </div>
 
+<div id="quality-select">
+  <div class="qs-inner">
+    <div class="qs-title">CONFIGURACIÓN GRÁFICA</div>
+    <div class="qs-sub">Elige un preset · teclas 1-4 · podrás cambiarlo recargando</div>
+    <div class="qs-grid">
+      <button class="qs-card" data-q="baja" type="button">
+        <div class="qs-name">BAJA</div>
+        <div class="qs-desc">PC básico · 4 GB RAM</div>
+        <div class="qs-specs">720p · sin sombras<br>sin reflejos · 3 hilos IO</div>
+      </button>
+      <button class="qs-card" data-q="media" type="button">
+        <div class="qs-name">MEDIA</div>
+        <div class="qs-desc">GPU integrada · 8 GB RAM</div>
+        <div class="qs-specs">900p · sombras básicas<br>reflejos off · 5 hilos IO</div>
+      </button>
+      <button class="qs-card" data-q="alta" type="button">
+        <div class="qs-name">ALTA</div>
+        <div class="qs-desc">GPU dedicada · 16 GB RAM</div>
+        <div class="qs-specs">1080p · sombras + reflejos<br>densidad media · 7 hilos IO</div>
+      </button>
+      <button class="qs-card" data-q="ultra" type="button">
+        <div class="qs-name">ULTRA</div>
+        <div class="qs-desc">High-end · 32 GB RAM</div>
+        <div class="qs-specs">1440p · todo al máximo<br>LOD completo · 9 hilos IO</div>
+      </button>
+    </div>
+    <div class="qs-foot" id="qs-foot">Analizando hardware…</div>
+  </div>
+</div>
+
 <button id="sound-toggle" title="Activar/desactivar sonido">🔊</button>
 
 <div id="boot-screen">
@@ -312,6 +399,7 @@ window.addEventListener('error', (e) => {
     /cCommerceManager/i, /camReplayDirector/i,
     /grcResourceCache::/i, /grcDevice::/i, /writes colour output/i,
     /cloudflareinsights/i, /flip invoke buffers/i,
+    /powerPreference option is currently ignored/i,
   ];
   const origE = console.error.bind(console);
   const origW = console.warn.bind(console);
@@ -324,7 +412,7 @@ window.addEventListener('error', (e) => {
 })();
 
 // ============================================================
-// PLAYLIST synthwave (4 pistas rotando)
+// PLAYLIST synthwave
 // ============================================================
 const AmbientAudio = (function() {
   let ctx = null, masterGain = null, playing = false;
@@ -526,19 +614,105 @@ const soundToggle = document.getElementById('sound-toggle');
 const bootStatus = document.getElementById('boot-status');
 const bootBar = document.getElementById('boot-bar-fill');
 
+// ── Presets de calidad gráfica ─────────────────────────────
+const QUALITY = {
+  baja: {
+    label: 'Baja', res: [1280, 720], slots: 3, coresCap: 2,
+    args: [
+      '-textureQuality=0', '-shadowQuality=-1', '-reflectionQuality=0',
+      '-particleQuality=0', '-grassQuality=0', '-cityDensity=0',
+      '-lodScale=0', '-pedVariety=0', '-vehicleVariety=0',
+      '-pedLodBias=0', '-vehicleLodBias=0',
+    ],
+    preloadOptional: false,
+  },
+  media: {
+    label: 'Media', res: [1600, 900], slots: 5, coresCap: 4,
+    args: [
+      '-textureQuality=1', '-shadowQuality=0', '-reflectionQuality=0',
+      '-particleQuality=1', '-grassQuality=1', '-cityDensity=1',
+      '-lodScale=1', '-pedVariety=1', '-vehicleVariety=1',
+    ],
+    preloadOptional: true,
+  },
+  alta: {
+    label: 'Alta', res: [1920, 1080], slots: 7, coresCap: 6,
+    args: [
+      '-textureQuality=2', '-shadowQuality=1', '-reflectionQuality=1',
+      '-particleQuality=2', '-grassQuality=2', '-cityDensity=2',
+      '-lodScale=2', '-pedVariety=2', '-vehicleVariety=2',
+    ],
+    preloadOptional: true,
+  },
+  ultra: {
+    label: 'Ultra', res: [2560, 1440], slots: 9, coresCap: 8,
+    args: [
+      '-textureQuality=3', '-shadowQuality=2', '-reflectionQuality=2',
+      '-particleQuality=3', '-grassQuality=3', '-cityDensity=3',
+      '-lodScale=3', '-pedVariety=3', '-vehicleVariety=3',
+    ],
+    preloadOptional: true,
+  },
+};
+
+function recommendQuality() {
+  const mem = navigator.deviceMemory || 8;
+  const cores = navigator.hardwareConcurrency || 4;
+  const gpuTxt = document.getElementById('info-gpu')?.textContent || '';
+  if (mem <= 4 || cores <= 2) return 'baja';
+  if (mem <= 8 || /intel|uhd|iris|integrated|sin adaptador|error/i.test(gpuTxt)) return 'media';
+  if (mem <= 16) return 'alta';
+  return 'ultra';
+}
+
+const qualitySelect = document.getElementById('quality-select');
+const qsFoot = document.getElementById('qs-foot');
+let selectedQuality = null;
+try { selectedQuality = sessionStorage.getItem('gta5_quality'); } catch (e) {}
+
 let gameStarted = false;
 function startGame() {
   if (gameStarted) return;
   gameStarted = true;
-  console.log('[KITO] 🚀 Arrancando...');
+  console.log('[KITO] 🚀 Preparando...');
   try { AmbientAudio.init(); AmbientAudio.start(); soundToggle.textContent = '🔊'; soundToggle.classList.remove('muted'); }
   catch (e) { console.warn('[Audio]', e); }
   clickScreen.classList.add('hidden');
   setTimeout(() => { try { clickScreen.remove(); } catch(e) {} }, 900);
+
+  if (selectedQuality && QUALITY[selectedQuality]) {
+    launchWithQuality(selectedQuality);
+    return;
+  }
+  setTimeout(() => {
+    qualitySelect.classList.add('visible');
+    const rec = recommendQuality();
+    document.querySelectorAll('.qs-card').forEach((c) => c.classList.toggle('recommended', c.dataset.q === rec));
+    qsFoot.textContent = 'Recomendado para tu equipo: ' + QUALITY[rec].label;
+  }, 700);
+}
+
+function launchWithQuality(q) {
+  selectedQuality = q;
+  try { sessionStorage.setItem('gta5_quality', q); } catch (e) {}
+  qualitySelect.classList.remove('visible');
+  setTimeout(() => { try { qualitySelect.remove(); } catch(e) {} }, 600);
   bootScreen.classList.add('visible');
-  setBoot(5, 'Iniciando...');
+  setBoot(5, 'Iniciando — preset ' + QUALITY[q].label + '...');
   window.dispatchEvent(new Event('game-start'));
 }
+
+qualitySelect.addEventListener('click', (e) => {
+  const card = e.target.closest('.qs-card');
+  if (card && !selectedQuality) launchWithQuality(card.dataset.q);
+});
+addEventListener('keydown', (e) => {
+  if (!gameStarted || selectedQuality) return;
+  const map = { Digit1: 'baja', Digit2: 'media', Digit3: 'alta', Digit4: 'ultra',
+                Numpad1: 'baja', Numpad2: 'media', Numpad3: 'alta', Numpad4: 'ultra' };
+  if (map[e.code]) { e.preventDefault(); launchWithQuality(map[e.code]); }
+}, { capture: true });
+
 ctsButton.addEventListener('click', (e) => { e.stopPropagation(); startGame(); });
 clickScreen.addEventListener('click', startGame);
 document.addEventListener('keydown', (e) => {
@@ -636,7 +810,6 @@ const swReady = (async () => {
   try {
     const reg = await navigator.serviceWorker.register('/sw.js', { scope: '/' });
     if (!navigator.serviceWorker.controller) {
-      // ↓↓↓ clave Linux: coincide con CACHE = 'gta5-v30' del SW ↓↓↓
       if (!sessionStorage.getItem('sw_reloaded_v30')) {
         sessionStorage.setItem('sw_reloaded_v30', '1');
         location.reload();
@@ -856,7 +1029,6 @@ const hud = document.getElementById('hud');
 let audioPending = null, audioGesture = false, audioStarted = false;
 let canvasEl = document.getElementById('canvas');
 
-// ✅ fetch con timeout
 function fetchWithTimeout(url, opts = {}, timeoutMs = 12000) {
   const ctrl = new AbortController();
   const timer = setTimeout(() => ctrl.abort(), timeoutMs);
@@ -878,8 +1050,6 @@ window.addEventListener('game-start', async () => {
   addEventListener('pagehide', () => { try { new BroadcastChannel('game-io').postMessage('close'); } catch (e) {} });
 
   if (!crossOriginIsolated) {
-    // En Linux probando desde http://192.168.x.x esto falla.
-    // Solución: servir por https:// o por http://localhost / http://127.0.0.1
     document.getElementById('label').textContent = 'sin aislamiento cross-origin: usa HTTPS o http://localhost';
     document.getElementById('label').style.color = '#e66';
     setValue(info.phase, 'sin aislamiento', 'error');
@@ -891,27 +1061,23 @@ window.addEventListener('game-start', async () => {
   setValue(info.phase, 'arrancando', 'ok');
   setBoot(60, 'Preparando canvas...');
 
-  const lowParam = q.get('low');
-  const lowMemory = lowParam === '1' || (lowParam !== '0' && (navigator.deviceMemory || 8) <= 4);
-  const LOW_ARGS = lowMemory ? [
-    '-textureQuality=0', '-pedVariety=0', '-vehicleVariety=0',
-    '-shadowQuality=' + (q.get('shadows') === '1' ? 0 : -1),
-    '-reflectionQuality=0', '-particleQuality=0', '-grassQuality=0',
-    '-cityDensity=0', '-lodScale=0', '-pedLodBias=0', '-vehicleLodBias=0',
-  ] : [];
-  const cores = +(q.get('cores') || 0) || navigator.hardwareConcurrency * 2;
+  const cfg = QUALITY[selectedQuality] || QUALITY[recommendQuality()];
+  const lowMemory = cfg === QUALITY.baja;
+  const LOW_ARGS = cfg.args;
+  const cores = Math.min(cfg.coresCap, navigator.hardwareConcurrency || 4) * 2;
   const wantSize = () => {
     const forced = /^(\d+)x(\d+)$/.exec(q.get('res') || '');
     if (forced) return [+forced[1], +forced[2]];
     const sc = Math.max(0.25, Math.min(2, +(q.get('scale') || 1)));
     let w = innerWidth * (devicePixelRatio || 1) * sc;
     let h = innerHeight * (devicePixelRatio || 1) * sc;
-    const cap = lowMemory ? [1920, 1080] : [2560, 1440];
-    const k = Math.min(1, cap[0] / w, cap[1] / h);
+    const [capW, capH] = cfg.res;
+    const k = Math.min(1, capW / w, capH / h);
     w *= k; h *= k;
     return [Math.max(640, Math.round(w / 2) * 2), Math.max(360, Math.round(h / 2) * 2)];
   };
   const startSize = wantSize();
+  setValue(info.phase, 'preset ' + cfg.label, 'ok');
   canvasEl.width = startSize[0];
   canvasEl.height = startSize[1];
   canvasEl.style.width = '100vw';
@@ -923,7 +1089,6 @@ window.addEventListener('game-start', async () => {
 
   setBoot(70, 'Descargando assets críticos...');
 
-  // ✅ Solo los assets que SÍ existen en R2
   const CRITICAL = [
     { url: '/data/manifest.json',  label: 'Manifest' },
     { url: '/shaders/index.json',  label: 'Índice shaders' },
@@ -935,33 +1100,27 @@ window.addEventListener('game-start', async () => {
     { url: '/data/bootset_low.json',       label: 'Bootset low' },
   ];
 
-  // Lanza los opcionales en background sin bloquear
-  for (const item of OPTIONAL) {
-    fetchWithTimeout(item.url, { cache: 'reload' }, 60000)
-      .then((r) => { if (!r.ok) console.warn(`[Preload opt] ${item.label}: HTTP ${r.status}`); })
-      .catch((e) => console.warn(`[Preload opt] ${item.label}: ${e.message || e}`));
+  if (cfg.preloadOptional) {
+    for (const item of OPTIONAL) {
+      fetchWithTimeout(item.url, { cache: 'force-cache' }, 90000)
+        .then((r) => { if (!r.ok) console.warn(`[Preload opt] ${item.label}: HTTP ${r.status}`); })
+        .catch((e) => console.warn(`[Preload opt] ${item.label}: ${e.message || e}`));
+    }
   }
 
-  // Espera SOLO los críticos, con timeout por item
-  let preloadCount = 0;
-  await Promise.all(CRITICAL.map(async (item) => {
+  let preloadDone = 0;
+  await Promise.allSettled(CRITICAL.map(async (item) => {
     try {
-      const res = await fetchWithTimeout(item.url, { cache: 'reload' }, 60000);
-      if (res.ok) {
-        await res.blob();
-        console.log(`[Preload] ✓ ${item.label}`);
-      } else {
-        console.warn(`[Preload] ${item.label} → HTTP ${res.status} (${item.url})`);
-      }
-    } catch (e) {
-      console.warn(`[Preload] ${item.label} → ${e.message || e} (${item.url})`);
-    }
-    preloadCount++;
-    const p = 70 + (preloadCount / CRITICAL.length) * 25;
-    setBoot(p, `Preparando ${item.label} (${preloadCount}/${CRITICAL.length})`);
+      const res = await fetchWithTimeout(item.url, { cache: 'reload' }, 45000);
+      if (res.ok) { await res.blob(); console.log(`[Preload] ✓ ${item.label}`); }
+      else console.warn(`[Preload] ${item.label} → HTTP ${res.status}`);
+    } catch (e) { console.warn(`[Preload] ${item.label} → ${e.message || e}`); }
+    preloadDone++;
+    const p = 70 + (preloadDone / CRITICAL.length) * 25;
+    setBoot(p, `Cargando ${preloadDone}/${CRITICAL.length} — ${item.label}`);
   }));
 
-  setBoot(95, 'Iniciando motor...');
+  setBoot(95, 'Iniciando motor (' + cfg.label + ')...');
 
   const worker = new Worker(BASE + '/loader.js');
   worker.onmessage = (ev) => {
@@ -980,12 +1139,12 @@ window.addEventListener('game-start', async () => {
       '-width=' + startSize[0], '-height=' + startSize[1], '-forceResolution',
       ...LOG_ARGS, ...ENGINE_ARGS,
       '-frameLimit=' + (q.get('fps') === '30' ? 2 : q.get('fps') === '0' ? 0 : 1),
-      ...(cores <= 2 ? ['-numCores=' + cores] : []),
+      ...(cfg === QUALITY.baja ? ['-numCores=2'] : []),
       ...LOW_ARGS,
       ...(q.get('args') || '').split(',').filter(Boolean)],
     shotEvery: +(q.get('shot') || 0),
     cores, lowMemory,
-    slots: lowMemory ? 2 : 4,
+    slots: cfg.slots,
     syncPipelines: false,
     remoteLog: !!remoteLog,
   }, [offscreen]);
