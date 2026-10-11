@@ -7,19 +7,9 @@
 <meta name="description" content="Clon web no oficial de GTA V — Proyecto educativo, sin afiliación con Rockstar Games o Take-Two.">
 <title>GTA V — Web Edition (Fan Project)</title>
 
-<!-- ============================================================
-     OPTIMIZACIONES DE RED — pre-conexión al Worker y precarga del wasm
-     ============================================================ -->
+<!-- Pre-conexión al Worker (sin preload para evitar warnings) -->
 <link rel="preconnect" href="https://gta-proxy.kitofree1221.workers.dev" crossorigin>
 <link rel="dns-prefetch" href="https://gta-proxy.kitofree1221.workers.dev">
-<link rel="preload"
-      href="https://gta-proxy.kitofree1221.workers.dev/mirror/playgta5.com/b/8b0b5899ed/game.wasm"
-      as="fetch"
-      crossorigin="anonymous"
-      fetchpriority="high">
-
-<!-- Fuente opcional -->
-<link rel="preload" href="/chalet.woff" as="font" type="font/woff" crossorigin>
 
 <style>
 	/* ============================================================
@@ -27,18 +17,12 @@
 	   ============================================================ */
 	html, body {
 		margin: 0; height: 100%; background: #000; color: #ccc;
-		font: 12px monospace; overflow: hidden;
+		font: 12px 'Consolas', 'Menlo', monospace; overflow: hidden;
 		-webkit-user-select: none; user-select: none;
 	}
 	#canvas {
 		display: block; position: absolute; left: 0; top: 0;
 		width: 100vw; height: 100vh; background: #000;
-	}
-
-	@font-face {
-		font-family: 'Chalet';
-		src: url('/chalet.woff') format('woff');
-		font-display: swap;
 	}
 
 	#loading {
@@ -50,12 +34,12 @@
 	#ls-stage {
 		position: absolute; left: 0; top: 0;
 		width: 1280px; height: 720px; transform-origin: 0 0;
-		overflow: hidden; font: 12px Chalet, sans-serif; color: #fff;
+		overflow: hidden; font: 12px sans-serif; color: #fff;
 	}
 	#ls-screens { position: absolute; inset: 0; }
 
 	/* ============================================================
-	   KITO BACKGROUND — múltiples capas animadas
+	   FONDO KITO
 	   ============================================================ */
 	#kito-bg { position: absolute; inset: 0; overflow: hidden; background: #05060a; }
 
@@ -131,7 +115,7 @@
 
 	.kito-watermark {
 		position: absolute; left: 50%; top: 48%; transform: translate(-50%, -50%);
-		font-family: 'Chalet', 'Arial Black', sans-serif;
+		font-family: 'Arial Black', sans-serif;
 		font-size: 260px; font-weight: 900; letter-spacing: 30px;
 		color: transparent; -webkit-text-stroke: 2px rgba(255,255,255,0.14);
 		text-shadow: 0 0 40px rgba(150,100,255,0.25);
@@ -164,7 +148,7 @@
 	   ============================================================ */
 	#kito-logo {
 		position: absolute; left: 95px; top: 512px;
-		font-family: 'Chalet', 'Arial Black', sans-serif;
+		font-family: 'Arial Black', sans-serif;
 		font-size: 92px; font-weight: 900; letter-spacing: 8px; color: #fff;
 		text-shadow:
 			0 0 12px rgba(180, 120, 255, 0.9),
@@ -178,20 +162,52 @@
 	}
 
 	/* ============================================================
-	   PANEL DE INFORMACIÓN (esquina superior izquierda)
+	   BOTÓN TOGGLE DEL PANEL DE INFO
 	   ============================================================ */
-	#info-panel {
-		position: absolute; left: 24px; top: 24px;
-		width: 320px; padding: 14px 16px;
+	#info-toggle {
+		position: absolute; right: 24px; top: 24px;
+		width: 36px; height: 36px;
 		background: rgba(0, 0, 0, 0.55);
-		border: 1px solid rgba(150, 150, 255, 0.18);
-		border-radius: 6px;
+		border: 1px solid rgba(150, 150, 255, 0.3);
+		border-radius: 50%;
+		color: #a78bfa; font: bold 18px/34px monospace;
+		text-align: center; cursor: pointer;
 		backdrop-filter: blur(6px);
 		-webkit-backdrop-filter: blur(6px);
-		font-family: 'Chalet', Consolas, monospace;
+		transition: background .2s, transform .2s;
+		z-index: 20;
+	}
+	#info-toggle:hover {
+		background: rgba(120, 90, 255, 0.25);
+		transform: scale(1.08);
+	}
+	#info-toggle.active {
+		background: rgba(120, 90, 255, 0.4);
+		color: #fff;
+	}
+
+	/* ============================================================
+	   PANEL DE INFORMACIÓN (oculto por defecto)
+	   ============================================================ */
+	#info-panel {
+		position: absolute; right: 24px; top: 70px;
+		width: 320px; padding: 14px 16px;
+		background: rgba(0, 0, 0, 0.65);
+		border: 1px solid rgba(150, 150, 255, 0.18);
+		border-radius: 6px;
+		backdrop-filter: blur(8px);
+		-webkit-backdrop-filter: blur(8px);
+		font-family: 'Consolas', 'Menlo', monospace;
 		font-size: 11px; line-height: 1.6; color: #cdd6f4;
-		pointer-events: none;
 		box-shadow: 0 4px 24px rgba(0, 0, 0, 0.6);
+		z-index: 19;
+		opacity: 0; pointer-events: none;
+		transform: translateY(-8px);
+		transition: opacity .25s, transform .25s;
+	}
+	#info-panel.visible {
+		opacity: 1; pointer-events: auto;
+		transform: translateY(0);
 	}
 	#info-panel .row { display: flex; justify-content: space-between; gap: 12px; }
 	#info-panel .label { color: #7c8bd4; }
@@ -210,7 +226,7 @@
 	}
 
 	/* ============================================================
-	   BARRAS INFERIORES (mantienen posición original)
+	   BARRAS INFERIORES
 	   ============================================================ */
 	#ls-bars {
 		position: absolute; right: 96px; top: 642px;
@@ -226,7 +242,7 @@
 	#modes button {
 		display: flex; align-items: center; height: 24px; padding: 0;
 		border: 0; background: none; color: #fff;
-		font: 12px Chalet, sans-serif; cursor: pointer;
+		font: 12px sans-serif; cursor: pointer;
 	}
 	#modes button:disabled { cursor: default; }
 	#modes button[hidden] { display: none; }
@@ -269,13 +285,13 @@
 	}
 
 	/* ============================================================
-	   FOOTER CON DISCLAIMER LEGAL
+	   DISCLAIMER
 	   ============================================================ */
 	#disclaimer {
 		position: absolute; left: 0; right: 0; bottom: 3px;
 		padding: 4px 12px;
 		background: rgba(0, 0, 0, 0.75);
-		font-family: 'Chalet', Consolas, monospace;
+		font-family: 'Consolas', monospace;
 		font-size: 9px; line-height: 1.3; color: rgba(200, 200, 220, 0.6);
 		text-align: center; letter-spacing: 0.3px;
 		pointer-events: none;
@@ -330,14 +346,17 @@
 
     <div id="kito-logo">KITO<small>WEB EDITION</small></div>
 
+    <!-- Botón toggle del panel -->
+    <button id="info-toggle" title="Mostrar/ocultar panel de información (F8)">ℹ</button>
+
     <!-- ============================================================
-         PANEL DE INFORMACIÓN EN VIVO
+         PANEL DE INFORMACIÓN (oculto por defecto)
          ============================================================ -->
     <div id="info-panel">
       <div class="title">Estado del sistema</div>
 
       <div class="row"><span class="label">Proyecto</span><span class="value">Fan-made / Educativo</span></div>
-      <div class="row"><span class="label">Build</span><span class="value" id="info-version">v16</span></div>
+      <div class="row"><span class="label">Build</span><span class="value" id="info-version">v17</span></div>
       <div class="row"><span class="label">Service Worker</span><span class="value" id="info-sw">registrando…</span></div>
 
       <hr>
@@ -359,7 +378,7 @@
     </div>
 
     <!-- ============================================================
-         BOTONES DE MODO (Story / Sandbox / Mapa)
+         BOTONES DE MODO
          ============================================================ -->
     <div id="ls-bars">
       <div id="modes" class="ls-bar">
@@ -383,9 +402,6 @@
   </div>
   <div id="bar"><div id="fill"></div></div>
 
-  <!-- ============================================================
-       DISCLAIMER LEGAL — visible durante toda la carga
-       ============================================================ -->
   <div id="disclaimer">
     <b>AVISO LEGAL:</b> Este proyecto es un <b>fan-made sin ánimo de lucro</b> con fines <b>educativos y de investigación</b>.
     No está afiliado, patrocinado ni respaldado por <b>Rockstar Games</b>, <b>Take-Two Interactive</b> ni ninguna de sus filiales.
@@ -399,15 +415,13 @@
      ============================================================ -->
 <script type="module">
 // ============================================================
-// 0. PRE-REGISTRO DEL SERVICE WORKER (paralelo a la carga del HTML)
+// 0. PRE-REGISTRO DEL SERVICE WORKER
 // ============================================================
 const swReady = (async () => {
   if (!('serviceWorker' in navigator)) return null;
   try {
     const reg = await navigator.serviceWorker.register('/sw.js', { scope: '/' });
-    // Espera a que el SW esté controlando la página
     if (!navigator.serviceWorker.controller) {
-      // Primera carga: recarga para que el SW nuevo tome control
       if (!sessionStorage.getItem('sw_reloaded')) {
         sessionStorage.setItem('sw_reloaded', '1');
         location.reload();
@@ -425,7 +439,7 @@ const swReady = (async () => {
 })();
 
 // ============================================================
-// 1. PARÁMETROS DE URL
+// 1. PARÁMETROS
 // ============================================================
 const q = new URLSearchParams(location.search);
 const BASE = '';
@@ -433,7 +447,7 @@ const remoteLog = q.get('log') === '1';
 const postLog = (text) => { if (remoteLog) fetch('/log', { method: 'POST', body: text }).catch(() => {}); };
 
 // ============================================================
-// 2. PANEL DE INFORMACIÓN EN VIVO
+// 2. PANEL DE INFORMACIÓN
 // ============================================================
 const t0 = performance.now();
 const info = {
@@ -455,19 +469,35 @@ function setValue(el, text, cls) {
   el.className = 'value' + (cls ? ' ' + cls : '');
 }
 
-// Detección de hardware
+// Toggle del panel con botón
+const infoPanel = document.getElementById('info-panel');
+const infoToggle = document.getElementById('info-toggle');
+infoToggle.addEventListener('click', (e) => {
+  e.stopPropagation();
+  infoPanel.classList.toggle('visible');
+  infoToggle.classList.toggle('active');
+});
+// Toggle con F8
+addEventListener('keydown', (e) => {
+  if (e.code === 'F8') {
+    e.preventDefault();
+    infoPanel.classList.toggle('visible');
+    infoToggle.classList.toggle('active');
+  }
+});
+
+// Hardware
 if (navigator.hardwareConcurrency) setValue(info.cores, navigator.hardwareConcurrency);
 if (navigator.deviceMemory) setValue(info.mem, navigator.deviceMemory + ' GB');
-else setValue(info.mem, '—');
 
-// GPU detection
+// GPU
 (async () => {
   try {
     if (!navigator.gpu) { setValue(info.gpu, 'sin WebGPU', 'error'); return; }
     const adapter = await navigator.gpu.requestAdapter();
     if (!adapter) { setValue(info.gpu, 'sin adaptador', 'error'); return; }
-    const info2 = adapter.info || {};
-    setValue(info.gpu, (info2.description || info2.vendor || 'GPU').slice(0, 24), 'ok');
+    const i = adapter.info || {};
+    setValue(info.gpu, (i.description || i.vendor || 'GPU').slice(0, 24), 'ok');
   } catch (e) { setValue(info.gpu, 'error', 'error'); }
 })();
 
@@ -481,13 +511,13 @@ if (navigator.connection) {
   setValue(info.net, '—');
 }
 
-// Estado del SW
+// SW
 swReady.then((reg) => {
   if (reg) setValue(info.sw, 'activo', 'ok');
   else setValue(info.sw, 'sin SW', 'warn');
 });
 
-// Actualiza el tiempo cada segundo
+// Tiempo
 setInterval(() => {
   const sec = Math.floor((performance.now() - t0) / 1000);
   setValue(info.time, sec + 's');
@@ -501,11 +531,10 @@ setInterval(() => {
   new BroadcastChannel('game-crash').onmessage = (ev) => {
     const m = ev.data;
     const memory = /memory|OOM|Aborted\(|RangeError|grow/i.test(m.text);
-    const dev = ' deviceMemory ' + (navigator.deviceMemory || '?') + ' GB, cores ' + navigator.hardwareConcurrency;
     if (remoteLog && posted++ < 3) {
       fetch('/log', {
         method: 'POST',
-        body: '[page] CRASH (' + m.kind + ', ' + m.thread + ' thread, wasm heap ' + m.heap + ' MB,' + dev + ', ' + location.search + '): ' + m.text + '\n' + m.tail.join('\n') + '\n',
+        body: '[page] CRASH (' + m.kind + ', ' + m.thread + '): ' + m.text + '\n',
       }).catch(() => {});
     }
     const el = document.getElementById('hud');
@@ -519,7 +548,7 @@ setInterval(() => {
 }
 
 // ============================================================
-// 4. TITLE SCREEN — fit del stage
+// 4. TITLE STAGE FIT
 // ============================================================
 let stopTitle = () => {};
 {
@@ -535,7 +564,7 @@ let stopTitle = () => {};
 }
 
 // ============================================================
-// 5. SELECCIÓN DE MODO (Story / Sandbox / Mapa)
+// 5. SELECCIÓN DE MODO
 // ============================================================
 let startMode = q.get('mode') === 'story' ? 1
               : q.get('mode') === 'sandbox' ? (q.get('map') === 'env_test' ? 3 : 2)
@@ -543,11 +572,11 @@ let startMode = q.get('mode') === 'story' ? 1
 let startModeWord = null, startCommitted = false, pickingMap = false, waitingChoice = false;
 
 const ACTS = {
-  back:    ['Atrás',       'Backspace', ['Backspace']],
-  map5:    ['Mapa GTA V',  '5',         ['Digit5', 'Numpad5']],
-  map6:    ['Mapa GTA VI', '6',         ['Digit6', 'Numpad6']],
-  sandbox: ['Modo Sandbox','Espacio',   ['Space']],
-  story:   ['Modo Historia','Enter',    ['Enter', 'NumpadEnter']],
+  back:    ['Atrás',        'Backspace', ['Backspace']],
+  map5:    ['Mapa GTA V',   '5',         ['Digit5', 'Numpad5']],
+  map6:    ['Mapa GTA VI',  '6',         ['Digit6', 'Numpad6']],
+  sandbox: ['Modo Sandbox', 'Espacio',   ['Space']],
+  story:   ['Modo Historia','Enter',     ['Enter', 'NumpadEnter']],
 };
 const LOADING = {
   1: 'Cargando Historia',
@@ -587,7 +616,7 @@ const choose = (m) => {
   if (m !== startMode) {
     startMode = m;
     if (startModeWord) Atomics.store(startModeWord, 0, m);
-    postLog('[page] start mode: ' + ({ 1: 'story', 2: 'sandbox', 3: 'sandbox on env_test' })[m]);
+    postLog('[page] start mode: ' + m);
   }
   showModes();
 };
@@ -606,6 +635,7 @@ modesEl.addEventListener('click', (e) => {
 });
 addEventListener('keydown', (e) => {
   if (startCommitted || e.ctrlKey || e.altKey || e.metaKey || !document.getElementById('loading')) return;
+  if (e.code === 'F8') return;   // no interferir con el toggle del panel
   const b = modeButtons.find((x) => !x.hidden && ACTS[x.dataset.act][2].includes(e.code));
   if (!b) return;
   act(b.dataset.act);
@@ -614,7 +644,7 @@ addEventListener('keydown', (e) => {
 showModes();
 
 // ============================================================
-// 6. PROGRESO DE CARGA
+// 6. PROGRESO
 // ============================================================
 {
   const loading = document.getElementById('loading');
@@ -633,11 +663,7 @@ showModes();
     const m = ev.data;
     lastActivity = performance.now();
 
-    if (m.dl) {
-      dataBytes += m.dl;
-      samples.push([performance.now(), m.dl]);
-      return;
-    }
+    if (m.dl) { dataBytes += m.dl; samples.push([performance.now(), m.dl]); return; }
     if (m.lines) {
       if (loadingGone || !m.lines.length) return;
       lastLine = m.lines[m.lines.length - 1];
@@ -645,7 +671,7 @@ showModes();
       return;
     }
     if (m.gpuLost) {
-      hud.textContent = 'El dispositivo gráfico se perdió (' + m.gpuLost + '). Recarga la página.';
+      hud.textContent = 'El dispositivo gráfico se perdió. Recarga la página.';
       hud.style.color = '#f66';
       return;
     }
@@ -689,7 +715,6 @@ showModes();
   const dataEl = document.getElementById('data');
   const WORLD_BYTES = 1.2e9;
 
-  // Watchdog de stall
   setInterval(() => {
     if (ready) return;
     if (waitingChoice) {
@@ -700,12 +725,11 @@ showModes();
     const quiet = (performance.now() - lastActivity) / 1000;
     if (quiet > 30) {
       label.textContent = 'Sin progreso durante ' + (quiet | 0) + 's' +
-        (lastLabel ? ' (último paso: ' + lastLabel + ')' : '') +
-        ': el dispositivo puede estar sin memoria.';
+        (lastLabel ? ' (último paso: ' + lastLabel + ')' : '');
       label.style.color = '#e96';
       if (quiet - stallLogged > 30) {
         stallLogged = quiet;
-        postLog('[page] STALL: no progress for ' + (quiet | 0) + ' s, last step "' + lastLabel + '", shown ' + shown.toFixed(0) + '%');
+        postLog('[page] STALL: ' + (quiet | 0) + ' s, last: "' + lastLabel + '"');
       }
     } else if (stallLogged) {
       stallLogged = 0;
@@ -713,18 +737,14 @@ showModes();
     }
   }, 2000);
 
-  // Actualiza la UI cada 50 ms
   const progressTimer = setInterval(() => {
     const now = performance.now();
     while (samples.length && now - samples[0][0] > 3000) samples.shift();
     const speed = samples.reduce((a, x) => a + x[1], 0) / 3;
 
-    // Actualiza el panel de info
     if (dataBytes) {
       setValue(info.bytes, (dataBytes / 1048576 | 0) + ' MB');
       if (speed > 1e4) setValue(info.speed, (speed / 1048576).toFixed(1) + ' MB/s', 'ok');
-    }
-    if (dataBytes) {
       dataEl.textContent = 'Game data: ' + (dataBytes / 1048576 | 0) + ' MB' +
         (speed > 1e4 ? ' (' + (speed / 1048576).toFixed(1) + ' MB/s)' : '');
     }
@@ -806,7 +826,7 @@ let startSize = [1280, 720], wantSize = null;
 
 if (!crossOriginIsolated) {
   document.getElementById('label').textContent =
-    'sin aislamiento cross-origin: abre la página por HTTPS; el Service Worker envía COOP/COEP.';
+    'sin aislamiento cross-origin: abre la página por HTTPS.';
   document.getElementById('label').style.color = '#e66';
   setValue(info.phase, 'sin aislamiento', 'error');
 } else {
@@ -823,17 +843,6 @@ if (!crossOriginIsolated) {
     '-pedLodBias=0', '-vehicleLodBias=0',
   ];
   const cores = +(q.get('cores') || 0) || (lowMemory ? 2 : navigator.hardwareConcurrency);
-  if (lowMemory) hud.textContent = 'Dispositivo de baja memoria (' + (navigator.deviceMemory || '?') + ' GB): cierra otras pestañas.';
-
-  postLog('[page env] ' + JSON.stringify({
-    deviceMemory: navigator.deviceMemory,
-    cores: navigator.hardwareConcurrency,
-    usingCores: cores,
-    low: lowMemory,
-    isolated: crossOriginIsolated,
-    ua: navigator.userAgent.slice(0, 120),
-    screen: screen.width + 'x' + screen.height + '@' + devicePixelRatio,
-  }));
 
   wantSize = () => {
     const forced = /^(\d+)x(\d+)$/.exec(q.get('res') || '');
@@ -850,7 +859,6 @@ if (!crossOriginIsolated) {
   const LOG_ARGS = q.get('verbose') ? [] : ['-Script_all=warning', '-replay_all=warning'];
   const ENGINE_ARGS = ['-fastscriptcore'];
 
-  // Pequeño timer para que Windows no redondee los waits a 15.6 ms
   setInterval(() => {}, 1);
 
   const worker = new Worker(BASE + '/loader.js');
@@ -894,18 +902,6 @@ if (!crossOriginIsolated) {
     record: !!q.get('record'),
     lowMemory,
   }, [offscreen]);
-}
-
-// Memoria (si ?mem=1)
-if (remoteLog && (q.get('mem') || lowMemory) && performance.measureUserAgentSpecificMemory) {
-  const report = async () => {
-    try {
-      const r = await performance.measureUserAgentSpecificMemory();
-      postLog('[page mem] total ' + (r.bytes / 1048576 | 0) + ' MB');
-    } catch (e) { postLog('[page mem] failed: ' + e); }
-    setTimeout(report, 15000);
-  };
-  setTimeout(report, 15000);
 }
 
 // ============================================================
@@ -968,8 +964,8 @@ function installDebugPanel(memory, block) {
   new BroadcastChannel('game-debug').onmessage = (ev) => { last = ev.data.last; total = ev.data.total; render(); };
   const render = () => {
     const n = Atomics.load(dbg, 0);
-    panel.textContent = 'DRAW ISOLATION  limit ' + (n < 0 ? 'off (all)' : n) + ' of ' + total +
-      ' draws/frame   [F1 -1  F2 +1  F3 -25  F4 +25  F5 all  F6 log]\nlast draw run: ' + (last || '-');
+    panel.textContent = 'DRAW ISOLATION  limit ' + (n < 0 ? 'off' : n) + ' of ' + total +
+      '   [F1 -1  F2 +1  F3 -25  F4 +25  F5 all  F6 log]\nlast: ' + (last || '-');
   };
   addEventListener('keydown', (e) => {
     const step = { F1: -1, F2: 1, F3: -25, F4: 25 }[e.code];
@@ -1003,10 +999,10 @@ function installInput(memory, block) {
     addEventListener('resize', () => {
       clearTimeout(timer);
       timer = setTimeout(() => {
-        const [w, h] = wantSize();
-        if (w === W && h === H) return;
-        W = w; H = h;
-        Atomics.store(ext, 2, w); Atomics.store(ext, 3, h);
+        const [w2, h2] = wantSize();
+        if (w2 === W && h2 === H) return;
+        W = w2; H = h2;
+        Atomics.store(ext, 2, w2); Atomics.store(ext, 3, h2);
       }, 150);
     });
   }
@@ -1015,7 +1011,8 @@ function installInput(memory, block) {
   Atomics.store(w, MY, H >> 1);
 
   const passThrough = (e) => e.code === 'F12' || e.code === 'F11' ||
-    (e.ctrlKey && e.shiftKey && (e.code === 'KeyI' || e.code === 'KeyJ')) || e.code === 'F5';
+    (e.ctrlKey && e.shiftKey && (e.code === 'KeyI' || e.code === 'KeyJ')) ||
+    e.code === 'F5' || e.code === 'F8';
   const FLY_ALIAS = { KeyI: 'Numpad8', KeyK: 'Numpad2', KeyJ: 'Numpad4', KeyL: 'Numpad6', KeyU: 'Numpad7', KeyO: 'Numpad9' };
   const held = new Set();
   const syncFlyAlias = () => {
@@ -1098,13 +1095,6 @@ function installInput(memory, block) {
     const n = Math.trunc(wheelAccum);
     if (n) { wheelAccum -= n; Atomics.add(w, DZ, n); }
   }, { passive: false });
-}
-
-// ============================================================
-// 11. LIMPIEZA: quita el prefijo ?low=1 persistente tras la primera carga
-// ============================================================
-if (q.get('low') === '1' && !sessionStorage.getItem('low_set')) {
-  sessionStorage.setItem('low_set', '1');
 }
 </script>
 </body>
