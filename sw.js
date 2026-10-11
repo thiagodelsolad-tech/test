@@ -1,77 +1,228 @@
-// ==========================================
-// CONTROLADOR DE RED UNIFICADO (CLOUDFLARE R2)
-// ==========================================
-const CACHE_NAME = 'playgta5-vfs-cache-v1';
+/**
+ * sw.js — Service Worker para GTA V Web Edition
+ *
+ * Arquitectura:
+ *   Jugador → https://apkrprojects.xyz (GitHub Pages, sirve index.html + sw.js)
+ *               ↓ el SW intercepta /mirror/ y /runtime/
+ *             https://r2.dev/mirror/... y /runtime/...  (Cloudflare R2)
+ *               ↓ se inyectan COOP/COEP y se cachea en disco
+ *             El motor WebAssembly recibe los bytes sin notar el cambio.
+ *
+ * Responsabilidades:
+ *   1. Inyectar COOP/COEP/CORP en cada respuesta (crítico para SharedArrayBuffer + WebGPU)
+ *   2. Redirigir /mirror/ y /runtime/ a R2
+ *   3. Cache-First: primera visita descarga de R2, siguientes leen de disco
+ */
 
-// URL Pública de tu contenedor real de Cloudflare R2
-const CLOUDFLARE_R2_URL = 'https://r2.dev'; 
+// ============================================================
+// CONFIGURACIÓN
+// ============================================================
+const R2_BASE_URL = 'https://r2.dev';
+const PROXY_PREFIXES = ['/mirror/', '/runtime/'];
+const CACHE_NAME = 'gta5-resources-v1';
 
-self.addEventListener('install', (event) => {
+// Límite de caché local (2 GB). Si se supera, se borran las entradas más antiguas.
+const MAX_CACHE_BYTES = 2 * 1024 * 1024 * 1024;
+
+// ============================================================
+// INSTALACIÓN Y ACTIVACIÓN
+// ============================================================
+self.addEventListener('install', () => {
+  // Toma control inmediatamente sin esperar a que se cierren las pestañas antiguas
   self.skipWaiting();
+  console.log('[GTA5-SW] Instalado.');
 });
 
 self.addEventListener('activate', (event) => {
-  event.waitUntil(self.clients.claim());
-});
-
-// Interceptor inteligente de tráfico de datos masivos
-self.addEventListener('fetch', (event) => {
-  const url = new URL(event.request.url);
-  
-  // Capturamos las llamadas internas que el motor gráfico intente hacer localmente
-  if (url.origin === self.location.origin) {
-    const relativePath = url.pathname.substring(1);
-
-    // Si el motor pide el mapa, audio o DLCs (todo dentro de mirror/, runtime/ o configuraciones)
-    if (relativePath.startsWith('mirror/') || relativePath.startsWith('runtime/') || relativePath.includes('bootset') || relativePath.includes('manifest')) {
-      const targetUrl = CLOUDFLARE_R2_URL + relativePath;
-
-      event.respondWith(
-        caches.open(CACHE_NAME).then((cache) => {
-          // 1. Primer escudo: Buscamos si el jugador ya descargó este bloque a su PC (Caché local)
-          return cache.match(event.request).then((cachedResponse) => {
-            if (cachedResponse) {
-              return injectSecurityHeaders(cachedResponse); // Carga instantánea local
-            }
-
-            // 2. Si no está en su PC, lo streamea de Cloudflare R2 por primera y única vez
-            return fetch(targetUrl, {
-              method: event.request.method,
-              headers: event.request.headers,
-              mode: 'cors'
-            }).then((networkResponse) => {
-              if (networkResponse.ok) {
-                // Lo clonamos y guardamos en el almacenamiento físico del jugador de por vida
-                cache.put(event.request, networkResponse.clone());
-              }
-              return injectSecurityHeaders(networkResponse);
-            });
-          });
-        })
+  event.waitUntil(
+    (async () => {
+      // Limpia versiones antiguas de caché si cambias CACHE_NAME
+      const keys = await caches.keys();
+      await Promise.all(
+        keys.filter((k) => k !== CACHE_NAME).map((k) => caches.delete(k))
       );
-      return;
-    }
-  }
-
-  // Flujo normal para los scripts ligeros del cargador que viven directo en GitHub Pages
-  event.respondWith(
-    fetch(event.request)
-      .then(res => injectSecurityHeaders(res))
-      .catch(() => fetch(event.request))
+      // Toma el control de todas las pestañas abiertas
+      await self.clients.claim();
+      console.log('[GTA5-SW] Activo y controlando clientes.');
+    })()
   );
 });
 
-// Cabeceras obligatorias Cross-Origin para activar WebGPU a 60 FPS estables
-function injectSecurityHeaders(response) {
-  if (!response || response.status === 404) return response;
-  
-  const newHeaders = new Headers(response.headers);
-  newHeaders.set('Cross-Origin-Opener-Policy', 'same-origin');
-  newHeaders.set('Cross-Origin-Embedder-Policy', 'require-corp');
+// ============================================================
+// UTILIDADES
+// ============================================================
+
+/**
+ * Añade las cabeceras de aislamiento cross-origin a una Response.
+ * Sin ellas, crossOriginIsolated es false y SharedArrayBuffer no existe.
+ */
+function injectIsolationHeaders(response) {
+  const headers = new Headers(response.headers);
+
+  // Requerido para SharedArrayBuffer + WebGPU multihilo
+  headers.set('Cross-Origin-Opener-Policy', 'same-origin');
+  headers.set('Cross-Origin-Embedder-Policy', 'require-corp');
+
+  // Permite que R2 sirva recursos embebidos bajo COEP: require-corp
+  headers.set('Cross-Origin-Resource-Policy', 'cross-origin');
 
   return new Response(response.body, {
     status: response.status,
     statusText: response.statusText,
-    headers: newHeaders
+    headers,
   });
 }
+
+/**
+ * Decide si una URL debe ser proxeada a R2.
+ */
+function shouldProxy(url) {
+  const pathname = new URL(url).pathname;
+  return PROXY_PREFIXES.some((prefix) => pathname.startsWith(prefix));
+}
+
+/**
+ * Recorta la caché si supera MAX_CACHE_BYTES. Borra las entradas más antiguas
+ * (FIFO aproximado). Se ejecuta en segundo plano, no bloquea la respuesta.
+ */
+async function trimCache() {
+  try {
+    const cache = await caches.open(CACHE_NAME);
+    const requests = await cache.keys();
+    let total = 0;
+    const sizes = [];
+
+    for (const req of requests) {
+      const res = await cache.match(req);
+      if (!res) continue;
+      const len = parseInt(res.headers.get('Content-Length') || '0', 10);
+      sizes.push({ req, len });
+      total += len;
+    }
+
+    if (total <= MAX_CACHE_BYTES) return;
+
+    // Borra desde el principio hasta que bajemos al 80% del límite
+    let removed = 0;
+    for (const { req, len } of sizes) {
+      if (total - removed <= MAX_CACHE_BYTES * 0.8) break;
+      await cache.delete(req);
+      removed += len;
+    }
+
+    console.log(`[GTA5-SW] Caché recortada: ${(removed / 1048576).toFixed(1)} MB liberados.`);
+  } catch (err) {
+    console.warn('[GTA5-SW] trimCache falló:', err);
+  }
+}
+
+// ============================================================
+// MANEJO DE PETICIONES PROXEADAS A R2
+// ============================================================
+async function handleProxiedRequest(event) {
+  const request = event.request;
+  const url = new URL(request.url);
+
+  // 1. Cache-First: busca en disco local
+  const cache = await caches.open(CACHE_NAME);
+  const cached = await cache.match(request);
+
+  if (cached) {
+    return injectIsolationHeaders(cached);
+  }
+
+  // 2. Cache MISS: descarga desde R2
+  const r2Url = R2_BASE_URL + url.pathname + url.search;
+  console.log(`[GTA5-SW] MISS → R2: ${url.pathname}`);
+
+  try {
+    const r2Response = await fetch(r2Url, {
+      method: request.method,
+      headers: request.headers,
+      mode: 'cors',
+      credentials: 'omit',
+      redirect: 'follow',
+    });
+
+    if (!r2Response.ok && r2Response.status !== 206) {
+      // Error del servidor: devolvemos tal cual con cabeceras inyectadas
+      console.warn(`[GTA5-SW] R2 ${r2Response.status} en ${url.pathname}`);
+      return injectIsolationHeaders(r2Response);
+    }
+
+    // 3. Cachea solo respuestas completas (no fragmentos 206 parciales)
+    if (r2Response.status === 200) {
+      const toCache = r2Response.clone();
+      cache.put(request, toCache)
+        .then(() => trimCache())
+        .catch((err) => console.warn('[GTA5-SW] cache.put falló:', err));
+    }
+
+    return injectIsolationHeaders(r2Response);
+  } catch (err) {
+    console.error(`[GTA5-SW] fetch a R2 falló (${url.pathname}):`, err);
+
+    // Fallback: si hay algo parcial en caché, usarlo
+    const fallback = await cache.match(request);
+    if (fallback) return injectIsolationHeaders(fallback);
+
+    return new Response('Recurso no disponible temporalmente', {
+      status: 503,
+      headers: {
+        'Cross-Origin-Opener-Policy': 'same-origin',
+        'Cross-Origin-Embedder-Policy': 'require-corp',
+        'Content-Type': 'text/plain',
+      },
+    });
+  }
+}
+
+// ============================================================
+// FETCH PRINCIPAL
+// ============================================================
+self.addEventListener('fetch', (event) => {
+  const url = new URL(event.request.url);
+
+  // Ignora peticiones a otros orígenes (analytics, CDNs externas, etc.)
+  if (url.origin !== self.location.origin) return;
+
+  // Ignora métodos que no sean GET/HEAD
+  if (event.request.method !== 'GET' && event.request.method !== 'HEAD') return;
+
+  // Evita el error "only-if-cached" cuando mode no es same-origin
+  if (event.request.cache === 'only-if-cached' && event.request.mode !== 'same-origin') return;
+
+  // Caso 1: /mirror/* y /runtime/* → proxy a R2 con caché
+  if (shouldProxy(event.request.url)) {
+    event.respondWith(handleProxiedRequest(event));
+    return;
+  }
+
+  // Caso 2: todo lo demás (HTML, JS, WASM, workers) → red + inyección COOP/COEP
+  event.respondWith(
+    (async () => {
+      try {
+        const response = await fetch(event.request);
+
+        // No tocar respuestas opacas (no podemos leer sus headers)
+        if (!response || response.type === 'opaque') return response;
+
+        return injectIsolationHeaders(response);
+      } catch (err) {
+        // Fallback a caché si existe (recursos críticos ya visitados)
+        const cached = await caches.match(event.request);
+        if (cached) return injectIsolationHeaders(cached);
+        throw err;
+      }
+    })()
+  );
+});
+
+// ============================================================
+// MENSAJES DESDE EL FRONTEND (ping/pong para depuración)
+// ============================================================
+self.addEventListener('message', (event) => {
+  if (event.data && event.data.type === 'PING') {
+    event.source?.postMessage({ type: 'PONG', status: 'ready' });
+  }
+});
