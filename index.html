@@ -855,7 +855,7 @@ const hud = document.getElementById('hud');
 let audioPending = null, audioGesture = false, audioStarted = false;
 let canvasEl = document.getElementById('canvas');
 
-// ✅ NUEVO: fetch con timeout. Evita el cuelgue "6/7" para siempre.
+// ✅ fetch con timeout
 function fetchWithTimeout(url, opts = {}, timeoutMs = 12000) {
   const ctrl = new AbortController();
   const timer = setTimeout(() => ctrl.abort(), timeoutMs);
@@ -920,19 +920,20 @@ window.addEventListener('game-start', async () => {
 
   setBoot(70, 'Descargando assets críticos...');
 
-  // ✅ CRÍTICO: dos listas separadas.
-  // Los CRÍTICOS bloquean el arranque (con timeout).
-  // Los OPCIONALES se lanzan sin await y no retrasan nada.
+  // ✅ NUEVO: añadidos los RPF de audio a la lista de precarga
   const CRITICAL = [
     { url: '/game.wasm',          label: 'Motor WASM' },
     { url: '/shaders/index.json', label: 'Índice shaders' },
     { url: '/data/manifest.json', label: 'Manifest' },
+    { url: '/game/x64/audio/sfx/RESIDENT.rpf', label: 'Audio resident' },
+    { url: '/game/x64/audio/sfx/STREAMED_VEHICLES_GRANULAR.rpf', label: 'Audio vehículos' },
   ];
   const OPTIONAL = [
     { url: '/shaders/pipelines.json',      label: 'Pipelines' },
     { url: '/data/bootset.json',           label: 'Bootset' },
     { url: '/shaders/pipelines_low.json',  label: 'Pipelines low' },
     { url: '/data/bootset_low.json',       label: 'Bootset low' },
+    { url: '/game/x64/audio/sfx/ANIMALS.rpf', label: 'Audio animales' },
   ];
 
   // Lanza los opcionales en background sin bloquear
@@ -942,7 +943,7 @@ window.addEventListener('game-start', async () => {
       .catch((e) => console.warn(`[Preload opt] ${item.label}: ${e.message || e}`));
   }
 
-  // Espera SOLO los críticos, con timeout por item, sin abortar los demás
+  // Espera SOLO los críticos, con timeout por item
   let preloadCount = 0;
   await Promise.all(CRITICAL.map(async (item) => {
     try {
@@ -985,10 +986,7 @@ window.addEventListener('game-start', async () => {
       ...(q.get('args') || '').split(',').filter(Boolean)],
     shotEvery: +(q.get('shot') || 0),
     cores, lowMemory,
-    // ✅ FIX: 4 slots (menos presión sobre el hilo principal)
     slots: lowMemory ? 2 : 4,
-    // ✅ FIX CLAVE: false → presenta frames mientras compila pipelines.
-    // Con true el motor bloquea todo hasta terminar las 720 compilaciones → 0 FPS.
     syncPipelines: false,
     remoteLog: !!remoteLog,
   }, [offscreen]);
