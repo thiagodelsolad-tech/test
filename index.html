@@ -16,6 +16,68 @@
 		-webkit-user-select: none; user-select: none; }
 	#canvas { display: block; position: absolute; left: 0; top: 0;
 		width: 100vw; height: 100vh; background: #000; }
+
+	/* ============================================================
+	   PANTALLA DE ESPERA INICIAL (aparece antes de todo)
+	   ============================================================ */
+	#boot-screen {
+		position: fixed; inset: 0; background: #05060a;
+		z-index: 1000;
+		display: flex; flex-direction: column;
+		align-items: center; justify-content: center;
+		transition: opacity 0.6s ease-out;
+	}
+	#boot-screen.hidden { opacity: 0; pointer-events: none; }
+	#boot-screen .boot-spinner {
+		width: 64px; height: 64px;
+		border: 3px solid rgba(120, 100, 255, 0.15);
+		border-top-color: #a78bfa;
+		border-radius: 50%;
+		animation: boot-spin 1s linear infinite;
+		margin-bottom: 24px;
+	}
+	@keyframes boot-spin { to { transform: rotate(360deg); } }
+	#boot-screen .boot-title {
+		font-family: 'Arial Black', sans-serif;
+		font-size: 28px; font-weight: 900;
+		letter-spacing: 12px; color: #fff;
+		text-shadow: 0 0 20px rgba(180, 120, 255, 0.6);
+		margin-bottom: 8px;
+	}
+	#boot-screen .boot-sub {
+		font-size: 10px; letter-spacing: 6px;
+		text-transform: uppercase;
+		color: rgba(200, 200, 255, 0.5);
+		margin-bottom: 40px;
+	}
+	#boot-screen .boot-status {
+		font-size: 11px; letter-spacing: 2px;
+		color: rgba(180, 180, 220, 0.7);
+		min-height: 16px;
+	}
+	#boot-screen .boot-bar {
+		width: 240px; height: 2px;
+		background: rgba(150, 150, 255, 0.12);
+		border-radius: 1px;
+		margin-top: 16px;
+		overflow: hidden;
+	}
+	#boot-screen .boot-bar-fill {
+		height: 100%; width: 0%;
+		background: linear-gradient(90deg, #7c5cff, #6ac3ff);
+		box-shadow: 0 0 10px rgba(124, 92, 255, 0.7);
+		transition: width 0.4s ease-out;
+	}
+	#boot-screen .boot-disclaimer {
+		position: absolute; bottom: 20px;
+		font-size: 9px; color: rgba(180, 180, 200, 0.35);
+		text-align: center; padding: 0 40px;
+		max-width: 600px; line-height: 1.5;
+	}
+
+	/* ============================================================
+	   PANTALLA DE CARGA PRINCIPAL
+	   ============================================================ */
 	#loading { position: fixed; inset: 0; background: #000; overflow: hidden;
 		transition: opacity .8s; z-index: 5; }
 	#loading.done { opacity: 0; pointer-events: none; }
@@ -99,14 +161,14 @@
 	#info-toggle:hover { background: rgba(120,90,255,.25); transform: scale(1.08); }
 	#info-toggle.active { background: rgba(120,90,255,.4); color: #fff; }
 
-	#info-panel { position: absolute; left: 24px; bottom: 36px; width: 300px;
-		padding: 12px 14px; background: rgba(0,0,0,.75);
+	#info-panel { position: absolute; right: 24px; top: 70px; width: 340px;
+		padding: 14px 16px; background: rgba(0,0,0,.85);
 		border: 1px solid rgba(150,150,255,.18); border-radius: 6px;
 		backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
 		font-family: 'Consolas','Menlo',monospace; font-size: 10.5px; line-height: 1.5;
 		color: #cdd6f4; box-shadow: 0 4px 24px rgba(0,0,0,.6); z-index: 19;
-		opacity: 0; pointer-events: none; transform: translateY(8px);
-		transition: opacity .25s, transform .25s; max-height: 70vh; overflow-y: auto; }
+		opacity: 0; pointer-events: none; transform: translateY(-8px);
+		transition: opacity .25s, transform .25s; max-height: 80vh; overflow-y: auto; }
 	#info-panel.visible { opacity: 1; pointer-events: auto; transform: translateY(0); }
 	#info-panel .row { display: flex; justify-content: space-between; gap: 12px; }
 	#info-panel .label { color: #7c8bd4; }
@@ -117,7 +179,10 @@
 	#info-panel .title { font-size: 9px; letter-spacing: 3px; text-transform: uppercase;
 		color: #a78bfa; margin-bottom: 6px; padding-bottom: 5px;
 		border-bottom: 1px solid rgba(150,150,255,.15); }
-	#info-panel hr { border: 0; border-top: 1px solid rgba(150,150,255,.1); margin: 6px 0; }
+	#info-panel hr { border: 0; border-top: 1px solid rgba(150,150,255,.1); margin: 8px 0; }
+	#info-panel .legal { font-size: 9px; color: rgba(200,200,220,.55);
+		line-height: 1.5; text-align: justify; }
+	#info-panel .legal b { color: rgba(180,180,220,.85); font-weight: 600; }
 
 	#ls-bars { position: absolute; right: 96px; top: 642px; display: flex; gap: 3px; }
 	.ls-bar { height: 24px; padding: 0 6px; display: flex; align-items: center;
@@ -151,13 +216,6 @@
 		background: linear-gradient(90deg, #7c5cff, #6ac3ff);
 		box-shadow: 0 0 12px rgba(124,92,255,.7); }
 
-	#disclaimer { position: absolute; left: 0; right: 0; bottom: 3px; padding: 4px 12px;
-		background: rgba(0,0,0,.75); font-family: 'Consolas',monospace;
-		font-size: 9px; line-height: 1.3; color: rgba(200,200,220,.6);
-		text-align: center; letter-spacing: .3px; pointer-events: none;
-		border-top: 1px solid rgba(150,150,255,.08); }
-	#disclaimer b { color: rgba(180,180,220,.85); font-weight: 600; }
-
 	#hud { position: fixed; left: 8px; bottom: 8px; max-width: 60vw;
 		white-space: pre-wrap; opacity: .8; pointer-events: none;
 		font: 11px Consolas,monospace; color: #9ad; }
@@ -172,7 +230,24 @@
 <div id="hud"></div>
 <div id="fps"></div>
 
-<div id="loading">
+<!-- ============================================================
+     PANTALLA DE ESPERA INICIAL (aparece primero)
+     ============================================================ -->
+<div id="boot-screen">
+  <div class="boot-spinner"></div>
+  <div class="boot-title">KITO</div>
+  <div class="boot-sub">Web Edition</div>
+  <div class="boot-status" id="boot-status">Inicializando...</div>
+  <div class="boot-bar"><div class="boot-bar-fill" id="boot-bar-fill"></div></div>
+  <div class="boot-disclaimer">
+    Proyecto fan-made sin ánimo de lucro · Sin afiliación con Rockstar Games o Take-Two
+  </div>
+</div>
+
+<!-- ============================================================
+     PANTALLA DE CARGA PRINCIPAL
+     ============================================================ -->
+<div id="loading" style="opacity:0;">
   <div id="ls-stage">
     <div id="ls-screens">
       <div id="kito-bg">
@@ -190,27 +265,43 @@
       </div>
     </div>
     <div id="kito-logo">KITO<small>WEB EDITION</small></div>
+
     <button id="info-toggle" title="Mostrar/ocultar panel (F8)">ℹ</button>
+
     <div id="info-panel">
       <div class="title">Estado del sistema</div>
       <div class="row"><span class="label">Proyecto</span><span class="value">Fan-made / Educativo</span></div>
-      <div class="row"><span class="label">Build</span><span class="value" id="info-version">v19</span></div>
+      <div class="row"><span class="label">Build</span><span class="value" id="info-version">v20</span></div>
       <div class="row"><span class="label">Service Worker</span><span class="value" id="info-sw">registrando…</span></div>
+
       <hr>
       <div class="title">Red</div>
       <div class="row"><span class="label">Conexión</span><span class="value" id="info-net">comprobando…</span></div>
       <div class="row"><span class="label">Velocidad</span><span class="value" id="info-speed">— MB/s</span></div>
       <div class="row"><span class="label">Descargado</span><span class="value" id="info-bytes">0 MB</span></div>
+
       <hr>
       <div class="title">Hardware</div>
       <div class="row"><span class="label">GPU</span><span class="value" id="info-gpu">detectando…</span></div>
       <div class="row"><span class="label">Núcleos</span><span class="value" id="info-cores">—</span></div>
       <div class="row"><span class="label">Memoria</span><span class="value" id="info-mem">— GB</span></div>
+
       <hr>
       <div class="title">Progreso</div>
       <div class="row"><span class="label">Fase</span><span class="value" id="info-phase">iniciando</span></div>
       <div class="row"><span class="label">Tiempo</span><span class="value" id="info-time">0s</span></div>
+
+      <hr>
+      <div class="title">Aviso legal</div>
+      <div class="legal">
+        Este proyecto es un <b>fan-made sin ánimo de lucro</b> con fines <b>educativos y de investigación</b>.
+        No está afiliado, patrocinado ni respaldado por <b>Rockstar Games</b>, <b>Take-Two Interactive</b> ni sus filiales.
+        "Grand Theft Auto", "GTA" y "GTA V" son marcas registradas de sus respectivos propietarios.
+        Todos los assets son propiedad de sus creadores originales.
+        Si eres titular de derechos y deseas la retirada de contenido, contacta al administrador.
+      </div>
     </div>
+
     <div id="ls-bars">
       <div id="modes" class="ls-bar">
         <button data-act="back"></button>
@@ -231,18 +322,38 @@
     <div id="console"></div>
   </div>
   <div id="bar"><div id="fill"></div></div>
-  <div id="disclaimer">
-    <b>AVISO LEGAL:</b> Este proyecto es un <b>fan-made sin ánimo de lucro</b> con fines <b>educativos y de investigación</b>.
-    No está afiliado, patrocinado ni respaldado por <b>Rockstar Games</b>, <b>Take-Two Interactive</b> ni sus filiales.
-    "Grand Theft Auto", "GTA" y "GTA V" son marcas registradas de sus respectivos propietarios.
-    Todos los assets son propiedad de sus creadores originales.
-  </div>
 </div>
 
 <script type="module">
 // ============================================================
+// PANTALLA DE ESPERA — se desvanece al completar el arranque
+// ============================================================
+const bootScreen = document.getElementById('boot-screen');
+const bootStatus = document.getElementById('boot-status');
+const bootBar = document.getElementById('boot-bar-fill');
+const loadingEl = document.getElementById('loading');
+
+function setBoot(pct, text) {
+  if (bootStatus && text) bootStatus.textContent = text;
+  if (bootBar) bootBar.style.width = Math.min(100, Math.max(0, pct)) + '%';
+}
+
+function hideBootScreen() {
+  if (!bootScreen) return;
+  setBoot(100, 'Listo');
+  setTimeout(() => {
+    bootScreen.classList.add('hidden');
+    // Mostrar la pantalla de carga principal
+    if (loadingEl) loadingEl.style.opacity = '1';
+    // Eliminar del DOM tras la transición
+    setTimeout(() => { bootScreen.remove(); }, 700);
+  }, 300);
+}
+
+// ============================================================
 // SERVICE WORKER
 // ============================================================
+setBoot(10, 'Registrando Service Worker...');
 const swReady = (async () => {
   if (!('serviceWorker' in navigator)) return null;
   try {
@@ -258,16 +369,22 @@ const swReady = (async () => {
     }
     await navigator.serviceWorker.ready;
     return reg;
-  } catch (e) { console.warn('[SW] registration failed:', e); return null; }
+  } catch (e) {
+    console.warn('[SW] registration failed:', e);
+    return null;
+  }
 })();
 
+// ============================================================
+// PARÁMETROS
+// ============================================================
 const q = new URLSearchParams(location.search);
 const BASE = '';
 const remoteLog = q.get('log') === '1';
 const postLog = (text) => { if (remoteLog) fetch('/log', { method: 'POST', body: text }).catch(() => {}); };
 
 // ============================================================
-// PANEL
+// PANEL DE INFORMACIÓN
 // ============================================================
 const t0 = performance.now();
 const info = {
@@ -282,10 +399,13 @@ const info = {
   phase: document.getElementById('info-phase'),
   time: document.getElementById('info-time'),
 };
+
 function setValue(el, text, cls) {
-  if (!el) return; el.textContent = text;
+  if (!el) return;
+  el.textContent = text;
   el.className = 'value' + (cls ? ' ' + cls : '');
 }
+
 const infoPanel = document.getElementById('info-panel');
 const infoToggle = document.getElementById('info-toggle');
 infoToggle.addEventListener('click', (e) => {
@@ -294,12 +414,16 @@ infoToggle.addEventListener('click', (e) => {
   infoToggle.classList.toggle('active');
 });
 addEventListener('keydown', (e) => {
-  if (e.code === 'F8') { e.preventDefault();
+  if (e.code === 'F8') {
+    e.preventDefault();
     infoPanel.classList.toggle('visible');
-    infoToggle.classList.toggle('active'); }
+    infoToggle.classList.toggle('active');
+  }
 });
+
 if (navigator.hardwareConcurrency) setValue(info.cores, navigator.hardwareConcurrency);
 if (navigator.deviceMemory) setValue(info.mem, navigator.deviceMemory + ' GB');
+
 (async () => {
   try {
     if (!navigator.gpu) { setValue(info.gpu, 'sin WebGPU', 'error'); return; }
@@ -309,13 +433,21 @@ if (navigator.deviceMemory) setValue(info.mem, navigator.deviceMemory + ' GB');
     setValue(info.gpu, (i.description || i.vendor || 'GPU').slice(0, 24), 'ok');
   } catch (e) { setValue(info.gpu, 'error', 'error'); }
 })();
+
 if (navigator.connection) {
   const c = navigator.connection;
   const eff = c.effectiveType || '?';
   const cls = /4g|5g/.test(eff) ? 'ok' : /3g/.test(eff) ? 'warn' : 'error';
   setValue(info.net, eff.toUpperCase(), cls);
-} else { setValue(info.net, '—'); }
-swReady.then((reg) => setValue(info.sw, reg ? 'activo' : 'sin SW', reg ? 'ok' : 'warn'));
+} else {
+  setValue(info.net, '—');
+}
+
+swReady.then((reg) => {
+  if (reg) setValue(info.sw, 'activo', 'ok');
+  else setValue(info.sw, 'sin SW', 'warn');
+});
+
 setInterval(() => {
   const sec = Math.floor((performance.now() - t0) / 1000);
   setValue(info.time, sec + 's');
@@ -357,16 +489,16 @@ let stopTitle = () => {};
 }
 
 // ============================================================
-// MODOS
+// SELECCIÓN DE MODO
 // ============================================================
 let startMode = q.get('mode') === 'story' ? 1 : q.get('mode') === 'sandbox' ? (q.get('map') === 'env_test' ? 3 : 2) : 0;
 let startModeWord = null, startCommitted = false, pickingMap = false, waitingChoice = false;
 const ACTS = {
-  back: ['Atrás','Backspace',['Backspace']],
-  map5: ['Mapa GTA V','5',['Digit5','Numpad5']],
-  map6: ['Mapa GTA VI','6',['Digit6','Numpad6']],
-  sandbox: ['Modo Sandbox','Espacio',['Space']],
-  story: ['Modo Historia','Enter',['Enter','NumpadEnter']],
+  back:    ['Atrás',        'Backspace', ['Backspace']],
+  map5:    ['Mapa GTA V',   '5',         ['Digit5', 'Numpad5']],
+  map6:    ['Mapa GTA VI',  '6',         ['Digit6', 'Numpad6']],
+  sandbox: ['Modo Sandbox', 'Espacio',   ['Space']],
+  story:   ['Modo Historia','Enter',     ['Enter', 'NumpadEnter']],
 };
 const LOADING = { 1: 'Cargando Historia', 2: 'Cargando Sandbox: Mapa GTA V', 3: 'Cargando Sandbox: Mapa GTA VI' };
 const modesEl = document.getElementById('modes');
@@ -435,7 +567,7 @@ showModes();
     lastActivity = performance.now();
     if (m.dl) { dataBytes += m.dl; samples.push([performance.now(), m.dl]); return; }
     if (m.lines) { if (loadingGone || !m.lines.length) return; lastLine = m.lines[m.lines.length - 1]; dirty = true; return; }
-    if (m.gpuLost) { hud.textContent = 'Dispositivo gráfico perdido. Recarga.'; hud.style.color = '#f66'; return; }
+    if (m.gpuLost) { document.getElementById('hud').textContent = 'Dispositivo gráfico perdido. Recarga.'; document.getElementById('hud').style.color = '#f66'; return; }
     if (m.error) { label.textContent = m.error; label.style.color = '#e66'; return; }
     if (m.pct > target) {
       target = m.pct;
@@ -445,7 +577,7 @@ showModes();
     if (m.choice && !startMode) { waitingChoice = true; modesEl.classList.add('ask'); showModes(); }
     if (m.commit) { startCommitted = true; pickingMap = false; if (m.mode) startMode = m.mode; showModes(); }
     if (m.compiling !== undefined && !waitingChoice) { label.textContent = lastLabel = 'Preparando shaders'; target = Math.max(target, 99); setValue(info.phase, 'Compilando shaders', 'warn'); }
-    if (m.world) { ready = true; hud.textContent = 'clic para capturar el ratón (Esc libera, = FPS)'; setValue(info.phase, 'Listo', 'ok'); setTimeout(() => { hud.textContent = ''; }, 15000); }
+    if (m.world) { ready = true; document.getElementById('hud').textContent = 'clic para capturar el ratón (Esc libera, = FPS)'; setValue(info.phase, 'Listo', 'ok'); setTimeout(() => { document.getElementById('hud').textContent = ''; }, 15000); }
   };
   const dataEl = document.getElementById('data');
   const WORLD_BYTES = 1.2e9;
@@ -495,6 +627,7 @@ const hud = document.getElementById('hud');
 // ============================================================
 // WORKER
 // ============================================================
+setBoot(40, 'Comprobando compatibilidad...');
 const canvas = document.getElementById('canvas');
 if (remoteLog) {
   const queue = []; let sending = false;
@@ -515,11 +648,13 @@ if (!crossOriginIsolated) {
   document.getElementById('label').textContent = 'sin aislamiento cross-origin: abre por HTTPS.';
   document.getElementById('label').style.color = '#e66';
   setValue(info.phase, 'sin aislamiento', 'error');
+  setBoot(100, 'Error: sin aislamiento cross-origin');
+  setTimeout(hideBootScreen, 2000);
 } else {
   setValue(info.phase, 'arrancando', 'ok');
+  setBoot(60, 'Preparando canvas...');
   const offscreen = canvas.transferControlToOffscreen();
 
-  // ⚡ OPTIMIZACIÓN: low=1 forzado siempre
   const lowParam = q.get('low') || '1';
   lowMemory = lowParam === '1' || (lowParam !== '0' && navigator.deviceMemory && navigator.deviceMemory <= 4);
 
@@ -528,7 +663,6 @@ if (!crossOriginIsolated) {
     '-reflectionQuality=0', '-particleQuality=0', '-grassQuality=0',
     '-cityDensity=0', '-lodScale=0', '-pedLodBias=0', '-vehicleLodBias=0'];
 
-  // ⚡ OPTIMIZACIÓN: forzar todos los núcleos × 2
   const cores = +(q.get('cores') || 0) || navigator.hardwareConcurrency * 2;
 
   wantSize = () => {
@@ -546,6 +680,7 @@ if (!crossOriginIsolated) {
   const ENGINE_ARGS = ['-fastscriptcore'];
   setInterval(() => {}, 1);
 
+  setBoot(80, 'Descargando motor...');
   const worker = new Worker(BASE + '/loader.js');
   worker.onmessage = (ev) => {
     if (ev.data.hud) hud.textContent = ev.data.hud;
@@ -573,12 +708,16 @@ if (!crossOriginIsolated) {
     cores,
     noStore: !!(q.get('nocache') || q.get('nosw')),
     fullConsole: !!q.get('console'), remoteLog, trace: !!q.get('trace'),
-    // ⚡ OPTIMIZACIÓN: slots por defecto 4
     slots: +(q.get('slots') || 4),
-    // ⚡ OPTIMIZACIÓN: syncpipelines forzado
     syncPipelines: true,
     record: !!q.get('record'), lowMemory,
   }, [offscreen]);
+
+  // Ocultar la pantalla de espera cuando el worker esté cargando
+  setTimeout(() => {
+    setBoot(100, 'Iniciando motor...');
+    hideBootScreen();
+  }, 800);
 }
 
 // ============================================================
