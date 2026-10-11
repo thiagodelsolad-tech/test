@@ -7,8 +7,16 @@
 <meta name="description" content="Clon web no oficial de GTA V — Proyecto educativo, sin afiliación con Rockstar Games o Take-Two.">
 <title>GTA V — Web Edition (Fan Project)</title>
 
+<!-- ✅ NUEVO: preconnect a todos los orígenes que vamos a usar -->
 <link rel="preconnect" href="https://cdn.apkprojects.xyz" crossorigin>
 <link rel="dns-prefetch" href="https://cdn.apkprojects.xyz">
+
+<!-- ✅ NUEVO: preload de los assets críticos (arrancan antes de que el JS los pida) -->
+<link rel="preload" as="fetch" href="/game.wasm" crossorigin="anonymous">
+<link rel="preload" as="fetch" href="/data/manifest.json" crossorigin="anonymous">
+<link rel="preload" as="fetch" href="/data/bootset.json" crossorigin="anonymous">
+<link rel="preload" as="fetch" href="/shaders/index.json" crossorigin="anonymous">
+<link rel="preload" as="fetch" href="/shaders/pipelines.json" crossorigin="anonymous">
 
 <style>
 	* { box-sizing: border-box; }
@@ -18,6 +26,9 @@
 	#canvas { display: block; position: absolute; left: 0; top: 0;
 		width: 100vw; height: 100vh; background: #000; }
 
+	/* ============================================================
+	   CLICK TO START
+	   ============================================================ */
 	#click-to-start {
 		position: fixed; inset: 0; z-index: 5000;
 		background: radial-gradient(ellipse at center, #0a0618 0%, #000 100%);
@@ -26,6 +37,7 @@
 		transition: opacity 0.8s ease-out;
 	}
 	#click-to-start.hidden { opacity: 0; pointer-events: none; }
+
 	#click-to-start .cts-logo {
 		font-family: 'Arial Black', sans-serif;
 		font-size: 82px; font-weight: 900;
@@ -39,6 +51,7 @@
 		0%, 100% { text-shadow: 0 0 20px rgba(180,120,255,0.9), 0 0 60px rgba(120,180,255,0.5); }
 		50%      { text-shadow: 0 0 40px rgba(180,120,255,1), 0 0 100px rgba(120,180,255,0.8); }
 	}
+
 	#click-to-start .cts-sub {
 		font-size: 12px; letter-spacing: 12px;
 		text-transform: uppercase;
@@ -46,6 +59,7 @@
 		margin-bottom: 60px;
 		pointer-events: none;
 	}
+
 	#cts-button {
 		background: rgba(120, 90, 255, 0.2);
 		border: 2px solid #a78bfa;
@@ -65,6 +79,7 @@
 		0%, 100% { opacity: 0.6; }
 		50%      { opacity: 1; }
 	}
+
 	#click-to-start .cts-note {
 		position: absolute; bottom: 40px;
 		font-size: 10px; color: rgba(180, 180, 200, 0.4);
@@ -73,6 +88,9 @@
 		pointer-events: none;
 	}
 
+	/* ============================================================
+	   BOTÓN DE SONIDO
+	   ============================================================ */
 	#sound-toggle {
 		position: fixed; top: 24px; right: 24px;
 		width: 40px; height: 40px;
@@ -89,6 +107,9 @@
 	#sound-toggle:hover { background: rgba(120, 90, 255, 0.3); transform: scale(1.08); }
 	#sound-toggle.muted { color: rgba(150, 150, 200, 0.4); }
 
+	/* ============================================================
+	   BOOT SCREEN
+	   ============================================================ */
 	#boot-screen {
 		position: fixed; inset: 0; background: #05060a;
 		z-index: 1000;
@@ -139,6 +160,9 @@
 		transition: width 0.4s ease-out;
 	}
 
+	/* ============================================================
+	   PANTALLA DE CARGA PRINCIPAL
+	   ============================================================ */
 	#loading { position: fixed; inset: 0; background: #000; overflow: hidden;
 		transition: opacity .8s; z-index: 5; opacity: 0; }
 	#loading.done { opacity: 0; pointer-events: none; }
@@ -147,10 +171,7 @@
 		transform-origin: 0 0; overflow: hidden; font: 12px sans-serif; color: #fff; }
 	#ls-screens { position: absolute; inset: 0; overflow: hidden; }
 
-	.ls-screen {
-		position: absolute; inset: 0;
-		will-change: transform;
-	}
+	.ls-screen { position: absolute; inset: 0; will-change: transform; }
 	.ls-screen .screen-bg { position: absolute; inset: 0; }
 
 	.screen-1 .screen-bg {
@@ -298,7 +319,7 @@
 </head>
 <body>
 
-<canvas id="canvas" width="800" height="600" tabindex="-1"></canvas>
+<canvas id="canvas" width="1280" height="720" tabindex="-1"></canvas>
 <div id="hud"></div>
 <div id="fps"></div>
 
@@ -388,9 +409,7 @@
 // ============================================================
 // LOG DE ARRANQUE
 // ============================================================
-console.log('[KITO] index.html cargado — v26');
-
-// ✅ FIX: expone errores no capturados en el HUD si el usuario no abre DevTools
+console.log('[KITO] index.html cargado — v27');
 window.addEventListener('error', (e) => {
   console.error('[KITO] ERROR:', e.message, 'en', e.filename, ':', e.lineno);
   const hud = document.getElementById('hud');
@@ -426,17 +445,157 @@ window.addEventListener('error', (e) => {
 })();
 
 // ============================================================
-// AUDIO AMBIENTE
+// ✅ NUEVO: AUDIO DE INTRO — SYNTHWAVE (Am – F – C – G a 84 BPM)
+// Pads + bass + arpegio + kick + hi-hat. Loop infinito.
 // ============================================================
 const AmbientAudio = (function() {
-  let ctx = null, masterGain = null, playing = false, oscillators = [], lfo = null;
+  let ctx = null, masterGain = null, playing = false;
+  let schedulerId = null, nextNoteTime = 0, step = 0;
+  const BPM = 84;
+  const STEP = 60 / BPM / 4;          // semicorchea
+  // Notas MIDI (A4=69). Progresión: Am - F - C - G, cada acorde 4 tiempos
+  const PROG = [
+    { root: 45, chord: [57, 60, 64], arp: [57, 60, 64, 69, 72, 69, 64, 60] }, // Am
+    { root: 41, chord: [53, 57, 60], arp: [53, 57, 60, 65, 69, 65, 60, 57] }, // F
+    { root: 36, chord: [48, 52, 55], arp: [48, 52, 55, 60, 64, 60, 55, 52] }, // C
+    { root: 43, chord: [55, 59, 62], arp: [55, 59, 62, 67, 71, 67, 62, 59] }, // G
+  ];
+  const mtof = (m) => 440 * Math.pow(2, (m - 69) / 12);
 
   function init() {
     if (ctx) return;
-    ctx = new (window.AudioContext || window.webkitAudioContext)();
+    ctx = new (window.AudioContext || window.webkitAudioContext)({ latencyHint: 'interactive' });
     masterGain = ctx.createGain();
     masterGain.gain.value = 0;
-    masterGain.connect(ctx.destination);
+
+    // Reverb corto con convolución sintética
+    const convolver = ctx.createConvolver();
+    const len = ctx.sampleRate * 1.6;
+    const buf = ctx.createBuffer(2, len, ctx.sampleRate);
+    for (let ch = 0; ch < 2; ch++) {
+      const d = buf.getChannelData(ch);
+      for (let i = 0; i < len; i++) {
+        d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / len, 2.4);
+      }
+    }
+    convolver.buffer = buf;
+    const wet = ctx.createGain(); wet.gain.value = 0.35;
+    const dry = ctx.createGain(); dry.gain.value = 0.85;
+    masterGain.connect(dry); dry.connect(ctx.destination);
+    masterGain.connect(convolver); convolver.connect(wet); wet.connect(ctx.destination);
+  }
+
+  // --- Instrumentos ---
+  function playPad(freq, t, dur, gainPeak) {
+    const g = ctx.createGain();
+    g.gain.setValueAtTime(0, t);
+    g.gain.linearRampToValueAtTime(gainPeak, t + 0.6);
+    g.gain.linearRampToValueAtTime(gainPeak * 0.9, t + dur - 0.6);
+    g.gain.linearRampToValueAtTime(0, t + dur);
+    const filt = ctx.createBiquadFilter();
+    filt.type = 'lowpass'; filt.frequency.value = 1800; filt.Q.value = 0.7;
+    // 2 osciladores detuneados
+    for (const det of [-7, 7]) {
+      const o = ctx.createOscillator();
+      o.type = 'sawtooth';
+      o.frequency.value = freq;
+      o.detune.value = det;
+      o.connect(g);
+      o.start(t); o.stop(t + dur + 0.1);
+    }
+    g.connect(filt); filt.connect(masterGain);
+  }
+
+  function playBass(freq, t, dur) {
+    const o = ctx.createOscillator();
+    o.type = 'square';
+    o.frequency.value = freq;
+    const g = ctx.createGain();
+    g.gain.setValueAtTime(0, t);
+    g.gain.linearRampToValueAtTime(0.35, t + 0.01);
+    g.gain.exponentialRampToValueAtTime(0.001, t + dur);
+    const filt = ctx.createBiquadFilter();
+    filt.type = 'lowpass'; filt.frequency.setValueAtTime(900, t);
+    filt.frequency.exponentialRampToValueAtTime(280, t + dur);
+    filt.Q.value = 8;
+    o.connect(g); g.connect(filt); filt.connect(masterGain);
+    o.start(t); o.stop(t + dur + 0.05);
+  }
+
+  function playArp(freq, t, dur) {
+    const o = ctx.createOscillator();
+    o.type = 'triangle';
+    o.frequency.value = freq;
+    const g = ctx.createGain();
+    g.gain.setValueAtTime(0, t);
+    g.gain.linearRampToValueAtTime(0.22, t + 0.005);
+    g.gain.exponentialRampToValueAtTime(0.001, t + dur);
+    o.connect(g); g.connect(masterGain);
+    o.start(t); o.stop(t + dur + 0.02);
+  }
+
+  function playKick(t) {
+    const o = ctx.createOscillator();
+    o.type = 'sine';
+    o.frequency.setValueAtTime(140, t);
+    o.frequency.exponentialRampToValueAtTime(38, t + 0.18);
+    const g = ctx.createGain();
+    g.gain.setValueAtTime(0.001, t);
+    g.gain.linearRampToValueAtTime(0.9, t + 0.005);
+    g.gain.exponentialRampToValueAtTime(0.001, t + 0.32);
+    o.connect(g); g.connect(masterGain);
+    o.start(t); o.stop(t + 0.35);
+  }
+
+  function playHat(t, open) {
+    const dur = open ? 0.18 : 0.045;
+    const bufSize = Math.floor(ctx.sampleRate * dur);
+    const buf = ctx.createBuffer(1, bufSize, ctx.sampleRate);
+    const d = buf.getChannelData(0);
+    for (let i = 0; i < bufSize; i++) d[i] = (Math.random() * 2 - 1) * (1 - i / bufSize);
+    const src = ctx.createBufferSource(); src.buffer = buf;
+    const filt = ctx.createBiquadFilter();
+    filt.type = 'highpass'; filt.frequency.value = open ? 5500 : 7800;
+    const g = ctx.createGain(); g.gain.value = open ? 0.18 : 0.12;
+    src.connect(filt); filt.connect(g); g.connect(masterGain);
+    src.start(t);
+  }
+
+  // --- Secuenciador ---
+  function scheduleStep(s, t) {
+    const bar = Math.floor(s / 16) % PROG.length;
+    const beat = s % 16;                 // 0..15 dentro del compás
+    const chord = PROG[bar];
+
+    // Pad: acorde al inicio del compás, se mantiene 4 beats
+    if (beat === 0) {
+      const dur = (60 / BPM) * 4;
+      for (const n of chord.chord) playPad(mtof(n + 12), t, dur, 0.05);
+    }
+    // Bass: en negras (0,4,8,12) y una corchea en 14
+    if (beat % 4 === 0 || beat === 14) {
+      playBass(mtof(chord.root), t, beat === 14 ? 0.22 : 0.28);
+    }
+    // Arpegio: semicorcheas en beats impares, silencio en negras
+    if (beat % 2 === 1 || beat === 0 || beat === 8) {
+      const idx = Math.floor((s % 8) / 1) % chord.arp.length;
+      playArp(mtof(chord.arp[idx] + 12), t, 0.16);
+    }
+    // Kick: 0, 8 y off-beat 6, 14
+    if (beat === 0 || beat === 8 || beat === 6 || beat === 14) playKick(t);
+    // Hats: cada 2 semicorcheas, open en 12
+    if (beat % 2 === 0) playHat(t, beat === 12);
+  }
+
+  function scheduler() {
+    if (!playing) return;
+    const now = ctx.currentTime;
+    while (nextNoteTime < now + 0.15) {
+      scheduleStep(step, nextNoteTime);
+      nextNoteTime += STEP;
+      step = (step + 1) % 64; // 4 compases = 64 semicorcheas
+    }
+    schedulerId = setTimeout(scheduler, 25);
   }
 
   function start() {
@@ -444,47 +603,22 @@ const AmbientAudio = (function() {
     if (ctx.state === 'suspended') ctx.resume();
     if (playing) return;
     playing = true;
-
-    const freqs = [110, 164.81, 220];
-    oscillators = freqs.map((freq, i) => {
-      const osc = ctx.createOscillator();
-      osc.type = i === 0 ? 'sine' : 'triangle';
-      osc.frequency.value = freq;
-      const gain = ctx.createGain();
-      gain.gain.value = 0.15;
-      const filter = ctx.createBiquadFilter();
-      filter.type = 'lowpass';
-      filter.frequency.value = 800;
-      filter.Q.value = 2;
-      osc.connect(gain); gain.connect(filter); filter.connect(masterGain);
-      osc.start();
-      return { osc, gain, filter };
-    });
-
-    lfo = ctx.createOscillator();
-    lfo.frequency.value = 0.1;
-    const lfoGain = ctx.createGain();
-    lfoGain.gain.value = 0.08;
-    lfo.connect(lfoGain); lfoGain.connect(masterGain.gain);
-    lfo.start();
-
-    masterGain.gain.setValueAtTime(0, ctx.currentTime);
-    masterGain.gain.linearRampToValueAtTime(0.35, ctx.currentTime + 3);
+    step = 0;
+    nextNoteTime = ctx.currentTime + 0.1;
+    masterGain.gain.cancelScheduledValues(ctx.currentTime);
+    masterGain.gain.setValueAtTime(masterGain.gain.value, ctx.currentTime);
+    masterGain.gain.linearRampToValueAtTime(0.55, ctx.currentTime + 2.5);
+    scheduler();
   }
 
   function stop() {
     if (!playing) return;
     playing = false;
-    if (!masterGain) return;
+    if (schedulerId) { clearTimeout(schedulerId); schedulerId = null; }
+    if (!masterGain || !ctx) return;
     masterGain.gain.cancelScheduledValues(ctx.currentTime);
     masterGain.gain.setValueAtTime(masterGain.gain.value, ctx.currentTime);
-    masterGain.gain.linearRampToValueAtTime(0, ctx.currentTime + 1.2);
-    setTimeout(() => {
-      oscillators.forEach(o => { try { o.osc.stop(); } catch(e) {} });
-      oscillators = [];
-      try { lfo.stop(); } catch(e) {}
-      lfo = null;
-    }, 1300);
+    masterGain.gain.linearRampToValueAtTime(0, ctx.currentTime + 0.8);
   }
 
   function toggle() { if (playing) stop(); else start(); return playing; }
@@ -665,13 +799,13 @@ const swReady = (async () => {
   try {
     const reg = await navigator.serviceWorker.register('/sw.js', { scope: '/' });
     if (!navigator.serviceWorker.controller) {
-      if (!sessionStorage.getItem('sw_reloaded')) {
-        sessionStorage.setItem('sw_reloaded', '1');
+      if (!sessionStorage.getItem('sw_reloaded_v27')) {
+        sessionStorage.setItem('sw_reloaded_v27', '1');
         location.reload();
         return null;
       }
     } else {
-      sessionStorage.removeItem('sw_reloaded');
+      sessionStorage.removeItem('sw_reloaded_v27');
     }
     await navigator.serviceWorker.ready;
     return reg;
@@ -946,12 +1080,12 @@ window.addEventListener('game-start', async () => {
 
   setValue(info.phase, 'arrancando', 'ok');
   setBoot(60, 'Preparando canvas...');
-  const offscreen = canvasEl.transferControlToOffscreen();
 
-  // ✅ FIX: low y LOW_ARGS se aplican respetando el parámetro.
-  // Antes LOW_ARGS se aplicaba siempre, incluso si el usuario ponía low=0.
-  const lowParam = q.get('low') || '1';
-  const lowMemory = lowParam === '1';
+  // ✅ FIX: low=0 por defecto. Solo se activa con ?low=1 o si hay <=4GB RAM.
+  const lowParam = q.get('low');
+  const lowMemory = lowParam === '1' ||
+    (lowParam !== '0' && (navigator.deviceMemory || 8) <= 4);
+
   const LOW_ARGS = lowMemory ? [
     '-textureQuality=0', '-pedVariety=0', '-vehicleVariety=0',
     '-shadowQuality=' + (q.get('shadows') === '1' ? 0 : -1),
@@ -965,42 +1099,58 @@ window.addEventListener('game-start', async () => {
     const forced = /^(\d+)x(\d+)$/.exec(q.get('res') || '');
     if (forced) return [+forced[1], +forced[2]];
     const sc = Math.max(0.25, Math.min(2, +(q.get('scale') || 1)));
-    let w = innerWidth * devicePixelRatio * sc, h = innerHeight * devicePixelRatio * sc;
-    const cap = lowMemory ? [2560, 1440] : [3840, 2160];
+    let w = innerWidth  * (devicePixelRatio || 1) * sc;
+    let h = innerHeight * (devicePixelRatio || 1) * sc;
+    const cap = lowMemory ? [1920, 1080] : [2560, 1440];
     const k = Math.min(1, cap[0] / w, cap[1] / h);
     w *= k; h *= k;
-    return [Math.max(320, Math.round(w / 2) * 2), Math.max(240, Math.round(h / 2) * 2)];
+    return [
+      Math.max(640, Math.round(w / 2) * 2),
+      Math.max(360, Math.round(h / 2) * 2),
+    ];
   };
   const startSize = wantSize();
+
+  // ✅ FIX CRÍTICO: redimensiona el canvas ANTES de transferControlToOffscreen
+  canvasEl.width  = startSize[0];
+  canvasEl.height = startSize[1];
+  canvasEl.style.width  = '100vw';
+  canvasEl.style.height = '100vh';
+
+  const offscreen = canvasEl.transferControlToOffscreen();
+
   const LOG_ARGS = q.get('verbose') ? [] : ['-Script_all=warning', '-replay_all=warning'];
   const ENGINE_ARGS = ['-fastscriptcore'];
 
   setBoot(70, 'Descargando assets críticos...');
+  // ✅ NUEVO: prioridad alta para los assets que bloquean el arranque del motor
   const PRELOAD_LIST = [
-    { url: '/data/manifest.json',       label: 'Manifest' },
-    { url: '/data/bootset.json',        label: 'Bootset' },
-    { url: '/data/bootset_low.json',    label: 'Bootset low' },
-    { url: '/game.wasm',                label: 'Motor WebAssembly' },
-    { url: '/shaders/index.json',       label: 'Shaders' },
-    { url: '/shaders/pipelines.json',   label: 'Pipelines' },
-    { url: '/shaders/pipelines_low.json', label: 'Pipelines low' },
+    { url: '/game.wasm',                label: 'Motor WebAssembly', priority: 'high' },
+    { url: '/data/manifest.json',       label: 'Manifest',          priority: 'high' },
+    { url: '/data/bootset.json',        label: 'Bootset',           priority: 'high' },
+    { url: '/shaders/index.json',       label: 'Shaders',           priority: 'high' },
+    { url: '/shaders/pipelines.json',   label: 'Pipelines',         priority: 'high' },
+    { url: '/data/bootset_low.json',    label: 'Bootset low',       priority: 'low'  },
+    { url: '/shaders/pipelines_low.json', label: 'Pipelines low',   priority: 'low'  },
   ];
 
+  // ✅ NUEVO: lanza todas las descargas en paralelo (no secuencial) con prioridad
   let preloadCount = 0;
-  for (const item of PRELOAD_LIST) {
+  await Promise.all(PRELOAD_LIST.map(async (item) => {
     try {
-      // ✅ FIX: cache: 'reload' evita comernos respuestas cacheadas rotas tras actualizar el SW
-      const res = await fetch(item.url, { cache: 'reload' });
-      if (res.ok) {
-        await res.blob();
-        preloadCount++;
-        const p = 70 + (preloadCount / PRELOAD_LIST.length) * 25;
-        setBoot(p, `Descargando ${item.label} (${preloadCount}/${PRELOAD_LIST.length})`);
-      } else {
-        console.warn(`[Preload] ${item.label}: HTTP ${res.status}`);
-      }
+      const res = await fetch(item.url, {
+        cache: 'reload',
+        priority: item.priority,
+        // @ts-ignore
+        fetchPriority: item.priority,
+      });
+      if (res.ok) await res.blob();
+      else console.warn(`[Preload] ${item.label}: HTTP ${res.status}`);
     } catch (e) { console.warn(`[Preload] ${item.label}:`, e); }
-  }
+    preloadCount++;
+    const p = 70 + (preloadCount / PRELOAD_LIST.length) * 25;
+    setBoot(p, `Descargando ${item.label} (${preloadCount}/${PRELOAD_LIST.length})`);
+  }));
 
   setBoot(95, 'Iniciando motor...');
 
@@ -1029,7 +1179,9 @@ window.addEventListener('game-start', async () => {
       ...(q.get('args') || '').split(',').filter(Boolean)],
     shotEvery: +(q.get('shot') || 0),
     cores, lowMemory,
-    slots: 4, syncPipelines: true,
+    // ✅ NUEVO: 8 slots para compilar pipelines en paralelo (antes 4)
+    slots: lowMemory ? 4 : 8,
+    syncPipelines: true,
     remoteLog: !!remoteLog,
   }, [offscreen]);
 
