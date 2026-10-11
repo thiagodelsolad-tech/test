@@ -1,13 +1,18 @@
 /**
- * sw.js — v30
- * Range requests desde caché + fallback entre múltiples rutas R2.
+ * sw.js — v36
+ * Fuente primaria: gta.deloskiyt.pl (mismo commit que su game.wasm)
+ * Fallback: cdn.apkprojects.xyz (tu mirror)
  */
 
-const R2_BASE     = 'https://cdn.apkprojects.xyz';
-const PREFIX_ROOT = 'mirror/playgta5.com/data';
-const PREFIX_BIN  = 'mirror/playgta5.com/b/8b0b5899ed';
+// Fuente 1: el port original (assets sincronizados)
+const PRIMARY_BASE   = 'https://gta.deloskiyt.pl/b/8b0b5899ed';
 
-const CACHE = 'gta5-v30';
+// Fuente 2: tu R2 (fallback)
+const FALLBACK_BASE  = 'https://cdn.apkprojects.xyz';
+const FALLBACK_BIN   = 'mirror/playgta5.com/b/8b0b5899ed';
+const FALLBACK_ROOT  = 'mirror/playgta5.com/data';
+
+const CACHE = 'gta5-v36';
 const MAX_BYTES = 5 * 1024 * 1024 * 1024;
 const TIMEOUT_DEFAULT = 45000;
 const TIMEOUT_RANGE   = 15000;
@@ -26,45 +31,62 @@ function isBatchPath(p) {
   return p.startsWith('/data/batchc/') || p === '/data/batch' || p.startsWith('/data/batch?');
 }
 
-function candidatesFor(localPath) {
+// ============================================================
+// URLs primarias — todo bajo /b/8b0b5899ed/ en el port original
+// ============================================================
+function primaryURL(localPath) {
+  // /game.wasm           → /b/8b0b5899ed/game.wasm
+  if (localPath === '/game.wasm') return PRIMARY_BASE + '/game.wasm';
+
+  // /shaders/X           → /b/8b0b5899ed/shaders/X
+  if (localPath.startsWith('/shaders/')) return PRIMARY_BASE + localPath;
+
+  // /data/X              → /b/8b0b5899ed/X (el port original no usa /data/)
+  if (localPath.startsWith('/data/')) {
+    const rest = localPath.slice(6);
+    return PRIMARY_BASE + '/' + rest;
+  }
+
+  // /game/X              → /b/8b0b5899ed/X
+  if (localPath.startsWith('/game/')) {
+    const rest = localPath.slice(6);
+    return PRIMARY_BASE + '/' + rest;
+  }
+
+  return PRIMARY_BASE + localPath;
+}
+
+// ============================================================
+// URLs de fallback (tu R2)
+// ============================================================
+function fallbackURLs(localPath) {
   if (localPath === '/game.wasm') {
     return [
-      `${PREFIX_BIN}/game.wasm`,
-      `${PREFIX_ROOT}/game.wasm`,
-      `mirror/playgta5.com/game.wasm`,
-      `game.wasm`,
+      FALLBACK_BASE + '/' + FALLBACK_BIN + '/game.wasm',
+      FALLBACK_BASE + '/' + FALLBACK_ROOT + '/game.wasm',
     ];
   }
   if (localPath.startsWith('/shaders/')) {
     const rest = localPath.slice(9);
-    return [`${PREFIX_BIN}/shaders/${rest}`, `${PREFIX_ROOT}/shaders/${rest}`];
-  }
-  if (localPath === '/data/manifest.json')    return ['manifest.json', `${PREFIX_ROOT}/manifest.json`];
-  if (localPath === '/data/bootset.json')     return ['bootset.json', `${PREFIX_ROOT}/bootset.json`];
-  if (localPath === '/data/bootset_low.json') return ['bootset_low.json', `${PREFIX_ROOT}/bootset_low.json`];
-
-  if (localPath.startsWith('/game/')) {
-    const rest = localPath.slice(6);
     return [
-      `${PREFIX_ROOT}/${rest}`,
-      `${PREFIX_ROOT}/game/${rest}`,
-      `${PREFIX_BIN}/${rest}`,
+      FALLBACK_BASE + '/' + FALLBACK_BIN + '/shaders/' + rest,
+      FALLBACK_BASE + '/' + FALLBACK_ROOT + '/shaders/' + rest,
     ];
   }
   if (localPath.startsWith('/data/')) {
     const rest = localPath.slice(6);
-    const list = [`${PREFIX_ROOT}/${rest}`, `${PREFIX_ROOT}/common/data/${rest}`];
-    if (rest.startsWith('x64/levels/gta5/')) {
-      const after = rest.slice('x64/levels/gta5/'.length);
-      const slash = after.indexOf('/');
-      if (slash > 0) {
-        list.push(`${PREFIX_ROOT}/x64/levels/gta5/_${after.slice(0, slash)}/${after.slice(slash + 1)}`);
-      }
-    }
-    return list;
+    return [
+      FALLBACK_BASE + '/' + FALLBACK_ROOT + '/' + rest,
+    ];
   }
-  const rest = localPath.slice(1);
-  return [`${PREFIX_ROOT}/${rest}`, `${PREFIX_BIN}/${rest}`];
+  if (localPath.startsWith('/game/')) {
+    const rest = localPath.slice(6);
+    return [
+      FALLBACK_BASE + '/' + FALLBACK_ROOT + '/' + rest,
+      FALLBACK_BASE + '/' + FALLBACK_BIN + '/' + rest,
+    ];
+  }
+  return [FALLBACK_BASE + localPath.slice(1)];
 }
 
 function injectIsolation(r) {
@@ -75,6 +97,9 @@ function injectIsolation(r) {
   return new Response(r.body, { status: r.status, statusText: r.statusText, headers: h });
 }
 
+// ============================================================
+// Ciclo de vida
+// ============================================================
 self.addEventListener('install', () => self.skipWaiting());
 self.addEventListener('activate', (event) => {
   event.waitUntil((async () => {
@@ -116,7 +141,9 @@ function fastFetch(url, req, timeout) {
   const headers = {};
   const range = req.headers.get('Range');
   if (range) headers['Range'] = range;
-  return fetch(url, { method: 'GET', headers, mode: 'cors', credentials: 'omit', signal: ctrl.signal })
+  return fetch(url, {
+    method: 'GET', headers, mode: 'cors', credentials: 'omit', signal: ctrl.signal,
+  })
     .then((r) => { clearTimeout(timer); return (r.ok || r.status === 206) ? r : null; })
     .catch(() => { clearTimeout(timer); return null; });
 }
@@ -165,15 +192,23 @@ async function handleAsset(event) {
   }
   if (cached && !range) return injectIsolation(cached);
 
-  const candidates = candidatesFor(pathname);
-  if (!candidates.length) return new Response('', { status: 404 });
-
+  // Timeout según tipo
   const timeout = range ? TIMEOUT_RANGE
                 : pathname.endsWith('.rpf') ? TIMEOUT_FULL
                 : TIMEOUT_DEFAULT;
 
-  const results = await Promise.all(candidates.map((c) => fastFetch(`${R2_BASE}/${c}`, req, timeout)));
-  const res = results.find((r) => r !== null) || null;
+  // ✅ Primero prueba la fuente primaria (gta.deloskiyt.pl)
+  const primary = primaryURL(pathname);
+  console.log('[SW] →', primary);
+  let res = await fastFetch(primary, req, timeout);
+
+  // ✅ Si falla, prueba los fallbacks de tu R2 en paralelo
+  if (!res) {
+    const fallbacks = fallbackURLs(pathname);
+    console.warn('[SW] Primaria falló, probando fallback:', pathname);
+    const results = await Promise.all(fallbacks.map((u) => fastFetch(u, req, timeout)));
+    res = results.find((r) => r !== null) || null;
+  }
 
   if (!res) return new Response('', { status: 404 });
 
@@ -181,8 +216,9 @@ async function handleAsset(event) {
     const cacheable = res.clone();
     event.waitUntil?.(cache.put(pathname, cacheable).then(() => scheduleTrimCache()).catch(() => {}));
   }
-  if (range && res.status === 200) console.warn('[SW] Range ignorado por R2:', pathname);
-
+  if (range && res.status === 200) {
+    console.warn('[SW] Range ignorado:', pathname);
+  }
   return injectIsolation(res);
 }
 
