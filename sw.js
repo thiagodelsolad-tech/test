@@ -1,13 +1,13 @@
 /**
  * sw.js — Service Worker GTA V Web Edition
- * v22 — CDN directo (cdn.apkrprojects.xyz)
+ * v23 — CDN directo (cdn.apkprojects.xyz)
  */
 
-const R2_BASE     = 'https://cdn.apkrprojects.xyz';
+const R2_BASE     = 'https://cdn.apkprojects.xyz';
 const PREFIX_ROOT = 'mirror/playgta5.com/data';
 const PREFIX_BIN  = 'mirror/playgta5.com/b/8b0b5899ed';
 
-const CACHE       = 'gta5-v22';
+const CACHE       = 'gta5-v23';
 const MAX_BYTES   = 2 * 1024 * 1024 * 1024;
 const FETCH_TIMEOUT = 30000;
 
