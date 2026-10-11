@@ -1,28 +1,21 @@
 /**
- * sw.js — v26
- * - Cache bump (invalida la v25 envenenada)
- * - game.wasm: prueba 4 rutas reales antes de rendirse
- * - /shaders/ pasa por R2 con prioridad pero con fallback local
- * - Los fallos de assets NO se cachean (evita 404 envenenados)
- * - SW deja de ser proxy para assets pesados (los RPF van directos)
+ * sw.js — v28
+ * - Sirve Range requests desde Cache Storage (blob.slice) → 206 correcto
+ * - Soporta montaje de audio packs (x64/audio/sfx/*.rpf)
+ * - Cache bump a v28
  */
 
 const R2_BASE     = 'https://cdn.apkprojects.xyz';
 const PREFIX_ROOT = 'mirror/playgta5.com/data';
 const PREFIX_BIN  = 'mirror/playgta5.com/b/8b0b5899ed';
 
-const CACHE = 'gta5-v26';                    // ✅ bump
-const MAX_BYTES = 2 * 1024 * 1024 * 1024;
+const CACHE = 'gta5-v28';
+const MAX_BYTES = 5 * 1024 * 1024 * 1024;   // 5 GB
 
 const TIMEOUT_DEFAULT = 45000;
 const TIMEOUT_RANGE   = 15000;
 const TIMEOUT_FULL    = 300000;
 
-const PREFETCH_PAR = 32;
-
-// ============================================================
-// Rutas servidas por GitHub Pages directamente (NO se proxean)
-// ============================================================
 const FRONTEND = new Set([
   '/', '/index.html', '/sw.js', '/CNAME', '/README.md',
   '/loader.js', '/game.js', '/wgpu_worker.js', '/io_worker.js', '/audio-worklet.js',
@@ -32,21 +25,11 @@ const FRONTEND = new Set([
 function isFrontend(p) {
   return FRONTEND.has(p) || p.startsWith('/img/') || p.startsWith('/.github/');
 }
-
 function isBatchPath(p) {
   return p.startsWith('/data/batchc/') || p === '/data/batch' || p.startsWith('/data/batch?');
 }
 
-// ✅ FIX: los RPF van DIRECTO al CDN, sin pasar por el SW. Esto duplica la velocidad.
-function isHeavyAsset(p) {
-  return p.startsWith('/game/') || p.endsWith('.rpf');
-}
-
-// ============================================================
-// Candidatos en R2 (probamos varias rutas reales)
-// ============================================================
 function candidatesFor(localPath) {
-  // ✅ FIX: 4 rutas posibles para game.wasm (una de ellas será la buena)
   if (localPath === '/game.wasm') {
     return [
       `${PREFIX_BIN}/game.wasm`,
@@ -55,19 +38,23 @@ function candidatesFor(localPath) {
       `game.wasm`,
     ];
   }
-
   if (localPath.startsWith('/shaders/')) {
     const rest = localPath.slice(9);
-    return [
-      `${PREFIX_BIN}/shaders/${rest}`,
-      `${PREFIX_ROOT}/shaders/${rest}`,
-    ];
+    return [`${PREFIX_BIN}/shaders/${rest}`, `${PREFIX_ROOT}/shaders/${rest}`];
   }
-
   if (localPath === '/data/manifest.json')    return ['manifest.json', `${PREFIX_ROOT}/manifest.json`];
   if (localPath === '/data/bootset.json')     return ['bootset.json', `${PREFIX_ROOT}/bootset.json`];
   if (localPath === '/data/bootset_low.json') return ['bootset_low.json', `${PREFIX_ROOT}/bootset_low.json`];
 
+  // ✅ FIX: RPF de audio y otros RPF
+  if (localPath.startsWith('/game/')) {
+    const rest = localPath.slice(6);
+    return [
+      `${PREFIX_ROOT}/${rest}`,
+      `${PREFIX_ROOT}/game/${rest}`,
+      `${PREFIX_BIN}/${rest}`,
+    ];
+  }
   if (localPath.startsWith('/data/')) {
     const rest = localPath.slice(6);
     const list = [
@@ -85,7 +72,6 @@ function candidatesFor(localPath) {
     }
     return list;
   }
-
   const rest = localPath.slice(1);
   return [`${PREFIX_ROOT}/${rest}`, `${PREFIX_BIN}/${rest}`];
 }
@@ -102,53 +88,21 @@ function injectIsolation(r) {
 // Ciclo de vida
 // ============================================================
 self.addEventListener('install', () => self.skipWaiting());
-
 self.addEventListener('activate', (event) => {
   event.waitUntil((async () => {
     const keys = await caches.keys();
+    // ✅ No borramos la cache si es la actual. Solo las viejas.
     await Promise.all(keys.filter((k) => k !== CACHE).map((k) => caches.delete(k)));
     await self.clients.claim();
-    prefetchBootset();
   })());
 });
-
-async function prefetchBootset() {
-  try {
-    const cache = await caches.open(CACHE);
-    const done = await cache.match('/__bootset_done_v26__');
-    if (done) return;
-
-    const res = await fetch(`${R2_BASE}/bootset.json`);
-    if (!res.ok) return;
-
-    const entries = await res.json();
-    let i = 0;
-
-    const worker = async () => {
-      while (i < entries.length) {
-        const entry = entries[i++];
-        const path = Array.isArray(entry) ? entry[0] : entry;
-        const url = `${R2_BASE}/${PREFIX_ROOT}/${path}`;
-        const key = new Request(`/data/${path}`);
-        try {
-          if (await cache.match(key)) continue;
-          const r = await fetch(url, { mode: 'cors', credentials: 'omit' });
-          if (r.ok) await cache.put(key, r);
-        } catch (e) {}
-      }
-    };
-    await Promise.all(Array.from({ length: PREFETCH_PAR }, worker));
-    await cache.put('/__bootset_done_v26__', new Response('1'));
-  } catch (e) {}
-}
 
 let trimScheduled = false;
 function scheduleTrimCache() {
   if (trimScheduled) return;
   trimScheduled = true;
-  setTimeout(() => { trimScheduled = false; trimCache(); }, 5000);
+  setTimeout(() => { trimScheduled = false; trimCache(); }, 8000);
 }
-
 async function trimCache() {
   try {
     const c = await caches.open(CACHE);
@@ -165,7 +119,7 @@ async function trimCache() {
     if (total <= MAX_BYTES) return;
     let removed = 0;
     for (const { r, len } of sizes) {
-      if (total - removed <= MAX_BYTES * 0.8) break;
+      if (total - removed <= MAX_BYTES * 0.9) break;
       await c.delete(r);
       removed += len;
     }
@@ -178,69 +132,103 @@ function fastFetch(url, req, timeout) {
   const headers = {};
   const range = req.headers.get('Range');
   if (range) headers['Range'] = range;
-
-  return fetch(url, {
-    method: 'GET',
-    headers,
-    mode: 'cors',
-    credentials: 'omit',
-    signal: ctrl.signal,
-  })
-    .then((r) => {
-      clearTimeout(timer);
-      return (r.ok || r.status === 206) ? r : null;
-    })
-    .catch(() => {
-      clearTimeout(timer);
-      return null;
-    });
+  return fetch(url, { method: 'GET', headers, mode: 'cors', credentials: 'omit', signal: ctrl.signal })
+    .then((r) => { clearTimeout(timer); return (r.ok || r.status === 206) ? r : null; })
+    .catch(() => { clearTimeout(timer); return null; });
 }
 
 // ============================================================
-// Manejo de assets NO pesados (los pesados van directos)
+// ✅ NUEVO: parsear Range header
+//    Soporta: "bytes=X-Y", "bytes=X-", "bytes=-N"
+// ============================================================
+function parseRange(rangeHeader, totalSize) {
+  if (!rangeHeader) return null;
+  const m = /^bytes=(\d*)-(\d*)$/.exec(rangeHeader.trim());
+  if (!m) return null;
+  let start = m[1] === '' ? null : parseInt(m[1], 10);
+  let end   = m[2] === '' ? null : parseInt(m[2], 10);
+  if (start === null && end === null) return null;
+  if (start === null) {
+    // "bytes=-N" → últimos N bytes
+    start = Math.max(0, totalSize - end);
+    end = totalSize - 1;
+  } else if (end === null || end >= totalSize) {
+    // "bytes=X-" → desde X hasta el final
+    end = totalSize - 1;
+  }
+  if (start > end || start >= totalSize) return null;
+  return { start, end };
+}
+
+// ============================================================
+// ✅ NUEVO: Sirve un Range desde un blob cacheado
+// ============================================================
+async function serveRangeFromCache(cachedResponse, rangeHeader) {
+  const buf = await cachedResponse.arrayBuffer();
+  const total = buf.byteLength;
+  const range = parseRange(rangeHeader, total);
+  if (!range) return null;
+
+  const { start, end } = range;
+  const slice = buf.slice(start, end + 1);
+  const headers = new Headers(cachedResponse.headers);
+  headers.set('Content-Range', `bytes ${start}-${end}/${total}`);
+  headers.set('Content-Length', String(slice.byteLength));
+  headers.set('Accept-Ranges', 'bytes');
+  headers.set('Content-Type', 'application/octet-stream');
+
+  return new Response(slice, { status: 206, statusText: 'Partial Content', headers });
+}
+
+// ============================================================
+// Manejo de assets
 // ============================================================
 async function handleAsset(event) {
   const req = event.request;
   const url = new URL(req.url);
   const pathname = url.pathname;
-  const hasRange = req.headers.has('Range');
+  const range = req.headers.get('Range');
 
   const cache = await caches.open(CACHE);
+  const cached = await cache.match(pathname);
 
-  if (!hasRange) {
-    const cached = await cache.match(req);
-    if (cached) return injectIsolation(cached);
+  // ✅ Si está en caché y es una petición Range, servimos desde el blob
+  if (cached && range) {
+    try {
+      const ranged = await serveRangeFromCache(cached, range);
+      if (ranged) return injectIsolation(ranged);
+    } catch (e) { /* fallback a red */ }
   }
 
+  // ✅ Si está en caché y no es Range, devolvemos el cached entero
+  if (cached && !range) return injectIsolation(cached);
+
+  // Descarga de red
   const candidates = candidatesFor(pathname);
   if (!candidates.length) return new Response('', { status: 404 });
 
-  const timeout = hasRange ? TIMEOUT_RANGE
+  const timeout = range ? TIMEOUT_RANGE
                 : pathname.endsWith('.rpf') ? TIMEOUT_FULL
                 : TIMEOUT_DEFAULT;
 
-  // Prueba candidatos EN PARALELO (antes era secuencial → lento con R2 cold)
   const results = await Promise.all(
     candidates.map((c) => fastFetch(`${R2_BASE}/${c}`, req, timeout))
   );
   const res = results.find((r) => r !== null) || null;
 
-  if (!res) {
-    console.warn('[SW] 404 definitivo:', pathname);
-    return new Response('', { status: 404 });
-  }
+  if (!res) return new Response('', { status: 404 });
 
-  // ✅ FIX: cachea SOLO 200 completo y SOLO si no es un fallo parcial
-  if (!hasRange && res.status === 200) {
+  // ✅ Cachea solo respuestas 200 completas y sin Range
+  if (!range && res.status === 200) {
     const cacheable = res.clone();
     event.waitUntil?.(
-      cache.put(req, cacheable)
+      cache.put(pathname, cacheable)
         .then(() => scheduleTrimCache())
         .catch(() => {})
     );
   }
 
-  if (hasRange && res.status === 200) {
+  if (range && res.status === 200) {
     console.warn('[SW] Range ignorado por R2:', pathname);
   }
 
@@ -260,12 +248,6 @@ self.addEventListener('fetch', (event) => {
   if (isBatchPath(url.pathname)) {
     event.respondWith(new Response('', { status: 404 }));
     return;
-  }
-
-  // ✅ FIX: los RPF van DIRECTO a R2 (el SW no los intercepta).
-  // Esto evita el cuello de botella y duplica la velocidad real de descarga.
-  if (isHeavyAsset(url.pathname)) {
-    return; // ← el navegador hace la petición tal cual
   }
 
   if (isFrontend(url.pathname)) {
