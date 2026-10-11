@@ -1,12 +1,13 @@
 /**
  * sw.js — Service Worker GTA V Web Edition
+ * v22 — CDN directo (cdn.apkrprojects.xyz)
  */
 
-const R2_BASE     = 'https://gta-proxy.kitofree1221.workers.dev';
+const R2_BASE     = 'https://cdn.apkrprojects.xyz';
 const PREFIX_ROOT = 'mirror/playgta5.com/data';
 const PREFIX_BIN  = 'mirror/playgta5.com/b/8b0b5899ed';
 
-const CACHE       = 'gta5-v16';
+const CACHE       = 'gta5-v22';
 const MAX_BYTES   = 2 * 1024 * 1024 * 1024;
 const FETCH_TIMEOUT = 30000;
 
@@ -168,7 +169,7 @@ self.addEventListener('fetch', (event) => {
       } catch (err) {
         const c = await caches.match(event.request);
         if (c) return injectIsolation(c);
-        throw err;
+        return injectIsolation(new Response('', { status: 504 }));
       }
     })());
     return;
