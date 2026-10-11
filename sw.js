@@ -1,16 +1,19 @@
 /**
  * sw.js — Service Worker para GTA V Web Edition
- * 
- * IMPORTANTE: los archivos en R2 están bajo un prefijo. Si los mueves,
- * solo cambia R2_PREFIX aquí abajo.
+ *
+ * Estructura real en R2:
+ *   - game.wasm, shaders/, *.js  → mirror/playgta5.com/b/8b0b5899ed/
+ *   - assets del juego           → mirror/playgta5.com/data/common/data/
+ *   - manifest/bootset           → raíz del bucket
  */
 
-const R2_BASE_URL = 'https://pub-a092af97260c44d9b24dcb93dbfbb9ef.r2.dev';
+const R2_BASE = 'https://pub-a092af97260c44d9b24dcb93dbfbb9ef.r2.dev';
 
-// Prefijo donde están game.wasm, shaders/ y el resto en R2
-const R2_PREFIX = 'mirror/playgta5.com/b/8b0b5899ed';
+// Prefijos en R2
+const PREFIX_BIN  = 'mirror/playgta5.com/b/8b0b5899ed'; // game.wasm, shaders/, *.js
+const PREFIX_DATA = 'mirror/playgta5.com/data/common/data'; // assets del juego
 
-const CACHE = 'gta5-v5';
+const CACHE = 'gta5-v7';
 const MAX_BYTES = 2 * 1024 * 1024 * 1024;
 
 const LOCAL_EXACT = new Set([
@@ -26,36 +29,79 @@ function isFrontend(pathname) {
   return false;
 }
 
-// Candidatos en R2: se prueban en orden con el prefijo y sin el
+// ============================================================
+// CANDIDATOS EN R2
+// ============================================================
 function candidatesFor(localPath) {
-  const paths = [];
-  let inner = null;
+  const list = [];
 
+  // /game.wasm
   if (localPath === '/game.wasm') {
-    inner = ['game.wasm', 'x64/game.wasm'];
-  } else if (localPath.startsWith('/shaders/')) {
-    const rest = localPath.slice(9);
-    inner = ['shaders/' + rest, 'common/shaders/' + rest];
-  } else if (localPath.startsWith('/data/')) {
-    const rest = localPath.slice(6);
-    inner = [rest, 'data/' + rest];
-  } else if (localPath.startsWith('/mirror/') || localPath.startsWith('/runtime/')) {
-    inner = [localPath.slice(1)];
-  } else if (localPath.startsWith('/x64/') || localPath.startsWith('/common/')) {
-    inner = [localPath.slice(1)];
-  } else {
-    // Ruta desconocida: prueba tal cual
-    inner = [localPath.slice(1)];
+    list.push(PREFIX_BIN + '/game.wasm');
+    list.push('game.wasm');
+    list.push('x64/game.wasm');
+    return list;
   }
 
-  // Primero con el prefijo (donde TÚ los subiste), luego sin él
-  for (const p of inner) {
-    paths.push(R2_PREFIX + '/' + p);       // mirror/playgta5.com/b/8b0b5899ed/game.wasm
-    paths.push(p);                          // game.wasm (por si algún día los mueves)
+  // /shaders/*
+  if (localPath.startsWith('/shaders/')) {
+    const rest = localPath.slice(9);
+    list.push(PREFIX_BIN + '/shaders/' + rest);
+    list.push('shaders/' + rest);
+    list.push('common/shaders/' + rest);
+    list.push('data/common/shaders/' + rest);
+    return list;
   }
-  return paths;
+
+  // /data/manifest.json, /data/bootset.json, etc.
+  // (el motor los pide con /data/ delante, y están en la raíz de R2)
+  if (localPath === '/data/manifest.json' ||
+      localPath === '/data/bootset.json' ||
+      localPath === '/data/bootset_low.json') {
+    const rest = localPath.slice(6); // quita "/data/"
+    list.push(rest);                 // manifest.json (en la raíz)
+    list.push('data/' + rest);
+    return list;
+  }
+
+  // /data/mirror/* → assets del juego
+  if (localPath.startsWith('/data/mirror/')) {
+    const rest = localPath.slice(12); // quita "/data/mirror/"
+    list.push(PREFIX_DATA + '/' + rest);                  // .../common/data/anim/...
+    list.push('mirror/' + rest);                          // mirror/anim/...
+    list.push(PREFIX_DATA + '/mirror/' + rest);
+    list.push(rest);
+    return list;
+  }
+
+  // /data/runtime/*
+  if (localPath.startsWith('/data/runtime/')) {
+    const rest = localPath.slice(13);
+    list.push(PREFIX_BIN + '/runtime/' + rest);
+    list.push('runtime/' + rest);
+    list.push(rest);
+    return list;
+  }
+
+  // /data/<cualquier cosa> (fallback)
+  if (localPath.startsWith('/data/')) {
+    const rest = localPath.slice(6);
+    list.push(rest);
+    list.push('data/' + rest);
+    return list;
+  }
+
+  // Rutas desconocidas
+  const rest = localPath.slice(1);
+  list.push(rest);
+  list.push(PREFIX_DATA + '/' + rest);
+  list.push(PREFIX_BIN + '/' + rest);
+  return list;
 }
 
+// ============================================================
+// AISLAMIENTO CROSS-ORIGIN
+// ============================================================
 function injectIsolation(response) {
   const h = new Headers(response.headers);
   h.set('Cross-Origin-Opener-Policy', 'same-origin');
@@ -68,9 +114,12 @@ function injectIsolation(response) {
   });
 }
 
+// ============================================================
+// CICLO DE VIDA
+// ============================================================
 self.addEventListener('install', () => {
   self.skipWaiting();
-  console.log('[SW] Instalado. Prefijo R2:', R2_PREFIX);
+  console.log('[SW] Instalado. Prefijos:', PREFIX_BIN, '|', PREFIX_DATA);
 });
 
 self.addEventListener('activate', (event) => {
@@ -84,6 +133,9 @@ self.addEventListener('activate', (event) => {
   );
 });
 
+// ============================================================
+// TRIM DE CACHÉ
+// ============================================================
 async function trimCache() {
   try {
     const c = await caches.open(CACHE);
@@ -127,25 +179,24 @@ async function handleAsset(event) {
   const url = new URL(req.url);
   const cache = await caches.open(CACHE);
 
-  // 1. Cache-First
   const cached = await cache.match(req);
   if (cached) return injectIsolation(cached);
 
-  // 2. Local primero (GitHub Pages)
+  // 1. Intenta local (GitHub Pages)
   const localRes = await tryFetch(url.origin + url.pathname, req);
   if (localRes) {
     console.log(`[SW] LOCAL: ${url.pathname}`);
     return injectIsolation(localRes);
   }
 
-  // 3. Fallback a R2 (con prefijo y sin él)
+  // 2. Fallback a R2
   const candidates = candidatesFor(url.pathname);
   for (let i = 0; i < candidates.length; i++) {
     const path = candidates[i];
-    const r2Url = R2_BASE_URL + '/' + path;
+    const r2Url = R2_BASE + '/' + path;
     const r2Res = await tryFetch(r2Url, req);
     if (r2Res) {
-      console.log(`[SW] R2 OK: ${path}`);
+      console.log(`[SW] R2 OK (${i}): ${path}`);
       if (r2Res.status === 200) {
         cache.put(req, r2Res.clone()).then(trimCache).catch(() => {});
       }
@@ -153,7 +204,7 @@ async function handleAsset(event) {
     }
   }
 
-  console.error(`[SW] No encontrado: ${url.pathname}`);
+  console.error(`[SW] ${url.pathname} → probé: ${candidates.join(' | ')}`);
   return new Response('Recurso no encontrado', {
     status: 404,
     headers: {
