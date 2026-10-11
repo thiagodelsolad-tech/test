@@ -1,180 +1,194 @@
 /**
  * sw.js — Service Worker para GTA V Web Edition
  *
- * Arquitectura:
- *   Jugador → https://apkrprojects.xyz (GitHub Pages, sirve index.html + sw.js)
- *               ↓ el SW intercepta /mirror/ y /runtime/
- *             https://r2.dev/mirror/... y /runtime/...  (Cloudflare R2)
- *               ↓ se inyectan COOP/COEP y se cachea en disco
- *             El motor WebAssembly recibe los bytes sin notar el cambio.
- *
- * Responsabilidades:
- *   1. Inyectar COOP/COEP/CORP en cada respuesta (crítico para SharedArrayBuffer + WebGPU)
- *   2. Redirigir /mirror/ y /runtime/ a R2
- *   3. Cache-First: primera visita descarga de R2, siguientes leen de disco
+ * - Inyecta COOP/COEP/CORP (imprescindible para SharedArrayBuffer + WebGPU)
+ * - Proxea a R2 los recursos pesados (wasm, shaders, data, mirror, runtime)
+ * - Prueba varias rutas candidatas en R2 hasta encontrar la correcta (fallback automático)
+ * - Cache-First en disco para cargas posteriores
  */
 
-// ============================================================
-// CONFIGURACIÓN
-// ============================================================
 const R2_BASE_URL = 'https://r2.dev';
-const PROXY_PREFIXES = ['/mirror/', '/runtime/'];
-const CACHE_NAME = 'gta5-resources-v1';
-
-// Límite de caché local (2 GB). Si se supera, se borran las entradas más antiguas.
-const MAX_CACHE_BYTES = 2 * 1024 * 1024 * 1024;
+const CACHE = 'gta5-v3';
+const MAX_BYTES = 2 * 1024 * 1024 * 1024;
 
 // ============================================================
-// INSTALACIÓN Y ACTIVACIÓN
+// RUTAS LOCALES DEL FRONTEND (viven en GitHub Pages, no se proxean)
+// ============================================================
+const LOCAL_EXACT = new Set([
+  '/', '/index.html', '/sw.js', '/CNAME', '/README.md',
+  '/loader.js', '/game.js', '/wgpu_worker.js', '/io_worker.js', '/audio-worklet.js',
+  '/chalet.woff', '/favicon.ico', '/robots.txt', '/google88b6175162f03564.html',
+]);
+
+function isLocal(pathname) {
+  if (LOCAL_EXACT.has(pathname)) return true;
+  if (pathname.startsWith('/img/')) return true;
+  if (pathname.startsWith('/.github/')) return true;
+  return false;
+}
+
+// ============================================================
+// CANDIDATOS EN R2 (se prueban en orden hasta encontrar uno con 200)
+// ============================================================
+function candidatesFor(localPath) {
+  // /data/manifest.json, /data/bootset.json, /data/mirror/... etc
+  if (localPath.startsWith('/data/')) {
+    const rest = localPath.slice(6); // quita "/data/"
+    return [
+      rest,                 // →  /manifest.json
+      'data/' + rest,       // →  /data/manifest.json
+    ];
+  }
+
+  // /shaders/index.json, /shaders/pack0.bin, /shaders/<hash>.wgsl
+  if (localPath.startsWith('/shaders/')) {
+    const rest = localPath.slice(9); // quita "/shaders/"
+    return [
+      'common/shaders/' + rest,       // →  /common/shaders/index.json
+      'shaders/' + rest,              // →  /shaders/index.json
+      'data/common/shaders/' + rest,  // →  /data/common/shaders/index.json
+      'runtime/shaders/' + rest,      // →  /runtime/shaders/index.json
+    ];
+  }
+
+  // /game.wasm
+  if (localPath === '/game.wasm') {
+    return [
+      'x64/game.wasm',        // →  /x64/game.wasm
+      'game.wasm',            // →  /game.wasm
+      'data/x64/game.wasm',   // →  /data/x64/game.wasm
+      'runtime/game.wasm',    // →  /runtime/game.wasm
+    ];
+  }
+
+  // /mirror/..., /runtime/...
+  if (localPath.startsWith('/mirror/') || localPath.startsWith('/runtime/')) {
+    return [
+      localPath.slice(1),            // →  /mirror/...
+      'data' + localPath,            // →  /data/mirror/...
+    ];
+  }
+
+  // /x64/..., /common/... (por si el motor los pide directos)
+  if (localPath.startsWith('/x64/') || localPath.startsWith('/common/')) {
+    return [
+      localPath.slice(1),
+      'data' + localPath,
+    ];
+  }
+
+  return null;
+}
+
+// ============================================================
+// AISLAMIENTO CROSS-ORIGIN (crítico para SharedArrayBuffer)
+// ============================================================
+function injectIsolation(response) {
+  const h = new Headers(response.headers);
+  h.set('Cross-Origin-Opener-Policy', 'same-origin');
+  h.set('Cross-Origin-Embedder-Policy', 'require-corp');
+  h.set('Cross-Origin-Resource-Policy', 'cross-origin');
+  return new Response(response.body, {
+    status: response.status,
+    statusText: response.statusText,
+    headers: h,
+  });
+}
+
+// ============================================================
+// CICLO DE VIDA
 // ============================================================
 self.addEventListener('install', () => {
-  // Toma control inmediatamente sin esperar a que se cierren las pestañas antiguas
   self.skipWaiting();
-  console.log('[GTA5-SW] Instalado.');
+  console.log('[SW] Instalado.');
 });
 
 self.addEventListener('activate', (event) => {
   event.waitUntil(
     (async () => {
-      // Limpia versiones antiguas de caché si cambias CACHE_NAME
       const keys = await caches.keys();
-      await Promise.all(
-        keys.filter((k) => k !== CACHE_NAME).map((k) => caches.delete(k))
-      );
-      // Toma el control de todas las pestañas abiertas
+      await Promise.all(keys.filter((k) => k !== CACHE).map((k) => caches.delete(k)));
       await self.clients.claim();
-      console.log('[GTA5-SW] Activo y controlando clientes.');
+      console.log('[SW] Activo.');
     })()
   );
 });
 
 // ============================================================
-// UTILIDADES
+// RECORTE DE CACHÉ
 // ============================================================
-
-/**
- * Añade las cabeceras de aislamiento cross-origin a una Response.
- * Sin ellas, crossOriginIsolated es false y SharedArrayBuffer no existe.
- */
-function injectIsolationHeaders(response) {
-  const headers = new Headers(response.headers);
-
-  // Requerido para SharedArrayBuffer + WebGPU multihilo
-  headers.set('Cross-Origin-Opener-Policy', 'same-origin');
-  headers.set('Cross-Origin-Embedder-Policy', 'require-corp');
-
-  // Permite que R2 sirva recursos embebidos bajo COEP: require-corp
-  headers.set('Cross-Origin-Resource-Policy', 'cross-origin');
-
-  return new Response(response.body, {
-    status: response.status,
-    statusText: response.statusText,
-    headers,
-  });
-}
-
-/**
- * Decide si una URL debe ser proxeada a R2.
- */
-function shouldProxy(url) {
-  const pathname = new URL(url).pathname;
-  return PROXY_PREFIXES.some((prefix) => pathname.startsWith(prefix));
-}
-
-/**
- * Recorta la caché si supera MAX_CACHE_BYTES. Borra las entradas más antiguas
- * (FIFO aproximado). Se ejecuta en segundo plano, no bloquea la respuesta.
- */
 async function trimCache() {
   try {
-    const cache = await caches.open(CACHE_NAME);
-    const requests = await cache.keys();
+    const c = await caches.open(CACHE);
+    const reqs = await c.keys();
     let total = 0;
     const sizes = [];
-
-    for (const req of requests) {
-      const res = await cache.match(req);
+    for (const r of reqs) {
+      const res = await c.match(r);
       if (!res) continue;
       const len = parseInt(res.headers.get('Content-Length') || '0', 10);
-      sizes.push({ req, len });
+      sizes.push({ r, len });
       total += len;
     }
-
-    if (total <= MAX_CACHE_BYTES) return;
-
-    // Borra desde el principio hasta que bajemos al 80% del límite
+    if (total <= MAX_BYTES) return;
     let removed = 0;
-    for (const { req, len } of sizes) {
-      if (total - removed <= MAX_CACHE_BYTES * 0.8) break;
-      await cache.delete(req);
+    for (const { r, len } of sizes) {
+      if (total - removed <= MAX_BYTES * 0.8) break;
+      await c.delete(r);
       removed += len;
     }
-
-    console.log(`[GTA5-SW] Caché recortada: ${(removed / 1048576).toFixed(1)} MB liberados.`);
-  } catch (err) {
-    console.warn('[GTA5-SW] trimCache falló:', err);
-  }
+    console.log(`[SW] Caché recortada: ${(removed / 1048576).toFixed(1)} MB.`);
+  } catch (e) { console.warn('[SW] trimCache:', e); }
 }
 
 // ============================================================
-// MANEJO DE PETICIONES PROXEADAS A R2
+// PROXY CON FALLBACK AUTOMÁTICO + CACHE-FIRST
 // ============================================================
-async function handleProxiedRequest(event) {
-  const request = event.request;
-  const url = new URL(request.url);
+async function handleProxy(event, candidates) {
+  const req = event.request;
+  const cache = await caches.open(CACHE);
 
-  // 1. Cache-First: busca en disco local
-  const cache = await caches.open(CACHE_NAME);
-  const cached = await cache.match(request);
+  // 1. Cache-First
+  const cached = await cache.match(req);
+  if (cached) return injectIsolation(cached);
 
-  if (cached) {
-    return injectIsolationHeaders(cached);
+  // 2. Prueba cada candidato en R2 hasta que uno responda 200/206
+  for (let i = 0; i < candidates.length; i++) {
+    const path = candidates[i];
+    const r2Url = R2_BASE_URL + '/' + path;
+    try {
+      const res = await fetch(r2Url, {
+        method: req.method,
+        headers: req.headers,
+        mode: 'cors',
+        credentials: 'omit',
+        redirect: 'follow',
+      });
+
+      if (res.ok || res.status === 206) {
+        if (i > 0) console.log(`[SW] Fallback OK: ${path}`);
+        if (res.status === 200) {
+          cache.put(req, res.clone()).then(trimCache).catch(() => {});
+        }
+        return injectIsolation(res);
+      }
+      // 404/403 → prueba el siguiente candidato
+      console.log(`[SW] ${res.status} en ${path}, probando siguiente…`);
+    } catch (err) {
+      console.warn(`[SW] Error en ${path}:`, err.message);
+    }
   }
 
-  // 2. Cache MISS: descarga desde R2
-  const r2Url = R2_BASE_URL + url.pathname + url.search;
-  console.log(`[GTA5-SW] MISS → R2: ${url.pathname}`);
-
-  try {
-    const r2Response = await fetch(r2Url, {
-      method: request.method,
-      headers: request.headers,
-      mode: 'cors',
-      credentials: 'omit',
-      redirect: 'follow',
-    });
-
-    if (!r2Response.ok && r2Response.status !== 206) {
-      // Error del servidor: devolvemos tal cual con cabeceras inyectadas
-      console.warn(`[GTA5-SW] R2 ${r2Response.status} en ${url.pathname}`);
-      return injectIsolationHeaders(r2Response);
-    }
-
-    // 3. Cachea solo respuestas completas (no fragmentos 206 parciales)
-    if (r2Response.status === 200) {
-      const toCache = r2Response.clone();
-      cache.put(request, toCache)
-        .then(() => trimCache())
-        .catch((err) => console.warn('[GTA5-SW] cache.put falló:', err));
-    }
-
-    return injectIsolationHeaders(r2Response);
-  } catch (err) {
-    console.error(`[GTA5-SW] fetch a R2 falló (${url.pathname}):`, err);
-
-    // Fallback: si hay algo parcial en caché, usarlo
-    const fallback = await cache.match(request);
-    if (fallback) return injectIsolationHeaders(fallback);
-
-    return new Response('Recurso no disponible temporalmente', {
-      status: 503,
-      headers: {
-        'Cross-Origin-Opener-Policy': 'same-origin',
-        'Cross-Origin-Embedder-Policy': 'require-corp',
-        'Content-Type': 'text/plain',
-      },
-    });
-  }
+  // Ningún candidato funcionó
+  console.error(`[SW] Ningún candidato funcionó para ${req.url}`);
+  return new Response('Recurso no encontrado en R2', {
+    status: 404,
+    headers: {
+      'Cross-Origin-Opener-Policy': 'same-origin',
+      'Cross-Origin-Embedder-Policy': 'require-corp',
+      'Content-Type': 'text/plain',
+    },
+  });
 }
 
 // ============================================================
@@ -183,46 +197,41 @@ async function handleProxiedRequest(event) {
 self.addEventListener('fetch', (event) => {
   const url = new URL(event.request.url);
 
-  // Ignora peticiones a otros orígenes (analytics, CDNs externas, etc.)
   if (url.origin !== self.location.origin) return;
-
-  // Ignora métodos que no sean GET/HEAD
   if (event.request.method !== 'GET' && event.request.method !== 'HEAD') return;
-
-  // Evita el error "only-if-cached" cuando mode no es same-origin
   if (event.request.cache === 'only-if-cached' && event.request.mode !== 'same-origin') return;
 
-  // Caso 1: /mirror/* y /runtime/* → proxy a R2 con caché
-  if (shouldProxy(event.request.url)) {
-    event.respondWith(handleProxiedRequest(event));
+  // Local (GitHub Pages): solo inyecta COOP/COEP
+  if (isLocal(url.pathname)) {
+    event.respondWith(
+      (async () => {
+        try {
+          const res = await fetch(event.request);
+          if (!res || res.type === 'opaque') return res;
+          return injectIsolation(res);
+        } catch (err) {
+          const c = await caches.match(event.request);
+          if (c) return injectIsolation(c);
+          throw err;
+        }
+      })()
+    );
     return;
   }
 
-  // Caso 2: todo lo demás (HTML, JS, WASM, workers) → red + inyección COOP/COEP
-  event.respondWith(
-    (async () => {
-      try {
-        const response = await fetch(event.request);
-
-        // No tocar respuestas opacas (no podemos leer sus headers)
-        if (!response || response.type === 'opaque') return response;
-
-        return injectIsolationHeaders(response);
-      } catch (err) {
-        // Fallback a caché si existe (recursos críticos ya visitados)
-        const cached = await caches.match(event.request);
-        if (cached) return injectIsolationHeaders(cached);
-        throw err;
-      }
-    })()
-  );
+  // Intenta proxy a R2
+  const candidates = candidatesFor(url.pathname);
+  if (candidates) {
+    event.respondWith(handleProxy(event, candidates));
+  } else {
+    // Ruta desconocida → la deja pasar (a GitHub Pages)
+    event.respondWith(fetch(event.request));
+  }
 });
 
 // ============================================================
-// MENSAJES DESDE EL FRONTEND (ping/pong para depuración)
+// PING (para debugging)
 // ============================================================
-self.addEventListener('message', (event) => {
-  if (event.data && event.data.type === 'PING') {
-    event.source?.postMessage({ type: 'PONG', status: 'ready' });
-  }
+self.addEventListener('message', (e) => {
+  if (e.data?.type === 'PING') e.source?.postMessage({ type: 'PONG', status: 'ready' });
 });
