@@ -323,95 +323,78 @@ async function setupCache() {
 }
 
 // ══════════════════════════════════════════════════════════════════════════════
-// PRECARGA AGRESIVA DE SHADERS
-// Descubre todas las rutas desde manifest.json y otros índices.
-// Descarga en paralelo con 32 fetches concurrentes.
+// PRECARGA INTELIGENTE
+// El manifest.json lista archivos DENTRO de los .rpf, NO URLs HTTP.
+// Intentar bajarlos da miles de 404s inútiles. Solo precargamos lo que
+// existe realmente como archivo suelto en R2:
+//   - Los JSONs de configuración del port
+//   - Los shaders empaquetados en /shaders/ y /b/8b0b5899ed/shaders/
 // ══════════════════════════════════════════════════════════════════════════════
 async function precargarArchivosPequenos() {
-	const found = new Set();
-
-	// Extrae cualquier string que parezca una ruta de archivo del motor
-	function extractPaths(obj, out) {
-		if (!obj) return;
-		if (typeof obj === 'string') {
-			if (/\.(json|wgsl|bin|spv|dat|xml|meta|txt|sva|svb)$/i.test(obj)
-				|| obj.startsWith('/data/')
-				|| obj.startsWith('/shaders/')
-				|| obj.startsWith('/b/')
-				|| obj.startsWith('/game/')) {
-				out.add(obj.startsWith('/') ? obj : '/' + obj);
-			}
-			return;
-		}
-		if (Array.isArray(obj)) { for (const x of obj) extractPaths(x, out); return; }
-		if (typeof obj === 'object') {
-			for (const v of Object.values(obj)) extractPaths(v, out);
-		}
-	}
-
-	// Prueba cada índice conocido
-	const MANIFESTS = [
+	const KNOWN_FILES = [
 		'/data/manifest.json',
 		'/data/bootset.json',
 		'/data/bootset_low.json',
 		'/shaders/index.json',
-	];
-	for (const m of MANIFESTS) {
-		try {
-			const r = await fetch(m, { cache: 'force-cache' });
-			if (!r.ok) continue;
-			const data = await r.json();
-			const before = found.size;
-			extractPaths(data, found);
-			console.log(`[Preload] ${m}: +${found.size - before} rutas`);
-		} catch (e) { /* no JSON o no existe */ }
-	}
-
-	// Semillas: prefijos que el motor pedirá (vistos en tu log)
-	const SEEDS = [
-		'/data/common/shaders/db/shaderlist.txt',
-		'/data/common/shaders/db/shaders.sva',
-		'/data/common/shaders/db/shaders.svb',
-		'/data/x64/data/effects/water.xml',
-		'/data/x64/data/effects/explosions.xml',
-		'/data/x64/data/effects/weapons.xml',
-		'/data/x64/data/effects/vehiclefx.xml',
-		'/shaders/index.json',
 		'/shaders/pipelines.json',
 		'/shaders/pipelines_low.json',
 	];
-	for (const s of SEEDS) found.add(s);
 
-	// Fallback: si aún no hay suficientes rutas, añade una lista curada
-	if (found.size < 20) {
-		console.log('[Preload] pocas rutas encontradas, añadiendo lista de fallback');
-		const FALLBACK = [
-			'/shaders/common.json', '/shaders/vehicle.json', '/shaders/ped.json',
-			'/shaders/terrain.json', '/shaders/water.json', '/shaders/sky.json',
-			'/shaders/deferred.json', '/shaders/postfx.json', '/shaders/shadow.json',
-			'/shaders/gbuffer.json', '/shaders/particles.json', '/shaders/ptfx.json',
-		];
-		for (const f of FALLBACK) found.add(f);
+	const discovered = new Set();
+	function extractShaderPaths(obj, out) {
+		if (!obj) return;
+		if (typeof obj === 'string') {
+			// Solo aceptamos rutas que probablemente existan como HTTP
+			if (obj.startsWith('/shaders/') || obj.startsWith('/b/8b0b5899ed/shaders/')) {
+				out.add(obj);
+			}
+			return;
+		}
+		if (Array.isArray(obj)) { for (const x of obj) extractShaderPaths(x, out); return; }
+		if (typeof obj === 'object') {
+			for (const v of Object.values(obj)) extractShaderPaths(v, out);
+		}
 	}
 
-	// Filtra binarios enormes (no los precargamos)
-	const ALL = new Set();
-	for (const f of found) {
-		if (/\.(rpf|wasm|data)$/i.test(f)) continue;
-		if (f.length > 300) continue;
-		ALL.add(f);
+	try {
+		const r = await fetch('/shaders/index.json', { cache: 'force-cache' });
+		if (r.ok) {
+			const data = await r.json();
+			extractShaderPaths(data, discovered);
+			console.log(`[Preload] shaders/index.json: +${discovered.size} rutas`);
+		}
+	} catch (e) { /* no existe o no es JSON */ }
+
+	// Lista final, con filtro de seguridad
+	const ALL = new Set([...KNOWN_FILES, ...discovered]);
+
+	// Rechaza cualquier URL con rutas conocidas de contenido de rpf.
+	const SKIP = [
+		'/common/', '/x64/', '/levels/', '/effects/', '/audio/', '/anim/',
+		'/ai/', '/cloth/', '/control/', '/debug/', '/glass/', '/materials/',
+		'/naturalmotion/', '/paths/', '/script/', '/weather/', '/timecycle/',
+		'/vehicles/',
+	];
+
+	const fileList = [...ALL].filter((u) => {
+		if (SKIP.some((p) => u.includes(p))) return false;
+		if (/\.(rpf|wasm|data)$/i.test(u)) return false;
+		return true;
+	});
+
+	console.log(`[Preload] ${fileList.length} archivos a precargar`);
+
+	if (fileList.length === 0) {
+		console.log('[Preload] nada que precargar');
+		return;
 	}
 
-	const fileList = [...ALL];
-	console.log(`[Preload] ${fileList.length} archivos a precargar (paralelo x32)`);
-
+	const CONCURRENCY = 8;
+	let done = 0, ok = 0, fail = 0;
+	const queue = [...fileList];
 	const label = document.getElementById('label');
 	const pct = document.getElementById('pct');
 	const fill = document.getElementById('fill');
-
-	const CONCURRENCY = 32;   // agresivo
-	let done = 0, ok = 0, fail = 0;
-	const queue = [...fileList];
 
 	const workers = [];
 	for (let i = 0; i < CONCURRENCY; i++) {
@@ -431,7 +414,7 @@ async function precargarArchivosPequenos() {
 		})());
 	}
 	await Promise.all(workers);
-	console.log(`[Preload] ✓ ${ok} ok, ${fail} fallos (404 normales)`);
+	console.log(`[Preload] ✓ ${ok} ok, ${fail} fallos`);
 }
 
 let lowMemory = false;
@@ -441,7 +424,6 @@ else {
 	const offscreen = canvas.transferControlToOffscreen();
 	await setupCache();
 
-	// ── Precarga de shaders y configuración ──
 	if (q.get('nopreload') !== '1') {
 		try {
 			await precargarArchivosPequenos();
