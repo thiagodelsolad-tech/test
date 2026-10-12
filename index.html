@@ -344,24 +344,46 @@ if (remoteLog) {
 }
 // Release the io worker's exclusive storage handles as soon as this page goes away (a quick reload would otherwise find them locked and run without the store).
 addEventListener('pagehide', () => { try { new BroadcastChannel('game-io').postMessage('close'); } catch (e) {} });
-// Register the site's service worker (sw.js): it mirrors the CDN's game files (loader, workers, shaders, /data, /game, /b/8b0b5899ed/*) into the Cache API and
-// serves range requests from cache, so the engine's io worker sees a local origin instead of the CDN. The earlier "dropOldCache" was for builds before the io
-// worker existed; now it only clears stray gamedata* caches left by those old builds (the io worker keeps its own store).
-async function setupCache() {
-	try {
-		if ('serviceWorker' in navigator) {
-			await navigator.serviceWorker.register('/sw2.js', { scope: '/' });
-			await navigator.serviceWorker.ready;
-		}
-		if (window.caches) for (const k of await caches.keys()) if (k.startsWith('gamedata')) await caches.delete(k);
-	} catch (e) { console.warn('could not set up the cache: ' + e); }
-}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// SERVICE WORKER — sw2.js
+// Registra ANTES de comprobar crossOriginIsolated. sw2.js inyecta COOP/COEP en
+// las respuestas del propio origin (rama isFrontend), pero en la primera visita
+// el SW aún no controla la página, así que el documento llega sin headers y
+// crossOriginIsolated=false. Registramos, esperamos a que esté listo y
+// recargamos UNA vez para que el SW controle el documento.
+// ═══════════════════════════════════════════════════════════════════════════════
 let lowMemory = false;		// set below (module scope: the ?mem readout further down also needs it)
 let startSize = [1280, 720], wantSize = null;		// set below (module scope: installInput uses them)
-if (!crossOriginIsolated) { document.getElementById('label').textContent = 'not cross-origin isolated: open the page over https (or localhost); the server sends COOP/COEP'; document.getElementById('label').style.color = '#e66'; }
-else {
+
+let swPendingReload = false;
+if ('serviceWorker' in navigator) {
+	try {
+		await navigator.serviceWorker.register('/sw2.js', { scope: '/' });
+		await navigator.serviceWorker.ready;
+		if (!navigator.serviceWorker.controller) {
+			if (!sessionStorage.getItem('sw_reload_v32')) {
+				sessionStorage.setItem('sw_reload_v32', '1');
+				swPendingReload = true;
+			}
+		} else {
+			sessionStorage.removeItem('sw_reload_v32');
+		}
+	} catch (e) { console.warn('[SW] register failed: ' + e); }
+}
+
+if (swPendingReload) {
+	location.reload();
+} else if (!crossOriginIsolated) {
+	document.getElementById('label').textContent = 'not cross-origin isolated: open the page over https (or localhost); the server sends COOP/COEP';
+	document.getElementById('label').style.color = '#e66';
+} else {
 	const offscreen = canvas.transferControlToOffscreen();
-	await setupCache();
+	// limpiar cachés viejas del build anterior (por si quedaron de versiones previas)
+	try {
+		if (window.caches) for (const k of await caches.keys()) if (k.startsWith('gamedata')) await caches.delete(k);
+	} catch (e) { console.warn('could not clear old gamedata caches: ' + e); }
+
 	// Low-memory profile (?low=1 forces it, ?low=0 forbids it; default: navigator.deviceMemory <= 4, which browsers report as 4 for 4 GB and less):
 	// every engine thread is a Web Worker of ~20 MB and the engine sizes its thread count from the core count, so pretend to have 2 cores (54 threads
 	// instead of 80-116); quarter the texture memory (texture quality 0 = top mip skipped on the GPU), no network stack, and the minimum ped/vehicle
