@@ -324,122 +324,94 @@ async function setupCache() {
 
 // ══════════════════════════════════════════════════════════════════════════════
 // PRECARGA AGRESIVA DE SHADERS
-// Prueba varios índices conocidos, extrae shaders de cualquier estructura del
-// JSON, y añade una lista de fallback con los shaders más comunes del port.
+// Descubre todas las rutas desde manifest.json y otros índices.
+// Descarga en paralelo con 32 fetches concurrentes.
 // ══════════════════════════════════════════════════════════════════════════════
 async function precargarArchivosPequenos() {
-	// ── 1. Archivos de configuración base (pequeños, críticos) ──
-	const BASE_FILES = [
-		'/data/manifest.json',
-		'/data/bootset.json',
-		'/data/bootset_low.json',
-	];
+	const found = new Set();
 
-	// ── 2. Índices de shaders (varios formatos posibles) ──
-	const INDEX_FILES = [
-		'/shaders/index.json',
-		'/shaders/manifest.json',
-		'/shaders/pipelines.json',
-		'/shaders/pipelines_low.json',
-		'/shaders/shaders.json',
-		'/shaders/list.json',
-	];
-
-	const shaderFiles = new Set();
-
-	// Extrae strings de rutas de shader desde cualquier estructura JSON
-	function extractShaderPaths(obj, out) {
+	// Extrae cualquier string que parezca una ruta de archivo del motor
+	function extractPaths(obj, out) {
 		if (!obj) return;
 		if (typeof obj === 'string') {
-			if (obj.endsWith('.json') || obj.endsWith('.wgsl') || obj.endsWith('.bin') || obj.endsWith('.spv')) {
-				out.add(obj.startsWith('/') ? obj : '/shaders/' + obj);
+			if (/\.(json|wgsl|bin|spv|dat|xml|meta|txt|sva|svb)$/i.test(obj)
+				|| obj.startsWith('/data/')
+				|| obj.startsWith('/shaders/')
+				|| obj.startsWith('/b/')
+				|| obj.startsWith('/game/')) {
+				out.add(obj.startsWith('/') ? obj : '/' + obj);
 			}
 			return;
 		}
-		if (Array.isArray(obj)) { for (const x of obj) extractShaderPaths(x, out); return; }
+		if (Array.isArray(obj)) { for (const x of obj) extractPaths(x, out); return; }
 		if (typeof obj === 'object') {
-			// Claves frecuentes que contienen rutas
-			for (const k of ['name', 'file', 'path', 'shader', 'source', 'url']) {
-				if (typeof obj[k] === 'string') extractShaderPaths(obj[k], out);
-			}
-			// Recurse sobre todos los valores
-			for (const v of Object.values(obj)) extractShaderPaths(v, out);
+			for (const v of Object.values(obj)) extractPaths(v, out);
 		}
 	}
 
-	// Prueba cada índice y acumula shaders
-	for (const indexUrl of INDEX_FILES) {
+	// Prueba cada índice conocido
+	const MANIFESTS = [
+		'/data/manifest.json',
+		'/data/bootset.json',
+		'/data/bootset_low.json',
+		'/shaders/index.json',
+	];
+	for (const m of MANIFESTS) {
 		try {
-			const r = await fetch(indexUrl, { cache: 'force-cache' });
+			const r = await fetch(m, { cache: 'force-cache' });
 			if (!r.ok) continue;
-			const ct = r.headers.get('content-type') || '';
-			if (!ct.includes('json')) continue;
 			const data = await r.json();
-			const before = shaderFiles.size;
-			extractShaderPaths(data, shaderFiles);
-			const added = shaderFiles.size - before;
-			if (added > 0) console.log(`[Preload] ${indexUrl}: +${added} shaders`);
-		} catch (e) { /* no es JSON o no existe */ }
+			const before = found.size;
+			extractPaths(data, found);
+			console.log(`[Preload] ${m}: +${found.size - before} rutas`);
+		} catch (e) { /* no JSON o no existe */ }
 	}
 
-	// ── 3. Lista de fallback con shaders comunes del port ──
-	// Si los índices no revelaron nada, probamos con esta lista curada.
-	if (shaderFiles.size === 0) {
-		console.log('[Preload] índices vacíos, usando lista de fallback');
+	// Semillas: prefijos que el motor pedirá (vistos en tu log)
+	const SEEDS = [
+		'/data/common/shaders/db/shaderlist.txt',
+		'/data/common/shaders/db/shaders.sva',
+		'/data/common/shaders/db/shaders.svb',
+		'/data/x64/data/effects/water.xml',
+		'/data/x64/data/effects/explosions.xml',
+		'/data/x64/data/effects/weapons.xml',
+		'/data/x64/data/effects/vehiclefx.xml',
+		'/shaders/index.json',
+		'/shaders/pipelines.json',
+		'/shaders/pipelines_low.json',
+	];
+	for (const s of SEEDS) found.add(s);
+
+	// Fallback: si aún no hay suficientes rutas, añade una lista curada
+	if (found.size < 20) {
+		console.log('[Preload] pocas rutas encontradas, añadiendo lista de fallback');
 		const FALLBACK = [
-			'/shaders/index.json',
-			'/shaders/pipelines.json',
-			'/shaders/pipelines_low.json',
-			'/shaders/common.json',
-			'/shaders/vehicle.json',
-			'/shaders/vehicle_paint.json',
-			'/shaders/vehicle_glass.json',
-			'/shaders/vehicle_dash.json',
-			'/shaders/ped.json',
-			'/shaders/ped_skin.json',
-			'/shaders/terrain.json',
-			'/shaders/terrain_cb.json',
-			'/shaders/water.json',
-			'/shaders/water_deep.json',
-			'/shaders/sky.json',
-			'/shaders/clouds.json',
-			'/shaders/deferred.json',
-			'/shaders/deferred_lighting.json',
-			'/shaders/mirror.json',
-			'/shaders/mirror_decal.json',
-			'/shaders/ptfx.json',
-			'/shaders/ptfx_sprite.json',
-			'/shaders/particles.json',
-			'/shaders/postfx.json',
-			'/shaders/bloom.json',
-			'/shaders/ssao.json',
-			'/shaders/shadow.json',
-			'/shaders/gbuffer.json',
-			'/shaders/im.json',
-			'/shaders/frontend.json',
+			'/shaders/common.json', '/shaders/vehicle.json', '/shaders/ped.json',
+			'/shaders/terrain.json', '/shaders/water.json', '/shaders/sky.json',
+			'/shaders/deferred.json', '/shaders/postfx.json', '/shaders/shadow.json',
+			'/shaders/gbuffer.json', '/shaders/particles.json', '/shaders/ptfx.json',
 		];
-		for (const f of FALLBACK) shaderFiles.add(f);
+		for (const f of FALLBACK) found.add(f);
 	}
 
-	// Convierte rutas relativas a absolutas coherentes
-	const ALL_FILES = new Set([...BASE_FILES]);
-	for (const s of shaderFiles) {
-		ALL_FILES.add(s.startsWith('/') ? s : '/shaders/' + s);
+	// Filtra binarios enormes (no los precargamos)
+	const ALL = new Set();
+	for (const f of found) {
+		if (/\.(rpf|wasm|data)$/i.test(f)) continue;
+		if (f.length > 300) continue;
+		ALL.add(f);
 	}
 
-	const fileList = [...ALL_FILES];
-	console.log(`[Preload] ${fileList.length} archivos a precargar`);
-
-	// ── 4. Descarga con concurrencia limitada (16 paralelos) ──
-	const CONCURRENCY = 16;
-	let done = 0;
-	let ok = 0;
-	let fail = 0;
-	const queue = [...fileList];
+	const fileList = [...ALL];
+	console.log(`[Preload] ${fileList.length} archivos a precargar (paralelo x32)`);
 
 	const label = document.getElementById('label');
 	const pct = document.getElementById('pct');
 	const fill = document.getElementById('fill');
+
+	const CONCURRENCY = 32;   // agresivo
+	let done = 0, ok = 0, fail = 0;
+	const queue = [...fileList];
 
 	const workers = [];
 	for (let i = 0; i < CONCURRENCY; i++) {
@@ -452,14 +424,14 @@ async function precargarArchivosPequenos() {
 					else fail++;
 				} catch (e) { fail++; }
 				done++;
-				if (label) label.textContent = `Precargando shaders ${done}/${fileList.length}: ${url.split('/').pop()}`;
+				if (label) label.textContent = `Precargando ${done}/${fileList.length}: ${url.split('/').pop()}`;
 				if (pct) pct.textContent = Math.round(done / fileList.length * 100) + '%';
 				if (fill) fill.style.width = (done / fileList.length * 100).toFixed(1) + '%';
 			}
 		})());
 	}
 	await Promise.all(workers);
-	console.log(`[Preload] ✓ ${ok} ok, ${fail} fallos (404 normales si un shader no existe)`);
+	console.log(`[Preload] ✓ ${ok} ok, ${fail} fallos (404 normales)`);
 }
 
 let lowMemory = false;
@@ -469,8 +441,7 @@ else {
 	const offscreen = canvas.transferControlToOffscreen();
 	await setupCache();
 
-	// ── Precarga agresiva de shaders ──
-	// ?nopreload=1 la desactiva (útil para comparar).
+	// ── Precarga de shaders y configuración ──
 	if (q.get('nopreload') !== '1') {
 		try {
 			await precargarArchivosPequenos();
