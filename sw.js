@@ -1,7 +1,8 @@
 /**
  * sw.js — v43
- * CDN: cdn.apkprojects.xyz
- * Shaders en /data/common/shaders/ (ruta real)
+ * FIX CLAVE: shaders NUNCA se cachean, siempre van a red con version bust.
+ * Esto evita servir shaders viejos cacheados que provocan
+ * "Old version of rage effect".
  */
 
 const R2_BASE     = 'https://cdn.apkprojects.xyz';
@@ -10,6 +11,7 @@ const PREFIX_BIN  = 'mirror/playgta5.com/b/8b0b5899ed';
 
 const CACHE = 'gta5-v43';
 const MAX_BYTES = 5 * 1024 * 1024 * 1024;
+const BUILD_TAG = 'v43'; // ← bump manual si necesitas forzar shaders nuevos
 
 const TIMEOUT_DEFAULT = 45000;
 const TIMEOUT_RANGE   = 15000;
@@ -26,15 +28,32 @@ const FRONTEND = new Set([
 function isFrontend(p) {
   return FRONTEND.has(p) || p.startsWith('/img/') || p.startsWith('/.github/');
 }
+
 function isBatchPath(p) {
   return p.startsWith('/data/batchc/') || p === '/data/batch' || p.startsWith('/data/batch?');
 }
 
 // ============================================================
-// Candidatos en el CDN
+// Detectar si es shader (cualquier ruta con /shaders/)
 // ============================================================
+function isShaderPath(p) {
+  return p.includes('/shaders/');
+}
+
+// ============================================================
+// Candidatos
+// ============================================================
+function shaderCandidates(localPath) {
+  const idx = localPath.indexOf('/shaders/');
+  const rest = localPath.slice(idx + '/shaders/'.length); // "win32_40/normal_cubemap_reflect.fxc"
+  return [
+    `${PREFIX_ROOT}/common/shaders/${rest}`,
+    `${PREFIX_BIN}/shaders/${rest}`,
+    `${PREFIX_ROOT}/shaders/${rest}`,
+  ];
+}
+
 function candidatesFor(localPath) {
-  // game.wasm
   if (localPath === '/game.wasm') {
     return [
       `${PREFIX_BIN}/game.wasm`,
@@ -44,22 +63,10 @@ function candidatesFor(localPath) {
     ];
   }
 
-  // ✅ SHADERS: ruta real /data/common/shaders/
-  if (localPath.startsWith('/shaders/')) {
-    const rest = localPath.slice(9);
-    return [
-      `${PREFIX_ROOT}/common/shaders/${rest}`,
-      `${PREFIX_BIN}/shaders/${rest}`,
-      `${PREFIX_ROOT}/shaders/${rest}`,
-    ];
-  }
-
-  // manifest / bootset
   if (localPath === '/data/manifest.json')    return ['manifest.json', `${PREFIX_ROOT}/manifest.json`];
   if (localPath === '/data/bootset.json')     return ['bootset.json', `${PREFIX_ROOT}/bootset.json`];
   if (localPath === '/data/bootset_low.json') return ['bootset_low.json', `${PREFIX_ROOT}/bootset_low.json`];
 
-  // RPF (niveles, audio, etc.)
   if (localPath.startsWith('/game/')) {
     const rest = localPath.slice(6);
     const list = [
@@ -74,18 +81,17 @@ function candidatesFor(localPath) {
       if (slash > 0) {
         const folder = after.slice(0, slash);
         const sub = after.slice(slash + 1);
-        const noUnderscore = folder.replace(/^_/, '');
-        const withUnderscore = folder.startsWith('_') ? folder : '_' + folder;
-        list.push(`${PREFIX_ROOT}/x64/levels/gta5/${noUnderscore}/${sub}`);
-        list.push(`${PREFIX_ROOT}/x64/levels/gta5/${withUnderscore}/${sub}`);
-        list.push(`${PREFIX_BIN}/x64/levels/gta5/${noUnderscore}/${sub}`);
-        list.push(`${PREFIX_BIN}/x64/levels/gta5/${withUnderscore}/${sub}`);
+        const noU = folder.replace(/^_/, '');
+        const withU = folder.startsWith('_') ? folder : '_' + folder;
+        list.push(`${PREFIX_ROOT}/x64/levels/gta5/${noU}/${sub}`);
+        list.push(`${PREFIX_ROOT}/x64/levels/gta5/${withU}/${sub}`);
+        list.push(`${PREFIX_BIN}/x64/levels/gta5/${noU}/${sub}`);
+        list.push(`${PREFIX_BIN}/x64/levels/gta5/${withU}/${sub}`);
       }
     }
     return list;
   }
 
-  // /data/...
   if (localPath.startsWith('/data/')) {
     const rest = localPath.slice(6);
     const list = [
@@ -98,9 +104,9 @@ function candidatesFor(localPath) {
       if (slash > 0) {
         const folder = after.slice(0, slash);
         const sub = after.slice(slash + 1);
-        const noUnderscore = folder.replace(/^_/, '');
-        list.push(`${PREFIX_ROOT}/x64/levels/gta5/${noUnderscore}/${sub}`);
-        list.push(`${PREFIX_ROOT}/x64/levels/gta5/_${noUnderscore}/${sub}`);
+        const noU = folder.replace(/^_/, '');
+        list.push(`${PREFIX_ROOT}/x64/levels/gta5/${noU}/${sub}`);
+        list.push(`${PREFIX_ROOT}/x64/levels/gta5/_${noU}/${sub}`);
       }
     }
     return list;
@@ -115,6 +121,11 @@ function injectIsolation(r) {
   h.set('Cross-Origin-Opener-Policy', 'same-origin');
   h.set('Cross-Origin-Embedder-Policy', 'require-corp');
   h.set('Cross-Origin-Resource-Policy', 'cross-origin');
+  // ✅ FIX: no cachear shaders en el navegador tampoco
+  if (r.url && r.url.includes('/shaders/')) {
+    h.set('Cache-Control', 'no-store, no-cache, must-revalidate');
+    h.set('Pragma', 'no-cache');
+  }
   return new Response(r.body, { status: r.status, statusText: r.statusText, headers: h });
 }
 
@@ -126,27 +137,22 @@ self.addEventListener('install', () => self.skipWaiting());
 self.addEventListener('activate', (event) => {
   event.waitUntil((async () => {
     const keys = await caches.keys();
+    // Borra TODAS las cachés viejas
     await Promise.all(keys.filter((k) => k !== CACHE).map((k) => caches.delete(k)));
     await self.clients.claim();
     prefetchBootset();
   })());
 });
 
-// ============================================================
-// Prefetch del bootset
-// ============================================================
 async function prefetchBootset() {
   try {
     const cache = await caches.open(CACHE);
     const done = await cache.match('/__bootset_done_v43__');
     if (done) return;
-
     const res = await fetch(`${R2_BASE}/bootset.json`);
     if (!res.ok) return;
-
     const entries = await res.json();
     let i = 0;
-
     const worker = async () => {
       while (i < entries.length) {
         const entry = entries[i++];
@@ -160,75 +166,58 @@ async function prefetchBootset() {
         } catch (e) {}
       }
     };
-
     await Promise.all(Array.from({ length: PREFETCH_PAR }, worker));
     await cache.put('/__bootset_done_v43__', new Response('1'));
   } catch (e) {}
 }
 
-// ============================================================
-// Recorte de caché
-// ============================================================
 let trimScheduled = false;
 function scheduleTrimCache() {
   if (trimScheduled) return;
   trimScheduled = true;
   setTimeout(() => { trimScheduled = false; trimCache(); }, 8000);
 }
-
 async function trimCache() {
   try {
     const c = await caches.open(CACHE);
     const reqs = await c.keys();
-    let total = 0;
-    const sizes = [];
+    let total = 0; const sizes = [];
     for (const r of reqs) {
       const res = await c.match(r);
       if (!res) continue;
       const len = parseInt(res.headers.get('Content-Length') || '0', 10) || 0;
-      sizes.push({ r, len });
-      total += len;
+      sizes.push({ r, len }); total += len;
     }
     if (total <= MAX_BYTES) return;
     let removed = 0;
     for (const { r, len } of sizes) {
       if (total - removed <= MAX_BYTES * 0.9) break;
-      await c.delete(r);
-      removed += len;
+      await c.delete(r); removed += len;
     }
   } catch (e) {}
 }
 
-// ============================================================
-// Fetch con timeout y Range
-// ============================================================
 function fastFetch(url, req, timeout) {
   const ctrl = new AbortController();
   const timer = setTimeout(() => ctrl.abort(), timeout);
   const headers = {};
   const range = req.headers.get('Range');
   if (range) headers['Range'] = range;
-
+  // ✅ FIX: forzar bypass de caché del navegador para shaders
+  headers['Cache-Control'] = 'no-cache';
+  headers['Pragma'] = 'no-cache';
   return fetch(url, {
     method: 'GET',
     headers,
     mode: 'cors',
     credentials: 'omit',
+    cache: 'no-store', // ← CLAVE
     signal: ctrl.signal,
   })
-    .then((r) => {
-      clearTimeout(timer);
-      return (r.ok || r.status === 206) ? r : null;
-    })
-    .catch(() => {
-      clearTimeout(timer);
-      return null;
-    });
+    .then((r) => { clearTimeout(timer); return (r.ok || r.status === 206) ? r : null; })
+    .catch(() => { clearTimeout(timer); return null; });
 }
 
-// ============================================================
-// Parseo de Range + servido desde caché
-// ============================================================
 function parseRange(rangeHeader, totalSize) {
   if (!rangeHeader) return null;
   const m = /^bytes=(\d*)-(\d*)$/.exec(rangeHeader.trim());
@@ -236,12 +225,8 @@ function parseRange(rangeHeader, totalSize) {
   let start = m[1] === '' ? null : parseInt(m[1], 10);
   let end   = m[2] === '' ? null : parseInt(m[2], 10);
   if (start === null && end === null) return null;
-  if (start === null) {
-    start = Math.max(0, totalSize - end);
-    end = totalSize - 1;
-  } else if (end === null || end >= totalSize) {
-    end = totalSize - 1;
-  }
+  if (start === null) { start = Math.max(0, totalSize - end); end = totalSize - 1; }
+  else if (end === null || end >= totalSize) { end = totalSize - 1; }
   if (start > end || start >= totalSize) return null;
   return { start, end };
 }
@@ -258,21 +243,32 @@ async function serveRangeFromCache(cachedResponse, rangeHeader) {
   headers.set('Content-Length', String(slice.byteLength));
   headers.set('Accept-Ranges', 'bytes');
   headers.set('Content-Type', 'application/octet-stream');
-  return new Response(slice, {
-    status: 206,
-    statusText: 'Partial Content',
-    headers,
-  });
+  return new Response(slice, { status: 206, statusText: 'Partial Content', headers });
 }
 
 // ============================================================
-// Manejo de assets (candidatos secuenciales)
+// Manejo de assets
 // ============================================================
 async function handleAsset(event) {
   const req = event.request;
   const url = new URL(req.url);
   const pathname = url.pathname;
   const range = req.headers.get('Range');
+
+  // ✅ FIX: SHADERS - nunca cache, siempre red directa
+  if (isShaderPath(pathname)) {
+    const shaders = shaderCandidates(pathname);
+    for (const c of shaders) {
+      const fullUrl = `${R2_BASE}/${c}?b=${BUILD_TAG}`;
+      console.log('[SW] shader →', fullUrl);
+      const r = await fastFetch(fullUrl, req, TIMEOUT_DEFAULT);
+      if (r) return injectIsolation(r);
+    }
+    console.warn('[SW] shader 404:', pathname);
+    return new Response('', { status: 404 });
+  }
+
+  // El resto: cache-first normal
   const cache = await caches.open(CACHE);
   const cached = await cache.match(pathname);
 
@@ -291,7 +287,6 @@ async function handleAsset(event) {
                 : pathname.endsWith('.rpf') ? TIMEOUT_FULL
                 : TIMEOUT_DEFAULT;
 
-  // Secuencial
   let res = null;
   for (const c of candidates) {
     res = await fastFetch(`${R2_BASE}/${c}`, req, timeout);
@@ -299,7 +294,7 @@ async function handleAsset(event) {
   }
 
   if (!res) {
-    console.warn('[SW] 404 tras probar ' + candidates.length + ' rutas:', pathname);
+    console.warn('[SW] 404:', pathname);
     return new Response('', { status: 404 });
   }
 
@@ -311,9 +306,6 @@ async function handleAsset(event) {
   return injectIsolation(res);
 }
 
-// ============================================================
-// Fetch principal
-// ============================================================
 self.addEventListener('fetch', (event) => {
   const url = new URL(event.request.url);
 
