@@ -1,27 +1,36 @@
 /**
- * sw.js — v31
+ * sw2.js — v33
  * Range requests desde caché + fallback entre múltiples rutas R2.
  * Compatibilidad Linux/ext4: fallback case-insensitive + URLs seguras.
- * v31: soporte para /b/8b0b5899ed/* (build-specific: loader, workers, title, audio-worklet).
+ *
+ * v33: RENDIMIENTO
+ *   - Fetch SECUENCIAL de candidatos (v31 los lanzaba todos en paralelo
+ *     y duplicaba/triplicaba el ancho de banda en cada petición).
+ *   - Caché de "candidato ganador" por prefijo: una vez que sabemos qué
+ *     ruta responde para /data/*, /shaders/*, /b/8b0b5899ed/*, etc., los
+ *     siguientes archivos del mismo prefijo van directos al ganador.
+ *   - Caché de rangos: cada respuesta 206 se guarda como entrada con clave
+ *     "__range__/path?r=bytes=..." y las repeticiones se sirven de disco.
+ *   - Auto-slice: si R2 ignora el Range y devuelve 200 completo, se corta
+ *     el slice localmente y se cachea el completo.
  */
 
 const R2_BASE     = 'https://cdn.apkprojects.xyz';
 const PREFIX_ROOT = 'mirror/playgta5.com/data';
 const PREFIX_BIN  = 'mirror/playgta5.com/b/8b0b5899ed';
 
-const CACHE = 'gta5-v31';
+const CACHE = 'gta5-v33';
 const MAX_BYTES = 5 * 1024 * 1024 * 1024;
 const TIMEOUT_DEFAULT = 45000;
 const TIMEOUT_RANGE   = 15000;
 const TIMEOUT_FULL    = 300000;
 
 // ext4 / S3 son case-sensitive. Duplicamos cada candidato en minúsculas.
-// (Si tu mirror está perfectamente en minúsculas, pon false y ahorras fetches.)
 const CASE_FALLBACK = true;
 
 // Rutas que sirve el propio origin (frontend estático) — no van al CDN.
 const FRONTEND = new Set([
-  '/', '/index.html', '/sw.js', '/CNAME', '/README.md',
+  '/', '/index.html', '/sw2.js', '/sw.js', '/CNAME', '/README.md',
   '/favicon.ico', '/robots.txt', '/google88b6175162f03564.html',
 ]);
 
@@ -33,13 +42,11 @@ function isBatchPath(p) {
 }
 
 function candidatesFor(localPath) {
-  // ── Build-specific: /b/8b0b5899ed/loader.js, /b/8b0b5899ed/title/logo.png,
-  //    /b/8b0b5899ed/audio-worklet.js, /b/8b0b5899ed/*.wasm, etc. ──
   if (localPath.startsWith('/b/8b0b5899ed/')) {
-    const rest = localPath.slice(1);              // "b/8b0b5899ed/loader.js"
+    const rest = localPath.slice(1);
     return [
-      `mirror/playgta5.com/${rest}`,              // mirror/playgta5.com/b/8b0b5899ed/loader.js
-      rest,                                        // b/8b0b5899ed/loader.js
+      `mirror/playgta5.com/${rest}`,
+      rest,
     ];
   }
 
@@ -83,7 +90,6 @@ function candidatesFor(localPath) {
   return [`${PREFIX_ROOT}/${rest}`, `${PREFIX_BIN}/${rest}`];
 }
 
-// ── Linux-friendly: duplica candidatos con su versión minúscula ──
 function withCaseFallback(list) {
   if (!CASE_FALLBACK) return list;
   const out = [];
@@ -95,10 +101,30 @@ function withCaseFallback(list) {
   return out;
 }
 
-// ── Construcción de URL segura (escapa #, ?, %, espacios) ──
 function makeUrl(candidate) {
   try { return new URL(candidate, R2_BASE + '/').href; }
   catch (e) { return R2_BASE + '/' + candidate; }
+}
+
+// ── Prefijo corto de una ruta, para memorizar el candidato ganador ──
+//   "/data/x64a.rpf"       -> "data"
+//   "/shaders/index.json"  -> "shaders"
+//   "/b/8b0b5899ed/x.js"   -> "b/8b0b5899ed"
+function prefixOf(p) {
+  if (p.startsWith('/b/8b0b5899ed/')) return 'b/8b0b5899ed';
+  const seg = p.split('/').filter(Boolean)[0] || '';
+  return seg;
+}
+
+// Candidato ganador por prefijo. Se rellena la 1ª vez y se reutiliza; si
+// el ganador falla más tarde, se borra para que la próxima petición
+// vuelva a probar la lista completa.
+let PREFERRED = new Map();
+
+function pickOrder(candidates, prefix) {
+  const winner = PREFERRED.get(prefix);
+  if (!winner || !candidates.includes(winner)) return candidates;
+  return [winner, ...candidates.filter((c) => c !== winner)];
 }
 
 function injectIsolation(r) {
@@ -150,7 +176,16 @@ function fastFetch(url, req, timeout) {
   const headers = {};
   const range = req.headers.get('Range');
   if (range) headers['Range'] = range;
-  return fetch(url, { method: 'GET', headers, mode: 'cors', credentials: 'omit', signal: ctrl.signal })
+  // 'force-cache': deja que el HTTP cache del navegador sirva si R2 mandó
+  // ETag/Cache-Control (no siempre lo hace, pero cuando lo hace ahorra red).
+  return fetch(url, {
+    method: 'GET',
+    headers,
+    mode: 'cors',
+    credentials: 'omit',
+    cache: 'force-cache',
+    signal: ctrl.signal,
+  })
     .then((r) => { clearTimeout(timer); return (r.ok || r.status === 206) ? r : null; })
     .catch(() => { clearTimeout(timer); return null; });
 }
@@ -180,50 +215,95 @@ async function serveRangeFromCache(cachedResponse, rangeHeader) {
   headers.set('Content-Length', String(slice.byteLength));
   headers.set('Accept-Ranges', 'bytes');
   headers.set('Content-Type', 'application/octet-stream');
-  // Linux + nginx/Caddy: sin esto el player no ve los headers vía CORS
   headers.set('Access-Control-Allow-Origin', '*');
   headers.set('Access-Control-Expose-Headers',
     'Content-Range, Content-Length, Accept-Ranges, ETag');
   return new Response(slice, { status: 206, statusText: 'Partial Content', headers });
 }
 
+// Clave sintética para guardar una respuesta de rango en el Cache API.
+function rangeKey(origin, pathname, rangeHeader) {
+  return new Request(`${origin}/__range__${pathname}?r=${encodeURIComponent(rangeHeader)}`);
+}
+
+// ── Núcleo: resolver una petición de asset ─────────────────────────────
 async function handleAsset(event) {
   const req = event.request;
   const url = new URL(req.url);
   const pathname = url.pathname;
-  const range = req.headers.get('Range');
+  const rangeHeader = req.headers.get('Range');
   const cache = await caches.open(CACHE);
-  const cached = await cache.match(pathname);
 
-  if (cached && range) {
-    try {
-      const ranged = await serveRangeFromCache(cached, range);
-      if (ranged) return injectIsolation(ranged);
-    } catch (e) {}
+  // ── 1) Rango: intenta servir desde la caché de rangos ──
+  if (rangeHeader) {
+    const rk = rangeKey(url.origin, pathname, rangeHeader);
+    const hit = await cache.match(rk);
+    if (hit) return injectIsolation(hit);
+    // Si tenemos el archivo COMPLETO cacheado, recórtalo localmente.
+    const full = await cache.match(pathname);
+    if (full) {
+      try {
+        const ranged = await serveRangeFromCache(full, rangeHeader);
+        if (ranged) return injectIsolation(ranged);
+      } catch (e) {}
+    }
+  } else {
+    // ── 2) Sin rango: caché completa ──
+    const hit = await cache.match(pathname);
+    if (hit) return injectIsolation(hit);
   }
-  if (cached && !range) return injectIsolation(cached);
 
-  // Linux: añadimos variantes lowercase automáticamente
+  // ── 3) Miss: ir al CDN. Candidatos en ORDEN SECUENCIAL, no en paralelo ──
+  const prefix = prefixOf(pathname);
   const candidates = withCaseFallback(candidatesFor(pathname));
   if (!candidates.length) return new Response('', { status: 404 });
+  const ordered = pickOrder(candidates, prefix);
 
-  const timeout = range ? TIMEOUT_RANGE
+  const timeout = rangeHeader ? TIMEOUT_RANGE
                 : pathname.endsWith('.rpf') ? TIMEOUT_FULL
                 : TIMEOUT_DEFAULT;
 
-  // URL segura en vez de concatenación cruda
-  const results = await Promise.all(
-    candidates.map((c) => fastFetch(makeUrl(c), req, timeout))
-  );
-  const res = results.find((r) => r !== null) || null;
+  let res = null;
+  let winner = null;
+  for (const c of ordered) {
+    res = await fastFetch(makeUrl(c), req, timeout);
+    if (res) { winner = c; break; }
+  }
 
+  // Si el ganador memorizado falló, olvídalo (la próxima petición probará
+  // la lista completa de nuevo).
+  if (!res && PREFERRED.get(prefix)) PREFERRED.delete(prefix);
   if (!res) return new Response('', { status: 404 });
 
-  if (!range && res.status === 200) {
+  PREFERRED.set(prefix, winner);
+
+  // ── 4) Cachear según el tipo de respuesta ──
+
+  // 4a) Petición de rango + R2 devolvió 206: guardar el slice con clave rango.
+  if (rangeHeader && res.status === 206) {
+    const slice = res.clone();
+    event.waitUntil?.(cache.put(rangeKey(url.origin, pathname, rangeHeader), slice)
+      .then(() => scheduleTrimCache()).catch(() => {}));
+    return injectIsolation(res);
+  }
+
+  // 4b) Petición de rango pero R2 IGNORÓ el Range y devolvió 200 completo:
+  //     corta el slice localmente, guarda el completo y devuelve solo el slice.
+  if (rangeHeader && res.status === 200) {
+    const full = res.clone();
+    event.waitUntil?.(cache.put(pathname, full).then(() => scheduleTrimCache()).catch(() => {}));
+    try {
+      const ranged = await serveRangeFromCache(res, rangeHeader);
+      if (ranged) return injectIsolation(ranged);
+    } catch (e) {}
+    return injectIsolation(res);
+  }
+
+  // 4c) Petición normal y 200: cachear el archivo completo.
+  if (!rangeHeader && res.status === 200) {
     const cacheable = res.clone();
     event.waitUntil?.(cache.put(pathname, cacheable).then(() => scheduleTrimCache()).catch(() => {}));
   }
-  if (range && res.status === 200) console.warn('[SW] Range ignorado por R2:', pathname);
 
   return injectIsolation(res);
 }
