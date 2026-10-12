@@ -771,8 +771,8 @@ const swReady = (async () => {
   try {
     const reg = await navigator.serviceWorker.register('/sw.js', { scope: '/' });
     if (!navigator.serviceWorker.controller) {
-      if (!sessionStorage.getItem('sw_reloaded_v41')) {
-        sessionStorage.setItem('sw_reloaded_v41', '1');
+      if (!sessionStorage.getItem('sw_reloaded_v42')) {
+        sessionStorage.setItem('sw_reloaded_v42', '1');
         location.reload();
         return null;
       }
