@@ -18,9 +18,7 @@
 	#canvas { display: block; position: absolute; left: 0; top: 0;
 		width: 100vw; height: 100vh; background: #000; }
 
-	/* ============================================================
-	   CLICK TO START
-	   ============================================================ */
+	/* CLICK TO START */
 	#click-to-start {
 		position: fixed; inset: 0; z-index: 5000;
 		background: radial-gradient(ellipse at center, #0a0618 0%, #000 100%);
@@ -29,7 +27,6 @@
 		transition: opacity 0.8s ease-out;
 	}
 	#click-to-start.hidden { opacity: 0; pointer-events: none; }
-
 	#click-to-start .cts-logo {
 		font-family: 'Arial Black', sans-serif;
 		font-size: 82px; font-weight: 900;
@@ -43,7 +40,6 @@
 		0%, 100% { text-shadow: 0 0 20px rgba(180,120,255,0.9), 0 0 60px rgba(120,180,255,0.5); }
 		50%      { text-shadow: 0 0 40px rgba(180,120,255,1), 0 0 100px rgba(120,180,255,0.8); }
 	}
-
 	#click-to-start .cts-sub {
 		font-size: 12px; letter-spacing: 12px;
 		text-transform: uppercase;
@@ -51,7 +47,6 @@
 		margin-bottom: 60px;
 		pointer-events: none;
 	}
-
 	#cts-button {
 		background: rgba(120, 90, 255, 0.2);
 		border: 2px solid #a78bfa;
@@ -71,7 +66,6 @@
 		0%, 100% { opacity: 0.6; }
 		50%      { opacity: 1; }
 	}
-
 	#click-to-start .cts-note {
 		position: absolute; bottom: 40px;
 		font-size: 10px; color: rgba(180, 180, 200, 0.4);
@@ -80,9 +74,7 @@
 		pointer-events: none;
 	}
 
-	/* ============================================================
-	   BOTÓN DE SONIDO
-	   ============================================================ */
+	/* SOUND TOGGLE */
 	#sound-toggle {
 		position: fixed; top: 24px; right: 24px;
 		width: 40px; height: 40px;
@@ -99,9 +91,7 @@
 	#sound-toggle:hover { background: rgba(120, 90, 255, 0.3); transform: scale(1.08); }
 	#sound-toggle.muted { color: rgba(150, 150, 200, 0.4); }
 
-	/* ============================================================
-	   BOOT SCREEN
-	   ============================================================ */
+	/* BOOT SCREEN */
 	#boot-screen {
 		position: fixed; inset: 0; background: #05060a;
 		z-index: 1000;
@@ -153,9 +143,7 @@
 		transition: width 0.4s ease-out;
 	}
 
-	/* ============================================================
-	   PANTALLA DE CARGA PRINCIPAL
-	   ============================================================ */
+	/* LOADING */
 	#loading { position: fixed; inset: 0; background: #000; overflow: hidden;
 		transition: opacity .8s; z-index: 5; opacity: 0; }
 	#loading.done { opacity: 0; pointer-events: none; }
@@ -242,7 +230,6 @@
 	#kito-logo small { display: block; font-size: 10px; letter-spacing: 10px;
 		margin-top: 4px; color: rgba(255,255,255,.7); text-shadow: none; font-weight: 400; }
 
-	/* Panel info */
 	#info-toggle { position: absolute; right: 24px; top: 90px; width: 36px; height: 36px;
 		background: rgba(0,0,0,.55); border: 1px solid rgba(150,150,255,.3);
 		border-radius: 50%; color: #a78bfa; font: bold 18px/34px monospace;
@@ -350,7 +337,7 @@
     <div id="info-panel">
       <div class="title">Estado del sistema</div>
       <div class="row"><span class="label">Proyecto</span><span class="value">Fan-made / Educativo</span></div>
-      <div class="row"><span class="label">Build</span><span class="value" id="info-version">v41</span></div>
+      <div class="row"><span class="label">Build</span><span class="value" id="info-version">v44</span></div>
       <div class="row"><span class="label">Service Worker</span><span class="value" id="info-sw">registrando…</span></div>
 
       <hr>
@@ -403,7 +390,7 @@
 </div>
 
 <script type="module">
-console.log('[KITO] index.html cargado — v41');
+console.log('[KITO] index.html cargado — v44');
 window.addEventListener('error', (e) => {
   console.error('[KITO] ERROR:', e.message, 'en', e.filename, ':', e.lineno);
 });
@@ -434,7 +421,7 @@ window.addEventListener('error', (e) => {
 })();
 
 // ============================================================
-// AUDIO DE INTRO — SYNTHWAVE
+// AUDIO DE INTRO — SYNTHWAVE (Am – F – C – G a 84 BPM)
 // ============================================================
 const AmbientAudio = (function() {
   let ctx = null, masterGain = null, playing = false;
@@ -603,9 +590,6 @@ const AmbientAudio = (function() {
   return { init, start, stop, toggle, isPlaying: () => playing };
 })();
 
-// ============================================================
-// DOM refs
-// ============================================================
 const clickScreen = document.getElementById('click-to-start');
 const ctsButton = document.getElementById('cts-button');
 const bootScreen = document.getElementById('boot-screen');
@@ -764,12 +748,12 @@ function hideBootScreen() {
 })();
 
 // ============================================================
-// SERVICE WORKER
+// SERVICE WORKER — sw2.js
 // ============================================================
 const swReady = (async () => {
   if (!('serviceWorker' in navigator)) return null;
   try {
-    const reg = await navigator.serviceWorker.register('/sw.js', { scope: '/' });
+    const reg = await navigator.serviceWorker.register('/sw2.js', { scope: '/' });
     if (!navigator.serviceWorker.controller) {
       if (!sessionStorage.getItem('sw_reloaded_v44')) {
         sessionStorage.setItem('sw_reloaded_v44', '1');
@@ -777,7 +761,7 @@ const swReady = (async () => {
         return null;
       }
     } else {
-      sessionStorage.removeItem('sw_reloaded_v41');
+      sessionStorage.removeItem('sw_reloaded_v44');
     }
     await navigator.serviceWorker.ready;
     return reg;
@@ -879,12 +863,9 @@ setInterval(() => {
 }
 
 // ============================================================
-// MODOS
+// MODOS — startMode = 0 (usuario elige manualmente)
 // ============================================================
-// ✅ Por defecto SANDBOX/env_test (mapa pequeño que sí está en el CDN)
-let startMode = q.get('mode') === 'story' ? 1
-             : q.get('mode') === 'sandbox' ? (q.get('map') === 'env_test' ? 3 : 2)
-             : 0;
+let startMode = q.get('mode') === 'story' ? 1 : q.get('mode') === 'sandbox' ? (q.get('map') === 'env_test' ? 3 : 2) : 0;
 let startModeWord = null, startCommitted = false, pickingMap = false, waitingChoice = false;
 const ACTS = {
   back: ['Atrás','Backspace',['Backspace']],
@@ -1087,28 +1068,28 @@ window.addEventListener('game-start', async () => {
   const ENGINE_ARGS = ['-fastscriptcore'];
 
   setBoot(70, 'Descargando assets críticos...');
-
-  // ✅ Lista reducida — solo los estrictamente necesarios
   const PRELOAD_LIST = [
-    { url: '/game.wasm',              label: 'Motor WebAssembly' },
-    { url: '/shaders/index.json',     label: 'Índice shaders' },
-    { url: '/shaders/pipelines.json', label: 'Pipelines' },
+    { url: '/data/manifest.json',       label: 'Manifest' },
+    { url: '/data/bootset.json',        label: 'Bootset' },
+    { url: '/data/bootset_low.json',    label: 'Bootset low' },
+    { url: '/game.wasm',                label: 'Motor WebAssembly' },
+    { url: '/shaders/index.json',       label: 'Shaders' },
+    { url: '/shaders/pipelines.json',   label: 'Pipelines' },
+    { url: '/shaders/pipelines_low.json', label: 'Pipelines low' },
   ];
 
-  // ✅ FIX: descarga EN PARALELO, no secuencial
   let preloadCount = 0;
-  await Promise.all(PRELOAD_LIST.map(async (item) => {
+  for (const item of PRELOAD_LIST) {
     try {
       const res = await fetch(item.url, { cache: 'default' });
-      if (res.ok) await res.blob();
-      else console.warn(`[Preload] ${item.label}: HTTP ${res.status}`);
-    } catch (e) {
-      console.warn(`[Preload] ${item.label}:`, e);
-    }
-    preloadCount++;
-    const pct = 70 + (preloadCount / PRELOAD_LIST.length) * 25;
-    setBoot(pct, `Descargando (${preloadCount}/${PRELOAD_LIST.length})`);
-  }));
+      if (res.ok) {
+        await res.blob();
+        preloadCount++;
+        const pct = 70 + (preloadCount / PRELOAD_LIST.length) * 25;
+        setBoot(pct, `Descargando ${item.label} (${preloadCount}/${PRELOAD_LIST.length})`);
+      }
+    } catch (e) { console.warn(`[Preload] ${item.label}:`, e); }
+  }
 
   setBoot(95, 'Iniciando motor...');
 
