@@ -1,27 +1,28 @@
 /**
- * sw2.js — v47
- * Shaders: primero gta.deloskiyt.pl (build sincronizada), luego cdn.apkprojects.xyz
- * Resto: cdn.apkprojects.xyz como siempre
+ * sw.js — v31
+ * Range requests desde caché + fallback entre múltiples rutas R2.
+ * Compatibilidad Linux/ext4: fallback case-insensitive + URLs seguras.
+ * v31: soporte para /b/8b0b5899ed/* (build-specific: loader, workers, title, audio-worklet).
  */
 
-const DELO_BASE   = 'https://gta.deloskiyt.pl/b/8b0b5899ed';
 const R2_BASE     = 'https://cdn.apkprojects.xyz';
 const PREFIX_ROOT = 'mirror/playgta5.com/data';
 const PREFIX_BIN  = 'mirror/playgta5.com/b/8b0b5899ed';
 
-const CACHE = 'gta5-v47';
+const CACHE = 'gta5-v31';
 const MAX_BYTES = 5 * 1024 * 1024 * 1024;
-
 const TIMEOUT_DEFAULT = 45000;
 const TIMEOUT_RANGE   = 15000;
 const TIMEOUT_FULL    = 300000;
 
-const PREFETCH_PAR = 8;
+// ext4 / S3 son case-sensitive. Duplicamos cada candidato en minúsculas.
+// (Si tu mirror está perfectamente en minúsculas, pon false y ahorras fetches.)
+const CASE_FALLBACK = true;
 
+// Rutas que sirve el propio origin (frontend estático) — no van al CDN.
 const FRONTEND = new Set([
-  '/', '/index.html', '/sw.js', '/sw2.js', '/sw3.js', '/CNAME', '/README.md',
-  '/loader.js', '/game.js', '/wgpu_worker.js', '/io_worker.js', '/audio-worklet.js',
-  '/chalet.woff', '/favicon.ico', '/robots.txt', '/google88b6175162f03564.html',
+  '/', '/index.html', '/sw.js', '/CNAME', '/README.md',
+  '/favicon.ico', '/robots.txt', '/google88b6175162f03564.html',
 ]);
 
 function isFrontend(p) {
@@ -30,38 +31,18 @@ function isFrontend(p) {
 function isBatchPath(p) {
   return p.startsWith('/data/batchc/') || p === '/data/batch' || p.startsWith('/data/batch?');
 }
-function isShaderPath(p) {
-  return p.includes('/shaders/');
-}
 
-// ============================================================
-// URLs para shaders (probamos varias fuentes por orden)
-// ============================================================
-function shaderURLs(localPath) {
-  const idx = localPath.indexOf('/shaders/');
-  const rest = localPath.slice(idx + '/shaders/'.length); // "win32_40/emissivestrong.fxc"
-
-  const urls = [];
-
-  // 1. gta.deloskiyt.pl (build sincronizada)
-  urls.push(`${DELO_BASE}/shaders/${rest}`);
-
-  // 2. cdn.apkprojects.xyz /data/common/shaders/  (ruta real de tus shaders)
-  urls.push(`${R2_BASE}/${PREFIX_ROOT}/common/shaders/${rest}`);
-
-  // 3. cdn.apkprojects.xyz /b/.../shaders/  (por si acaso)
-  urls.push(`${R2_BASE}/${PREFIX_BIN}/shaders/${rest}`);
-
-  // 4. cdn.apkprojects.xyz /data/shaders/
-  urls.push(`${R2_BASE}/${PREFIX_ROOT}/shaders/${rest}`);
-
-  return urls;
-}
-
-// ============================================================
-// Candidatos generales
-// ============================================================
 function candidatesFor(localPath) {
+  // ── Build-specific: /b/8b0b5899ed/loader.js, /b/8b0b5899ed/title/logo.png,
+  //    /b/8b0b5899ed/audio-worklet.js, /b/8b0b5899ed/*.wasm, etc. ──
+  if (localPath.startsWith('/b/8b0b5899ed/')) {
+    const rest = localPath.slice(1);              // "b/8b0b5899ed/loader.js"
+    return [
+      `mirror/playgta5.com/${rest}`,              // mirror/playgta5.com/b/8b0b5899ed/loader.js
+      rest,                                        // b/8b0b5899ed/loader.js
+    ];
+  }
+
   if (localPath === '/game.wasm') {
     return [
       `${PREFIX_BIN}/game.wasm`,
@@ -70,58 +51,54 @@ function candidatesFor(localPath) {
       `game.wasm`,
     ];
   }
-
+  if (localPath.startsWith('/shaders/')) {
+    const rest = localPath.slice(9);
+    return [`${PREFIX_BIN}/shaders/${rest}`, `${PREFIX_ROOT}/shaders/${rest}`];
+  }
   if (localPath === '/data/manifest.json')    return ['manifest.json', `${PREFIX_ROOT}/manifest.json`];
   if (localPath === '/data/bootset.json')     return ['bootset.json', `${PREFIX_ROOT}/bootset.json`];
   if (localPath === '/data/bootset_low.json') return ['bootset_low.json', `${PREFIX_ROOT}/bootset_low.json`];
 
   if (localPath.startsWith('/game/')) {
     const rest = localPath.slice(6);
-    const list = [
+    return [
       `${PREFIX_ROOT}/${rest}`,
       `${PREFIX_ROOT}/game/${rest}`,
       `${PREFIX_BIN}/${rest}`,
-      `${PREFIX_BIN}/game/${rest}`,
     ];
-    if (rest.startsWith('x64/levels/gta5/')) {
-      const after = rest.slice('x64/levels/gta5/'.length);
-      const slash = after.indexOf('/');
-      if (slash > 0) {
-        const folder = after.slice(0, slash);
-        const sub = after.slice(slash + 1);
-        const noU = folder.replace(/^_/, '');
-        const withU = folder.startsWith('_') ? folder : '_' + folder;
-        list.push(`${PREFIX_ROOT}/x64/levels/gta5/${noU}/${sub}`);
-        list.push(`${PREFIX_ROOT}/x64/levels/gta5/${withU}/${sub}`);
-        list.push(`${PREFIX_BIN}/x64/levels/gta5/${noU}/${sub}`);
-        list.push(`${PREFIX_BIN}/x64/levels/gta5/${withU}/${sub}`);
-      }
-    }
-    return list;
   }
-
   if (localPath.startsWith('/data/')) {
     const rest = localPath.slice(6);
-    const list = [
-      `${PREFIX_ROOT}/${rest}`,
-      `${PREFIX_ROOT}/common/data/${rest}`,
-    ];
+    const list = [`${PREFIX_ROOT}/${rest}`, `${PREFIX_ROOT}/common/data/${rest}`];
     if (rest.startsWith('x64/levels/gta5/')) {
       const after = rest.slice('x64/levels/gta5/'.length);
       const slash = after.indexOf('/');
       if (slash > 0) {
-        const folder = after.slice(0, slash);
-        const sub = after.slice(slash + 1);
-        const noU = folder.replace(/^_/, '');
-        list.push(`${PREFIX_ROOT}/x64/levels/gta5/${noU}/${sub}`);
-        list.push(`${PREFIX_ROOT}/x64/levels/gta5/_${noU}/${sub}`);
+        list.push(`${PREFIX_ROOT}/x64/levels/gta5/_${after.slice(0, slash)}/${after.slice(slash + 1)}`);
       }
     }
     return list;
   }
-
   const rest = localPath.slice(1);
   return [`${PREFIX_ROOT}/${rest}`, `${PREFIX_BIN}/${rest}`];
+}
+
+// ── Linux-friendly: duplica candidatos con su versión minúscula ──
+function withCaseFallback(list) {
+  if (!CASE_FALLBACK) return list;
+  const out = [];
+  for (const p of list) {
+    out.push(p);
+    const low = p.toLowerCase();
+    if (low !== p) out.push(low);
+  }
+  return out;
+}
+
+// ── Construcción de URL segura (escapa #, ?, %, espacios) ──
+function makeUrl(candidate) {
+  try { return new URL(candidate, R2_BASE + '/').href; }
+  catch (e) { return R2_BASE + '/' + candidate; }
 }
 
 function injectIsolation(r) {
@@ -132,46 +109,14 @@ function injectIsolation(r) {
   return new Response(r.body, { status: r.status, statusText: r.statusText, headers: h });
 }
 
-// ============================================================
-// Ciclo de vida
-// ============================================================
 self.addEventListener('install', () => self.skipWaiting());
-
 self.addEventListener('activate', (event) => {
   event.waitUntil((async () => {
     const keys = await caches.keys();
     await Promise.all(keys.filter((k) => k !== CACHE).map((k) => caches.delete(k)));
     await self.clients.claim();
-    prefetchBootset();
   })());
 });
-
-async function prefetchBootset() {
-  try {
-    const cache = await caches.open(CACHE);
-    const done = await cache.match('/__bootset_done_v47__');
-    if (done) return;
-    const res = await fetch(`${R2_BASE}/bootset.json`);
-    if (!res.ok) return;
-    const entries = await res.json();
-    let i = 0;
-    const worker = async () => {
-      while (i < entries.length) {
-        const entry = entries[i++];
-        const path = Array.isArray(entry) ? entry[0] : entry;
-        const url = `${R2_BASE}/${PREFIX_ROOT}/${path}`;
-        const key = new Request(`/data/${path}`);
-        try {
-          if (await cache.match(key)) continue;
-          const r = await fetch(url, { mode: 'cors', credentials: 'omit' });
-          if (r.ok) await cache.put(key, r);
-        } catch (e) {}
-      }
-    };
-    await Promise.all(Array.from({ length: PREFETCH_PAR }, worker));
-    await cache.put('/__bootset_done_v47__', new Response('1'));
-  } catch (e) {}
-}
 
 let trimScheduled = false;
 function scheduleTrimCache() {
@@ -199,20 +144,13 @@ async function trimCache() {
   } catch (e) {}
 }
 
-function fastFetch(url, req, timeout, noCache) {
+function fastFetch(url, req, timeout) {
   const ctrl = new AbortController();
   const timer = setTimeout(() => ctrl.abort(), timeout);
   const headers = {};
   const range = req.headers.get('Range');
   if (range) headers['Range'] = range;
-  return fetch(url, {
-    method: 'GET',
-    headers,
-    mode: 'cors',
-    credentials: 'omit',
-    cache: noCache ? 'reload' : 'default',
-    signal: ctrl.signal,
-  })
+  return fetch(url, { method: 'GET', headers, mode: 'cors', credentials: 'omit', signal: ctrl.signal })
     .then((r) => { clearTimeout(timer); return (r.ok || r.status === 206) ? r : null; })
     .catch(() => { clearTimeout(timer); return null; });
 }
@@ -242,34 +180,18 @@ async function serveRangeFromCache(cachedResponse, rangeHeader) {
   headers.set('Content-Length', String(slice.byteLength));
   headers.set('Accept-Ranges', 'bytes');
   headers.set('Content-Type', 'application/octet-stream');
+  // Linux + nginx/Caddy: sin esto el player no ve los headers vía CORS
+  headers.set('Access-Control-Allow-Origin', '*');
+  headers.set('Access-Control-Expose-Headers',
+    'Content-Range, Content-Length, Accept-Ranges, ETag');
   return new Response(slice, { status: 206, statusText: 'Partial Content', headers });
 }
 
-// ============================================================
-// Manejo de assets
-// ============================================================
 async function handleAsset(event) {
   const req = event.request;
   const url = new URL(req.url);
   const pathname = url.pathname;
   const range = req.headers.get('Range');
-
-  // SHADERS: probar todas las fuentes, sin cachear
-  if (isShaderPath(pathname)) {
-    const urls = shaderURLs(pathname);
-    for (const u of urls) {
-      console.log('[SW] shader →', u);
-      const r = await fastFetch(u, req, TIMEOUT_DEFAULT, true);
-      if (r) {
-        console.log('[SW] shader OK ←', u);
-        return injectIsolation(r);
-      }
-    }
-    console.warn('[SW] shader 404 en todas las fuentes:', pathname);
-    return new Response('', { status: 404 });
-  }
-
-  // Resto: cache-first
   const cache = await caches.open(CACHE);
   const cached = await cache.match(pathname);
 
@@ -281,35 +203,33 @@ async function handleAsset(event) {
   }
   if (cached && !range) return injectIsolation(cached);
 
-  const candidates = candidatesFor(pathname);
+  // Linux: añadimos variantes lowercase automáticamente
+  const candidates = withCaseFallback(candidatesFor(pathname));
   if (!candidates.length) return new Response('', { status: 404 });
 
   const timeout = range ? TIMEOUT_RANGE
                 : pathname.endsWith('.rpf') ? TIMEOUT_FULL
                 : TIMEOUT_DEFAULT;
 
-  let res = null;
-  for (const c of candidates) {
-    res = await fastFetch(`${R2_BASE}/${c}`, req, timeout, false);
-    if (res) break;
-  }
+  // URL segura en vez de concatenación cruda
+  const results = await Promise.all(
+    candidates.map((c) => fastFetch(makeUrl(c), req, timeout))
+  );
+  const res = results.find((r) => r !== null) || null;
 
-  if (!res) {
-    console.warn('[SW] 404:', pathname);
-    return new Response('', { status: 404 });
-  }
+  if (!res) return new Response('', { status: 404 });
 
   if (!range && res.status === 200) {
     const cacheable = res.clone();
     event.waitUntil?.(cache.put(pathname, cacheable).then(() => scheduleTrimCache()).catch(() => {}));
   }
+  if (range && res.status === 200) console.warn('[SW] Range ignorado por R2:', pathname);
 
   return injectIsolation(res);
 }
 
 self.addEventListener('fetch', (event) => {
   const url = new URL(event.request.url);
-
   if (url.origin !== self.location.origin) return;
   if (event.request.method !== 'GET' && event.request.method !== 'HEAD') return;
   if (event.request.cache === 'only-if-cached' && event.request.mode !== 'same-origin') return;
@@ -318,7 +238,6 @@ self.addEventListener('fetch', (event) => {
     event.respondWith(new Response('', { status: 404 }));
     return;
   }
-
   if (isFrontend(url.pathname)) {
     event.respondWith((async () => {
       try {
@@ -333,6 +252,5 @@ self.addEventListener('fetch', (event) => {
     })());
     return;
   }
-
   event.respondWith(handleAsset(event));
 });
