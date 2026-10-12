@@ -393,11 +393,23 @@ if (remoteLog) {
 addEventListener('pagehide', () => { try { new BroadcastChannel('game-io').postMessage('close'); } catch (e) {} });
 
 // SW desactivado — Cloudflare ya cachea todo con HIT.
-if ('serviceWorker' in navigator) {
-	navigator.serviceWorker.getRegistrations()
-		.then((regs) => regs.forEach((r) => r.unregister().catch(() => {})))
-		.catch(() => {});
-}
+// Registrar el SW (necesario para traducir rutas a gta.deloskiyt.pl)
+(async () => {
+  if (!('serviceWorker' in navigator)) return;
+  try {
+    const reg = await navigator.serviceWorker.register('/sw2.js', { scope: '/' });
+    if (!navigator.serviceWorker.controller) {
+      if (!sessionStorage.getItem('sw_reloaded_v35')) {
+        sessionStorage.setItem('sw_reloaded_v35', '1');
+        location.reload();
+        return;
+      }
+    } else {
+      sessionStorage.removeItem('sw_reloaded_v35');
+    }
+    await navigator.serviceWorker.ready;
+  } catch (e) { console.warn('[SW]', e); }
+})();
 (async () => {
 	try {
 		if (window.caches) {
