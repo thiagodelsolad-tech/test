@@ -884,7 +884,7 @@ setInterval(() => {
 // ✅ Por defecto SANDBOX/env_test (mapa pequeño que sí está en el CDN)
 let startMode = q.get('mode') === 'story' ? 1
              : q.get('mode') === 'sandbox' ? (q.get('map') === 'env_test' ? 3 : 2)
-             : 3;
+             : 0;
 let startModeWord = null, startCommitted = false, pickingMap = false, waitingChoice = false;
 const ACTS = {
   back: ['Atrás','Backspace',['Backspace']],
