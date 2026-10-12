@@ -1,13 +1,14 @@
 /**
- * sw.js — v39
- * Solo CDN propio: cdn.apkprojects.xyz
+ * sw.js — v40
+ * CDN: cdn.apkprojects.xyz
+ * Mejora: más candidatos para RPF de levels (que es donde falla el motor)
  */
 
 const R2_BASE     = 'https://cdn.apkprojects.xyz';
 const PREFIX_ROOT = 'mirror/playgta5.com/data';
 const PREFIX_BIN  = 'mirror/playgta5.com/b/8b0b5899ed';
 
-const CACHE = 'gta5-v39';
+const CACHE = 'gta5-v40';
 const MAX_BYTES = 5 * 1024 * 1024 * 1024;
 
 const TIMEOUT_DEFAULT = 45000;
@@ -27,10 +28,8 @@ function isBatchPath(p) {
   return p.startsWith('/data/batchc/') || p === '/data/batch' || p.startsWith('/data/batch?');
 }
 
-// ============================================================
-// Candidatos en el CDN para cada ruta local
-// ============================================================
 function candidatesFor(localPath) {
+  // game.wasm
   if (localPath === '/game.wasm') {
     return [
       `${PREFIX_BIN}/game.wasm`,
@@ -40,27 +39,53 @@ function candidatesFor(localPath) {
     ];
   }
 
+  // shaders
   if (localPath.startsWith('/shaders/')) {
     const rest = localPath.slice(9);
-    return [
-      `${PREFIX_BIN}/shaders/${rest}`,
-      `${PREFIX_ROOT}/shaders/${rest}`,
-    ];
+    return [`${PREFIX_BIN}/shaders/${rest}`, `${PREFIX_ROOT}/shaders/${rest}`];
   }
 
+  // manifest / bootset
   if (localPath === '/data/manifest.json')    return ['manifest.json', `${PREFIX_ROOT}/manifest.json`];
   if (localPath === '/data/bootset.json')     return ['bootset.json', `${PREFIX_ROOT}/bootset.json`];
   if (localPath === '/data/bootset_low.json') return ['bootset_low.json', `${PREFIX_ROOT}/bootset_low.json`];
 
+  // ✅ RPF: el motor pide /game/x64/levels/... — probamos muuuuchas variantes
   if (localPath.startsWith('/game/')) {
-    const rest = localPath.slice(6);
-    return [
+    const rest = localPath.slice(6); // "x64/levels/gta5/_hills/cityhills_01/ch1.rpf"
+    const list = [
       `${PREFIX_ROOT}/${rest}`,
       `${PREFIX_ROOT}/game/${rest}`,
       `${PREFIX_BIN}/${rest}`,
+      `${PREFIX_BIN}/game/${rest}`,
     ];
+
+    // Levels: probamos con y sin "_" en la carpeta
+    if (rest.startsWith('x64/levels/gta5/')) {
+      const after = rest.slice('x64/levels/gta5/'.length);
+      const slash = after.indexOf('/');
+      if (slash > 0) {
+        const folder = after.slice(0, slash);
+        const sub = after.slice(slash + 1);
+        const folderNoUnderscore = folder.replace(/^_/, '');
+        const folderWithUnderscore = folder.startsWith('_') ? folder : '_' + folder;
+
+        // Variantes
+        list.push(`${PREFIX_ROOT}/x64/levels/gta5/${folderNoUnderscore}/${sub}`);
+        list.push(`${PREFIX_ROOT}/x64/levels/gta5/${folderWithUnderscore}/${sub}`);
+        list.push(`${PREFIX_BIN}/x64/levels/gta5/${folderNoUnderscore}/${sub}`);
+        list.push(`${PREFIX_BIN}/x64/levels/gta5/${folderWithUnderscore}/${sub}`);
+
+        // A veces los levels están en el nivel raíz del bucket
+        list.push(`${PREFIX_ROOT}/levels/gta5/${folderNoUnderscore}/${sub}`);
+        list.push(`${PREFIX_ROOT}/levels/gta5/${folderWithUnderscore}/${sub}`);
+      }
+    }
+
+    return list;
   }
 
+  // /data/...
   if (localPath.startsWith('/data/')) {
     const rest = localPath.slice(6);
     const list = [
@@ -73,7 +98,8 @@ function candidatesFor(localPath) {
       if (slash > 0) {
         const folder = after.slice(0, slash);
         const sub = after.slice(slash + 1);
-        list.push(`${PREFIX_ROOT}/x64/levels/gta5/_${folder}/${sub}`);
+        list.push(`${PREFIX_ROOT}/x64/levels/gta5/${folder.replace(/^_/, '')}/${sub}`);
+        list.push(`${PREFIX_ROOT}/x64/levels/gta5/_${folder.replace(/^_/, '')}/${sub}`);
       }
     }
     return list;
@@ -91,9 +117,6 @@ function injectIsolation(r) {
   return new Response(r.body, { status: r.status, statusText: r.statusText, headers: h });
 }
 
-// ============================================================
-// Ciclo de vida
-// ============================================================
 self.addEventListener('install', () => self.skipWaiting());
 self.addEventListener('activate', (event) => {
   event.waitUntil((async () => {
@@ -191,18 +214,21 @@ async function handleAsset(event) {
                 : pathname.endsWith('.rpf') ? TIMEOUT_FULL
                 : TIMEOUT_DEFAULT;
 
+  // ✅ Prueba los candidatos EN PARALELO y usa el primero que responda
   const results = await Promise.all(
     candidates.map((c) => fastFetch(`${R2_BASE}/${c}`, req, timeout))
   );
   const res = results.find((r) => r !== null) || null;
 
-  if (!res) return new Response('', { status: 404 });
+  if (!res) {
+    console.warn('[SW] 404 definitivo:', pathname);
+    return new Response('', { status: 404 });
+  }
 
   if (!range && res.status === 200) {
     const cacheable = res.clone();
     event.waitUntil?.(cache.put(pathname, cacheable).then(() => scheduleTrimCache()).catch(() => {}));
   }
-  if (range && res.status === 200) console.warn('[SW] Range ignorado por CDN:', pathname);
 
   return injectIsolation(res);
 }
