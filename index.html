@@ -7,9 +7,7 @@
 <meta name="description" content="Clon web no oficial de GTA V — Proyecto educativo.">
 <title>GTA V — Web Edition (Fan Project)</title>
 
-<link rel="preconnect" href="https://gta.deloskiyt.pl" crossorigin>
 <link rel="preconnect" href="https://cdn.apkprojects.xyz" crossorigin>
-<link rel="dns-prefetch" href="https://gta.deloskiyt.pl">
 <link rel="dns-prefetch" href="https://cdn.apkprojects.xyz">
 
 <style>
@@ -20,9 +18,7 @@
 	#canvas { display: block; position: absolute; left: 0; top: 0;
 		width: 100vw; height: 100vh; background: #000; }
 
-	/* ============================================================
-	   CLICK TO START
-	   ============================================================ */
+	/* CLICK TO START */
 	#click-to-start {
 		position: fixed; inset: 0; z-index: 5000;
 		background: radial-gradient(ellipse at center, #0a0618 0%, #000 100%);
@@ -31,7 +27,6 @@
 		transition: opacity 0.8s ease-out;
 	}
 	#click-to-start.hidden { opacity: 0; pointer-events: none; }
-
 	#click-to-start .cts-logo {
 		font-family: 'Arial Black', sans-serif;
 		font-size: 82px; font-weight: 900;
@@ -45,7 +40,6 @@
 		0%, 100% { text-shadow: 0 0 20px rgba(180,120,255,0.9), 0 0 60px rgba(120,180,255,0.5); }
 		50%      { text-shadow: 0 0 40px rgba(180,120,255,1), 0 0 100px rgba(120,180,255,0.8); }
 	}
-
 	#click-to-start .cts-sub {
 		font-size: 12px; letter-spacing: 12px;
 		text-transform: uppercase;
@@ -53,7 +47,6 @@
 		margin-bottom: 60px;
 		pointer-events: none;
 	}
-
 	#cts-button {
 		background: rgba(120, 90, 255, 0.2);
 		border: 2px solid #a78bfa;
@@ -73,7 +66,6 @@
 		0%, 100% { opacity: 0.6; }
 		50%      { opacity: 1; }
 	}
-
 	#click-to-start .cts-note {
 		position: absolute; bottom: 40px;
 		font-size: 10px; color: rgba(180, 180, 200, 0.4);
@@ -82,9 +74,7 @@
 		pointer-events: none;
 	}
 
-	/* ============================================================
-	   BOTÓN DE SONIDO
-	   ============================================================ */
+	/* SOUND TOGGLE */
 	#sound-toggle {
 		position: fixed; top: 24px; right: 24px;
 		width: 40px; height: 40px;
@@ -101,9 +91,7 @@
 	#sound-toggle:hover { background: rgba(120, 90, 255, 0.3); transform: scale(1.08); }
 	#sound-toggle.muted { color: rgba(150, 150, 200, 0.4); }
 
-	/* ============================================================
-	   BOOT SCREEN
-	   ============================================================ */
+	/* BOOT SCREEN */
 	#boot-screen {
 		position: fixed; inset: 0; background: #05060a;
 		z-index: 1000;
@@ -155,9 +143,7 @@
 		transition: width 0.4s ease-out;
 	}
 
-	/* ============================================================
-	   PANTALLA DE CARGA PRINCIPAL
-	   ============================================================ */
+	/* LOADING */
 	#loading { position: fixed; inset: 0; background: #000; overflow: hidden;
 		transition: opacity .8s; z-index: 5; opacity: 0; }
 	#loading.done { opacity: 0; pointer-events: none; }
@@ -244,7 +230,6 @@
 	#kito-logo small { display: block; font-size: 10px; letter-spacing: 10px;
 		margin-top: 4px; color: rgba(255,255,255,.7); text-shadow: none; font-weight: 400; }
 
-	/* Panel info */
 	#info-toggle { position: absolute; right: 24px; top: 90px; width: 36px; height: 36px;
 		background: rgba(0,0,0,.55); border: 1px solid rgba(150,150,255,.3);
 		border-radius: 50%; color: #a78bfa; font: bold 18px/34px monospace;
@@ -322,7 +307,6 @@
 <div id="hud"></div>
 <div id="fps"></div>
 
-<!-- CLICK TO START -->
 <div id="click-to-start">
   <div class="cts-logo">KITO</div>
   <div class="cts-sub">Web Edition</div>
@@ -332,10 +316,8 @@
   </div>
 </div>
 
-<!-- BOTÓN DE SONIDO -->
 <button id="sound-toggle" title="Activar/desactivar sonido">🔊</button>
 
-<!-- BOOT SCREEN -->
 <div id="boot-screen">
   <div class="boot-spinner"></div>
   <div class="boot-title">KITO</div>
@@ -344,7 +326,6 @@
   <div class="boot-bar"><div class="boot-bar-fill" id="boot-bar-fill"></div></div>
 </div>
 
-<!-- PANTALLA DE CARGA PRINCIPAL -->
 <div id="loading">
   <div id="ls-stage">
     <div id="ls-screens"></div>
@@ -409,17 +390,11 @@
 </div>
 
 <script type="module">
-// ============================================================
-// LOG DE ARRANQUE
-// ============================================================
 console.log('[KITO] index.html cargado — v38');
 window.addEventListener('error', (e) => {
   console.error('[KITO] ERROR:', e.message, 'en', e.filename, ':', e.lineno);
 });
 
-// ============================================================
-// FILTRO DE ERRORES COSMÉTICOS
-// ============================================================
 (function() {
   const ignore = [
     /Bink is not available/i, /LookupVar\(.+\) failed/i,
@@ -628,9 +603,6 @@ const bootBar = document.getElementById('boot-bar-fill');
 
 let gameStarted = false;
 
-// ============================================================
-// CLICK TO START
-// ============================================================
 function startGame() {
   if (gameStarted) return;
   gameStarted = true;
@@ -668,9 +640,6 @@ soundToggle.addEventListener('click', (e) => {
   else { soundToggle.textContent = '🔇'; soundToggle.classList.add('muted'); }
 });
 
-// ============================================================
-// BOOT
-// ============================================================
 function setBoot(pct, text) {
   if (bootStatus && text) bootStatus.textContent = text;
   if (bootBar) bootBar.style.width = Math.min(100, Math.max(0, pct)) + '%';
@@ -899,7 +868,10 @@ setInterval(() => {
 // ============================================================
 // MODOS
 // ============================================================
-let startMode = q.get('mode') === 'story' ? 1 : q.get('mode') === 'sandbox' ? (q.get('map') === 'env_test' ? 3 : 2) : 0;
+// ✅ CAMBIO: por defecto SANDBOX/env_test (mapa pequeño que sí está en el CDN)
+let startMode = q.get('mode') === 'story' ? 1
+             : q.get('mode') === 'sandbox' ? (q.get('map') === 'env_test' ? 3 : 2)
+             : 3;
 let startModeWord = null, startCommitted = false, pickingMap = false, waitingChoice = false;
 const ACTS = {
   back: ['Atrás','Backspace',['Backspace']],
@@ -1156,9 +1128,6 @@ window.addEventListener('game-start', async () => {
   setTimeout(() => { setBoot(100, 'Iniciando motor...'); hideBootScreen(); }, 500);
 });
 
-// ============================================================
-// AUDIO DEL JUEGO
-// ============================================================
 function tryStartAudio() {
   if (!audioPending || !audioGesture || audioStarted) return;
   audioStarted = true;
