@@ -1,18 +1,18 @@
 /**
- * sw2.js — v45
+ * sw2.js — v46
  * CDN: cdn.apkprojects.xyz
  *
- * Cambios respecto a v44:
- *  - shaderCandidates(): ahora prioriza /data/common/shaders/ (ruta real)
- *  - CACHE bump a gta5-v45
- *  - Resto igual: sin headers custom (evita preflight CORS)
+ * Fix clave:
+ *  - Shaders se piden con cache: 'reload' → ignora caché HTTP del navegador
+ *  - Shaders NUNCA se guardan en Cache Storage del SW
+ *  - Sin headers custom → sin preflight CORS
  */
 
 const R2_BASE     = 'https://cdn.apkprojects.xyz';
 const PREFIX_ROOT = 'mirror/playgta5.com/data';
 const PREFIX_BIN  = 'mirror/playgta5.com/b/8b0b5899ed';
 
-const CACHE = 'gta5-v45';
+const CACHE = 'gta5-v46';
 const MAX_BYTES = 5 * 1024 * 1024 * 1024;
 
 const TIMEOUT_DEFAULT = 45000;
@@ -41,11 +41,11 @@ function isShaderPath(p) {
 
 // ============================================================
 // Candidatos de shaders
-// ✅ Prioriza /data/common/shaders/ (la ruta real donde están)
+// Prioriza /data/common/shaders/ (ruta real confirmada)
 // ============================================================
 function shaderCandidates(localPath) {
   const idx = localPath.indexOf('/shaders/');
-  const rest = localPath.slice(idx + '/shaders/'.length); // "win32_40/emissivestrong.fxc"
+  const rest = localPath.slice(idx + '/shaders/'.length);
 
   // Metadatos y .bin siempre en /b/.../shaders/
   if (!rest.endsWith('.fxc')) {
@@ -131,7 +131,7 @@ function candidatesFor(localPath) {
 }
 
 // ============================================================
-// Headers de respuesta (solo aislamiento COOP/COEP)
+// Headers de respuesta (solo aislamiento)
 // ============================================================
 function injectIsolation(r) {
   const h = new Headers(r.headers);
@@ -161,7 +161,7 @@ self.addEventListener('activate', (event) => {
 async function prefetchBootset() {
   try {
     const cache = await caches.open(CACHE);
-    const done = await cache.match('/__bootset_done_v45__');
+    const done = await cache.match('/__bootset_done_v46__');
     if (done) return;
 
     const res = await fetch(`${R2_BASE}/bootset.json`);
@@ -185,7 +185,7 @@ async function prefetchBootset() {
     };
 
     await Promise.all(Array.from({ length: PREFETCH_PAR }, worker));
-    await cache.put('/__bootset_done_v45__', new Response('1'));
+    await cache.put('/__bootset_done_v46__', new Response('1'));
   } catch (e) {}
 }
 
@@ -223,11 +223,12 @@ async function trimCache() {
 }
 
 // ============================================================
-// Fetch SIN headers custom (evita preflight CORS)
+// Fetch sin headers custom, con bypass de caché opcional
 // ============================================================
-function fastFetch(url, req, timeout) {
+function fastFetch(url, req, timeout, noCache) {
   const ctrl = new AbortController();
   const timer = setTimeout(() => ctrl.abort(), timeout);
+
   const headers = {};
   const range = req.headers.get('Range');
   if (range) headers['Range'] = range;
@@ -237,6 +238,7 @@ function fastFetch(url, req, timeout) {
     headers,
     mode: 'cors',
     credentials: 'omit',
+    cache: noCache ? 'reload' : 'default',  // ✅ opción del fetch, NO header
     signal: ctrl.signal,
   })
     .then((r) => { clearTimeout(timer); return (r.ok || r.status === 206) ? r : null; })
@@ -283,20 +285,20 @@ async function handleAsset(event) {
   const pathname = url.pathname;
   const range = req.headers.get('Range');
 
-  // SHADERS: nunca cache, siempre red
+  // ✅ SHADERS: siempre red con cache: 'reload' (bypass de TODA caché)
   if (isShaderPath(pathname)) {
     const shaders = shaderCandidates(pathname);
     for (const c of shaders) {
       const fullUrl = `${R2_BASE}/${c}`;
       console.log('[SW] shader →', fullUrl);
-      const r = await fastFetch(fullUrl, req, TIMEOUT_DEFAULT);
+      const r = await fastFetch(fullUrl, req, TIMEOUT_DEFAULT, true);
       if (r) return injectIsolation(r);
     }
     console.warn('[SW] shader 404:', pathname);
     return new Response('', { status: 404 });
   }
 
-  // Resto: cache-first
+  // Resto: cache-first normal
   const cache = await caches.open(CACHE);
   const cached = await cache.match(pathname);
 
@@ -317,7 +319,7 @@ async function handleAsset(event) {
 
   let res = null;
   for (const c of candidates) {
-    res = await fastFetch(`${R2_BASE}/${c}`, req, timeout);
+    res = await fastFetch(`${R2_BASE}/${c}`, req, timeout, false);
     if (res) break;
   }
 
