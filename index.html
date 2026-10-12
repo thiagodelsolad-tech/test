@@ -43,19 +43,10 @@
 <div id="loading"><div id="ls-stage"><div id="ls-screens"></div><img id="ls-logo" src="/b/8b0b5899ed/title/logo.png" alt=""><div id="ls-bars"><div id="modes" class="ls-bar"><button data-act="back"></button><button data-act="map5"></button><button data-act="map6"></button><button data-act="sandbox"></button><button data-act="story"></button></div><div class="ls-bar"><span id="label">Starting...</span><span id="pct">0%</span><i class="ls-spin"></i></div></div></div><div id="ls-log"><div id="data"></div><div id="console"></div></div><div id="bar"><div id="fill"></div></div></div>
 <div id="fps"></div>
 <script type="module">
-// Page of the browser build. The engine runs in a dedicated worker (loader.js: its "main thread", where the static constructors and
-// main() run and which may block); the page only owns the canvas, which is transferred to that worker and on to the GPU worker.
-// Query string: ?args=-flag1,-flag2=value (added to the engine command line), ?shot=N (screenshot of every N-th present to the dev server).
 const q = new URLSearchParams(location.search);
-// URL prefix of everything this page loads (loader, workers, engine, shaders, title art): empty on the dev server; on the PHP host (phase3/host/index.php) it puts the page's own
-// text `/b/8b0b5899ed` through str_replace to `/b/<build id>`, so those files are cached for ever under URLs that change when the build does.
 const BASE = '/b/8b0b5899ed'.charAt(0) === '_' ? '' : '/b/8b0b5899ed';
-// ?log=1: the page, the engine threads and the workers send their log lines to the dev server (browser.log, browser_<ip>.log); off by default: the player's upload
-// bandwidth and this thread's time. The loading screen's own log line and the browser console do not depend on it.
 const remoteLog = q.get('log') === '1';
 const postLog = (text) => { if (remoteLog) fetch('/log', { method: 'POST', body: text }).catch(() => {}); };
-// Crash reports from the engine threads (prejs.js __crash, loader.js onAbort/onExit): shown in the bottom-left line with a hint when it looks like memory, and posted to the host's log
-// only with ?log=1 (at most 3 per page, ~10 KB each; they were always posted until 2026-10-06, when 10,000 visitors a day made 5,500 posts and a log file per visitor). A normal exit does not report.
 {
 	let posted = 0;
 	new BroadcastChannel('game-crash').onmessage = (ev) => {
@@ -67,7 +58,6 @@ const postLog = (text) => { if (remoteLog) fetch('/log', { method: 'POST', body:
 		if (el) { el.textContent = 'The game stopped (' + m.kind + '): ' + m.text.split('\n')[0].slice(0, 200) + (memory ? ' - this looks like a lack of memory: close other tabs and reload.' : ' - reload the page.'); el.style.color = '#f96'; }
 	};
 }
-// ---- title screen: the game's own loading screen, LOADINGSCREEN_STARTUP (scaleform_frontend.rpf), redone in HTML ----------------------------------------
 let stopTitle = () => {};
 {
 	const stage = document.getElementById('ls-stage'), holder = document.getElementById('ls-screens');
@@ -168,7 +158,6 @@ let stopTitle = () => {};
 	raf = requestAnimationFrame(tick);
 	stopTitle = () => { stopped = true; clearTimeout(timer); cancelAnimationFrame(raf); };
 }
-// ---- start choice: Story Mode / Sandbox Mode, and Sandbox Mode's map, in the title screen's button bar ---------------------------------------------------------
 let startMode = q.get('mode') === 'story' ? 1 : q.get('mode') === 'sandbox' ? (q.get('map') === 'env_test' ? 3 : 2) : 0;
 let startModeWord = null, startCommitted = false, pickingMap = false, waitingChoice = false;
 const ACTS = {
@@ -222,7 +211,6 @@ addEventListener('keydown', (e) => {
 	e.preventDefault(); e.stopImmediatePropagation();
 }, { capture: true });
 showModes();
-// ---- loading progress: the engine (prejs.js, loader.js) and the GPU worker publish {pct, label} on a BroadcastChannel ------------------
 {
 	const loading = document.getElementById('loading'), fill = document.getElementById('fill'), label = document.getElementById('label'), pct = document.getElementById('pct');
 	let target = 0, shown = 0, ready = false, dirty = false, loadingGone = false;
@@ -285,7 +273,6 @@ showModes();
 	}, 50);
 }
 const hud = document.getElementById('hud');
-// FPS counter, top left: off by default, the = key toggles it.
 {
 	const el = document.getElementById('fps');
 	let on = false;
@@ -319,8 +306,6 @@ addEventListener('pagehide', () => { try { new BroadcastChannel('game-io').postM
 
 // ══════════════════════════════════════════════════════════════════════════════
 // SW DESACTIVADO — Cloudflare cachea cdn.apkprojects.xyz con HIT.
-// El Service Worker añadía overhead y limitaba la velocidad.
-// Sin SW, el navegador va directo a Cloudflare y usa todo el ancho de banda.
 // ══════════════════════════════════════════════════════════════════════════════
 async function setupCache() {
 	try {
@@ -338,47 +323,123 @@ async function setupCache() {
 }
 
 // ══════════════════════════════════════════════════════════════════════════════
-// PRECARGA PARALELA DE ARCHIVOS PEQUEÑOS
-// Descarga en paralelo los shaders, índices y XMLs antes de arrancar el motor.
-// Reduce el tiempo de carga porque:
-//   1. Aprovecha el ancho de banda durante la inicialización
-//   2. Los archivos quedan en la caché HTTP del navegador
-//   3. El motor los encuentra instantáneamente cuando los pida
+// PRECARGA AGRESIVA DE SHADERS
+// Prueba varios índices conocidos, extrae shaders de cualquier estructura del
+// JSON, y añade una lista de fallback con los shaders más comunes del port.
 // ══════════════════════════════════════════════════════════════════════════════
 async function precargarArchivosPequenos() {
+	// ── 1. Archivos de configuración base (pequeños, críticos) ──
 	const BASE_FILES = [
 		'/data/manifest.json',
 		'/data/bootset.json',
 		'/data/bootset_low.json',
-		'/shaders/index.json',
-		'/shaders/pipelines.json',
-		'/shaders/pipelines_low.json',
 	];
 
-	// Descubre la lista de shaders desde el índice (si existe y tiene formato conocido)
-	const shaderFiles = [];
-	try {
-		const r = await fetch('/shaders/index.json', { cache: 'force-cache' });
-		if (r.ok) {
-			const idx = await r.json();
-			const list = idx.shaders || idx.files || idx.list || (Array.isArray(idx) ? idx : []);
-			for (const s of list) {
-				const name = typeof s === 'string' ? s : (s && (s.name || s.file)) || '';
-				if (name && name.endsWith('.json')) shaderFiles.push('/shaders/' + name);
-			}
-		}
-	} catch (e) { console.warn('[Preload] no pude leer shaders/index.json:', e); }
+	// ── 2. Índices de shaders (varios formatos posibles) ──
+	const INDEX_FILES = [
+		'/shaders/index.json',
+		'/shaders/manifest.json',
+		'/shaders/pipelines.json',
+		'/shaders/pipelines_low.json',
+		'/shaders/shaders.json',
+		'/shaders/list.json',
+	];
 
-	const ALL_FILES = [...BASE_FILES, ...shaderFiles];
-	console.log(`[Preload] ${ALL_FILES.length} archivos a precargar`);
+	const shaderFiles = new Set();
+
+	// Extrae strings de rutas de shader desde cualquier estructura JSON
+	function extractShaderPaths(obj, out) {
+		if (!obj) return;
+		if (typeof obj === 'string') {
+			if (obj.endsWith('.json') || obj.endsWith('.wgsl') || obj.endsWith('.bin') || obj.endsWith('.spv')) {
+				out.add(obj.startsWith('/') ? obj : '/shaders/' + obj);
+			}
+			return;
+		}
+		if (Array.isArray(obj)) { for (const x of obj) extractShaderPaths(x, out); return; }
+		if (typeof obj === 'object') {
+			// Claves frecuentes que contienen rutas
+			for (const k of ['name', 'file', 'path', 'shader', 'source', 'url']) {
+				if (typeof obj[k] === 'string') extractShaderPaths(obj[k], out);
+			}
+			// Recurse sobre todos los valores
+			for (const v of Object.values(obj)) extractShaderPaths(v, out);
+		}
+	}
+
+	// Prueba cada índice y acumula shaders
+	for (const indexUrl of INDEX_FILES) {
+		try {
+			const r = await fetch(indexUrl, { cache: 'force-cache' });
+			if (!r.ok) continue;
+			const ct = r.headers.get('content-type') || '';
+			if (!ct.includes('json')) continue;
+			const data = await r.json();
+			const before = shaderFiles.size;
+			extractShaderPaths(data, shaderFiles);
+			const added = shaderFiles.size - before;
+			if (added > 0) console.log(`[Preload] ${indexUrl}: +${added} shaders`);
+		} catch (e) { /* no es JSON o no existe */ }
+	}
+
+	// ── 3. Lista de fallback con shaders comunes del port ──
+	// Si los índices no revelaron nada, probamos con esta lista curada.
+	if (shaderFiles.size === 0) {
+		console.log('[Preload] índices vacíos, usando lista de fallback');
+		const FALLBACK = [
+			'/shaders/index.json',
+			'/shaders/pipelines.json',
+			'/shaders/pipelines_low.json',
+			'/shaders/common.json',
+			'/shaders/vehicle.json',
+			'/shaders/vehicle_paint.json',
+			'/shaders/vehicle_glass.json',
+			'/shaders/vehicle_dash.json',
+			'/shaders/ped.json',
+			'/shaders/ped_skin.json',
+			'/shaders/terrain.json',
+			'/shaders/terrain_cb.json',
+			'/shaders/water.json',
+			'/shaders/water_deep.json',
+			'/shaders/sky.json',
+			'/shaders/clouds.json',
+			'/shaders/deferred.json',
+			'/shaders/deferred_lighting.json',
+			'/shaders/mirror.json',
+			'/shaders/mirror_decal.json',
+			'/shaders/ptfx.json',
+			'/shaders/ptfx_sprite.json',
+			'/shaders/particles.json',
+			'/shaders/postfx.json',
+			'/shaders/bloom.json',
+			'/shaders/ssao.json',
+			'/shaders/shadow.json',
+			'/shaders/gbuffer.json',
+			'/shaders/im.json',
+			'/shaders/frontend.json',
+		];
+		for (const f of FALLBACK) shaderFiles.add(f);
+	}
+
+	// Convierte rutas relativas a absolutas coherentes
+	const ALL_FILES = new Set([...BASE_FILES]);
+	for (const s of shaderFiles) {
+		ALL_FILES.add(s.startsWith('/') ? s : '/shaders/' + s);
+	}
+
+	const fileList = [...ALL_FILES];
+	console.log(`[Preload] ${fileList.length} archivos a precargar`);
+
+	// ── 4. Descarga con concurrencia limitada (16 paralelos) ──
+	const CONCURRENCY = 16;
+	let done = 0;
+	let ok = 0;
+	let fail = 0;
+	const queue = [...fileList];
 
 	const label = document.getElementById('label');
 	const pct = document.getElementById('pct');
 	const fill = document.getElementById('fill');
-
-	const CONCURRENCY = 12;
-	let done = 0;
-	const queue = [...ALL_FILES];
 
 	const workers = [];
 	for (let i = 0; i < CONCURRENCY; i++) {
@@ -387,17 +448,18 @@ async function precargarArchivosPequenos() {
 				const url = queue.shift();
 				try {
 					const r = await fetch(url, { cache: 'force-cache' });
-					if (r.ok) await r.blob();
-				} catch (e) { }
+					if (r.ok) { await r.blob(); ok++; }
+					else fail++;
+				} catch (e) { fail++; }
 				done++;
-				if (label) label.textContent = `Precargando ${done}/${ALL_FILES.length}: ${url.split('/').pop()}`;
-				if (pct) pct.textContent = Math.round(done / ALL_FILES.length * 100) + '%';
-				if (fill) fill.style.width = (done / ALL_FILES.length * 100).toFixed(1) + '%';
+				if (label) label.textContent = `Precargando shaders ${done}/${fileList.length}: ${url.split('/').pop()}`;
+				if (pct) pct.textContent = Math.round(done / fileList.length * 100) + '%';
+				if (fill) fill.style.width = (done / fileList.length * 100).toFixed(1) + '%';
 			}
 		})());
 	}
 	await Promise.all(workers);
-	console.log(`[Preload] ✓ ${done} archivos precargados`);
+	console.log(`[Preload] ✓ ${ok} ok, ${fail} fallos (404 normales si un shader no existe)`);
 }
 
 let lowMemory = false;
@@ -407,8 +469,8 @@ else {
 	const offscreen = canvas.transferControlToOffscreen();
 	await setupCache();
 
-	// ── Precarga de archivos pequeños (paralelo) ──
-	// ?nopreload=1 lo desactiva.
+	// ── Precarga agresiva de shaders ──
+	// ?nopreload=1 la desactiva (útil para comparar).
 	if (q.get('nopreload') !== '1') {
 		try {
 			await precargarArchivosPequenos();
@@ -467,7 +529,6 @@ const worker = new Worker(BASE + '/loader.js');
 	}, [offscreen]);
 }
 
-// ?mem=1 (diagnostics, needs ?log=1): performance.measureUserAgentSpecificMemory() every 15 s.
 if (remoteLog && (q.get('mem') || lowMemory) && performance.measureUserAgentSpecificMemory) {
 	const report = async () => {
 		try {
