@@ -1,18 +1,15 @@
 /**
- * sw2.js — v46
- * CDN: cdn.apkprojects.xyz
- *
- * Fix clave:
- *  - Shaders se piden con cache: 'reload' → ignora caché HTTP del navegador
- *  - Shaders NUNCA se guardan en Cache Storage del SW
- *  - Sin headers custom → sin preflight CORS
+ * sw2.js — v47
+ * Shaders: primero gta.deloskiyt.pl (build sincronizada), luego cdn.apkprojects.xyz
+ * Resto: cdn.apkprojects.xyz como siempre
  */
 
+const DELO_BASE   = 'https://gta.deloskiyt.pl/b/8b0b5899ed';
 const R2_BASE     = 'https://cdn.apkprojects.xyz';
 const PREFIX_ROOT = 'mirror/playgta5.com/data';
 const PREFIX_BIN  = 'mirror/playgta5.com/b/8b0b5899ed';
 
-const CACHE = 'gta5-v46';
+const CACHE = 'gta5-v47';
 const MAX_BYTES = 5 * 1024 * 1024 * 1024;
 
 const TIMEOUT_DEFAULT = 45000;
@@ -30,38 +27,35 @@ const FRONTEND = new Set([
 function isFrontend(p) {
   return FRONTEND.has(p) || p.startsWith('/img/') || p.startsWith('/.github/');
 }
-
 function isBatchPath(p) {
   return p.startsWith('/data/batchc/') || p === '/data/batch' || p.startsWith('/data/batch?');
 }
-
 function isShaderPath(p) {
   return p.includes('/shaders/');
 }
 
 // ============================================================
-// Candidatos de shaders
-// Prioriza /data/common/shaders/ (ruta real confirmada)
+// URLs para shaders (probamos varias fuentes por orden)
 // ============================================================
-function shaderCandidates(localPath) {
+function shaderURLs(localPath) {
   const idx = localPath.indexOf('/shaders/');
-  const rest = localPath.slice(idx + '/shaders/'.length);
+  const rest = localPath.slice(idx + '/shaders/'.length); // "win32_40/emissivestrong.fxc"
 
-  // Metadatos y .bin siempre en /b/.../shaders/
-  if (!rest.endsWith('.fxc')) {
-    return [
-      `${PREFIX_BIN}/shaders/${rest}`,
-      `${PREFIX_ROOT}/common/shaders/${rest}`,
-      `${PREFIX_ROOT}/shaders/${rest}`,
-    ];
-  }
+  const urls = [];
 
-  // .fxc → ruta real primero
-  return [
-    `${PREFIX_ROOT}/common/shaders/${rest}`,
-    `${PREFIX_BIN}/shaders/${rest}`,
-    `${PREFIX_ROOT}/shaders/${rest}`,
-  ];
+  // 1. gta.deloskiyt.pl (build sincronizada)
+  urls.push(`${DELO_BASE}/shaders/${rest}`);
+
+  // 2. cdn.apkprojects.xyz /data/common/shaders/  (ruta real de tus shaders)
+  urls.push(`${R2_BASE}/${PREFIX_ROOT}/common/shaders/${rest}`);
+
+  // 3. cdn.apkprojects.xyz /b/.../shaders/  (por si acaso)
+  urls.push(`${R2_BASE}/${PREFIX_BIN}/shaders/${rest}`);
+
+  // 4. cdn.apkprojects.xyz /data/shaders/
+  urls.push(`${R2_BASE}/${PREFIX_ROOT}/shaders/${rest}`);
+
+  return urls;
 }
 
 // ============================================================
@@ -130,9 +124,6 @@ function candidatesFor(localPath) {
   return [`${PREFIX_ROOT}/${rest}`, `${PREFIX_BIN}/${rest}`];
 }
 
-// ============================================================
-// Headers de respuesta (solo aislamiento)
-// ============================================================
 function injectIsolation(r) {
   const h = new Headers(r.headers);
   h.set('Cross-Origin-Opener-Policy', 'same-origin');
@@ -155,21 +146,15 @@ self.addEventListener('activate', (event) => {
   })());
 });
 
-// ============================================================
-// Prefetch del bootset
-// ============================================================
 async function prefetchBootset() {
   try {
     const cache = await caches.open(CACHE);
-    const done = await cache.match('/__bootset_done_v46__');
+    const done = await cache.match('/__bootset_done_v47__');
     if (done) return;
-
     const res = await fetch(`${R2_BASE}/bootset.json`);
     if (!res.ok) return;
-
     const entries = await res.json();
     let i = 0;
-
     const worker = async () => {
       while (i < entries.length) {
         const entry = entries[i++];
@@ -183,71 +168,55 @@ async function prefetchBootset() {
         } catch (e) {}
       }
     };
-
     await Promise.all(Array.from({ length: PREFETCH_PAR }, worker));
-    await cache.put('/__bootset_done_v46__', new Response('1'));
+    await cache.put('/__bootset_done_v47__', new Response('1'));
   } catch (e) {}
 }
 
-// ============================================================
-// Recorte de caché
-// ============================================================
 let trimScheduled = false;
 function scheduleTrimCache() {
   if (trimScheduled) return;
   trimScheduled = true;
   setTimeout(() => { trimScheduled = false; trimCache(); }, 8000);
 }
-
 async function trimCache() {
   try {
     const c = await caches.open(CACHE);
     const reqs = await c.keys();
-    let total = 0;
-    const sizes = [];
+    let total = 0; const sizes = [];
     for (const r of reqs) {
       const res = await c.match(r);
       if (!res) continue;
       const len = parseInt(res.headers.get('Content-Length') || '0', 10) || 0;
-      sizes.push({ r, len });
-      total += len;
+      sizes.push({ r, len }); total += len;
     }
     if (total <= MAX_BYTES) return;
     let removed = 0;
     for (const { r, len } of sizes) {
       if (total - removed <= MAX_BYTES * 0.9) break;
-      await c.delete(r);
-      removed += len;
+      await c.delete(r); removed += len;
     }
   } catch (e) {}
 }
 
-// ============================================================
-// Fetch sin headers custom, con bypass de caché opcional
-// ============================================================
 function fastFetch(url, req, timeout, noCache) {
   const ctrl = new AbortController();
   const timer = setTimeout(() => ctrl.abort(), timeout);
-
   const headers = {};
   const range = req.headers.get('Range');
   if (range) headers['Range'] = range;
-
   return fetch(url, {
     method: 'GET',
     headers,
     mode: 'cors',
     credentials: 'omit',
-    cache: noCache ? 'reload' : 'default',  // ✅ opción del fetch, NO header
+    cache: noCache ? 'reload' : 'default',
     signal: ctrl.signal,
   })
     .then((r) => { clearTimeout(timer); return (r.ok || r.status === 206) ? r : null; })
     .catch(() => { clearTimeout(timer); return null; });
 }
 
-// ============================================================
-// Range parsing
-// ============================================================
 function parseRange(rangeHeader, totalSize) {
   if (!rangeHeader) return null;
   const m = /^bytes=(\d*)-(\d*)$/.exec(rangeHeader.trim());
@@ -285,20 +254,22 @@ async function handleAsset(event) {
   const pathname = url.pathname;
   const range = req.headers.get('Range');
 
-  // ✅ SHADERS: siempre red con cache: 'reload' (bypass de TODA caché)
+  // SHADERS: probar todas las fuentes, sin cachear
   if (isShaderPath(pathname)) {
-    const shaders = shaderCandidates(pathname);
-    for (const c of shaders) {
-      const fullUrl = `${R2_BASE}/${c}`;
-      console.log('[SW] shader →', fullUrl);
-      const r = await fastFetch(fullUrl, req, TIMEOUT_DEFAULT, true);
-      if (r) return injectIsolation(r);
+    const urls = shaderURLs(pathname);
+    for (const u of urls) {
+      console.log('[SW] shader →', u);
+      const r = await fastFetch(u, req, TIMEOUT_DEFAULT, true);
+      if (r) {
+        console.log('[SW] shader OK ←', u);
+        return injectIsolation(r);
+      }
     }
-    console.warn('[SW] shader 404:', pathname);
+    console.warn('[SW] shader 404 en todas las fuentes:', pathname);
     return new Response('', { status: 404 });
   }
 
-  // Resto: cache-first normal
+  // Resto: cache-first
   const cache = await caches.open(CACHE);
   const cached = await cache.match(pathname);
 
@@ -336,9 +307,6 @@ async function handleAsset(event) {
   return injectIsolation(res);
 }
 
-// ============================================================
-// Fetch principal
-// ============================================================
 self.addEventListener('fetch', (event) => {
   const url = new URL(event.request.url);
 
