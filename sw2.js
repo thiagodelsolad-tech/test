@@ -1,29 +1,15 @@
 /**
- * sw2.js — v32
+ * sw.js — v31
  * Range requests desde caché + fallback entre múltiples rutas R2.
  * Compatibilidad Linux/ext4: fallback case-insensitive + URLs seguras.
- *
- * Sirve como pasarela transparente entre el navegador (que pide rutas del
- * origin: /loader.js, /data/*, /shaders/*, /game/*) y el CDN de R2
- * (https://cdn.apkprojects.xyz/mirror/playgta5.com/...).
- *
- * Rutas que reescribe hacia R2:
- *   /loader.js, /game.js, /wgpu_worker.js, /io_worker.js, /audio-worklet.js  →  <R2>/<PREFIX>/...
- *   /data/*      → mirror/playgta5.com/data/*
- *   /shaders/*   → mirror/playgta5.com/data/shaders/* (o b/8b0b5899ed/shaders/*)
- *   /game/*      → mirror/playgta5.com/data/game/*
- *   /game.wasm   → mirror/playgta5.com/b/8b0b5899ed/game.wasm
- *   /b/8b0b5899ed/* → mirror/playgta5.com/b/8b0b5899ed/*
- *
- * Rutas que sirve del propio origin (frontend estático):
- *   /, /index.html, /sw2.js, /favicon.ico, /robots.txt, /CNAME, /README.md
+ * v31: soporte para /b/8b0b5899ed/* (build-specific: loader, workers, title, audio-worklet).
  */
 
 const R2_BASE     = 'https://cdn.apkprojects.xyz';
 const PREFIX_ROOT = 'mirror/playgta5.com/data';
 const PREFIX_BIN  = 'mirror/playgta5.com/b/8b0b5899ed';
 
-const CACHE = 'gta5-v32';
+const CACHE = 'gta5-v31';
 const MAX_BYTES = 5 * 1024 * 1024 * 1024;
 const TIMEOUT_DEFAULT = 45000;
 const TIMEOUT_RANGE   = 15000;
@@ -33,12 +19,10 @@ const TIMEOUT_FULL    = 300000;
 // (Si tu mirror está perfectamente en minúsculas, pon false y ahorras fetches.)
 const CASE_FALLBACK = true;
 
-// Solo estas rutas se sirven del propio origin. Todo lo demás va al CDN.
+// Rutas que sirve el propio origin (frontend estático) — no van al CDN.
 const FRONTEND = new Set([
-  '/', '/index.html', '/sw2.js', '/sw.js',
-  '/CNAME', '/README.md',
-  '/favicon.ico', '/robots.txt',
-  '/google88b6175162f03564.html',
+  '/', '/index.html', '/sw.js', '/CNAME', '/README.md',
+  '/favicon.ico', '/robots.txt', '/google88b6175162f03564.html',
 ]);
 
 function isFrontend(p) {
@@ -49,24 +33,13 @@ function isBatchPath(p) {
 }
 
 function candidatesFor(localPath) {
-  // ── Build-specific: /b/8b0b5899ed/{loader,game,audio-worklet,...}.js, /b/8b0b5899ed/title/* ──
+  // ── Build-specific: /b/8b0b5899ed/loader.js, /b/8b0b5899ed/title/logo.png,
+  //    /b/8b0b5899ed/audio-worklet.js, /b/8b0b5899ed/*.wasm, etc. ──
   if (localPath.startsWith('/b/8b0b5899ed/')) {
     const rest = localPath.slice(1);              // "b/8b0b5899ed/loader.js"
     return [
       `mirror/playgta5.com/${rest}`,              // mirror/playgta5.com/b/8b0b5899ed/loader.js
       rest,                                        // b/8b0b5899ed/loader.js
-    ];
-  }
-
-  // ── Root-level engine files (los que pide el index con BASE='' y loader.js) ──
-  if (localPath === '/loader.js' || localPath === '/game.js' ||
-      localPath === '/wgpu_worker.js' || localPath === '/io_worker.js' ||
-      localPath === '/audio-worklet.js') {
-    const rest = localPath.slice(1);              // "loader.js"
-    return [
-      `${PREFIX_BIN}/${rest}`,                    // mirror/playgta5.com/b/8b0b5899ed/loader.js
-      `mirror/playgta5.com/${rest}`,              // mirror/playgta5.com/loader.js
-      rest,
     ];
   }
 
@@ -78,31 +51,24 @@ function candidatesFor(localPath) {
       `game.wasm`,
     ];
   }
-
   if (localPath.startsWith('/shaders/')) {
-    const rest = localPath.slice(9);              // "index.json"
-    return [
-      `${PREFIX_BIN}/shaders/${rest}`,            // mirror/playgta5.com/b/8b0b5899ed/shaders/index.json
-      `${PREFIX_ROOT}/shaders/${rest}`,           // mirror/playgta5.com/data/shaders/index.json
-      `mirror/playgta5.com/shaders/${rest}`,      // mirror/playgta5.com/shaders/index.json
-    ];
+    const rest = localPath.slice(9);
+    return [`${PREFIX_BIN}/shaders/${rest}`, `${PREFIX_ROOT}/shaders/${rest}`];
   }
-
   if (localPath === '/data/manifest.json')    return ['manifest.json', `${PREFIX_ROOT}/manifest.json`];
   if (localPath === '/data/bootset.json')     return ['bootset.json', `${PREFIX_ROOT}/bootset.json`];
   if (localPath === '/data/bootset_low.json') return ['bootset_low.json', `${PREFIX_ROOT}/bootset_low.json`];
 
   if (localPath.startsWith('/game/')) {
-    const rest = localPath.slice(6);              // "x64/levels/..."
+    const rest = localPath.slice(6);
     return [
       `${PREFIX_ROOT}/${rest}`,
       `${PREFIX_ROOT}/game/${rest}`,
       `${PREFIX_BIN}/${rest}`,
     ];
   }
-
   if (localPath.startsWith('/data/')) {
-    const rest = localPath.slice(6);              // "x64a.rpf", "x64/levels/gta5/..."
+    const rest = localPath.slice(6);
     const list = [`${PREFIX_ROOT}/${rest}`, `${PREFIX_ROOT}/common/data/${rest}`];
     if (rest.startsWith('x64/levels/gta5/')) {
       const after = rest.slice('x64/levels/gta5/'.length);
@@ -113,7 +79,6 @@ function candidatesFor(localPath) {
     }
     return list;
   }
-
   const rest = localPath.slice(1);
   return [`${PREFIX_ROOT}/${rest}`, `${PREFIX_BIN}/${rest}`];
 }
@@ -238,6 +203,7 @@ async function handleAsset(event) {
   }
   if (cached && !range) return injectIsolation(cached);
 
+  // Linux: añadimos variantes lowercase automáticamente
   const candidates = withCaseFallback(candidatesFor(pathname));
   if (!candidates.length) return new Response('', { status: 404 });
 
@@ -245,7 +211,7 @@ async function handleAsset(event) {
                 : pathname.endsWith('.rpf') ? TIMEOUT_FULL
                 : TIMEOUT_DEFAULT;
 
-  // Prueba todos los candidatos en paralelo; el primero que responda gana.
+  // URL segura en vez de concatenación cruda
   const results = await Promise.all(
     candidates.map((c) => fastFetch(makeUrl(c), req, timeout))
   );
@@ -253,7 +219,6 @@ async function handleAsset(event) {
 
   if (!res) return new Response('', { status: 404 });
 
-  // Caché solo para respuestas completas (no rangos)
   if (!range && res.status === 200) {
     const cacheable = res.clone();
     event.waitUntil?.(cache.put(pathname, cacheable).then(() => scheduleTrimCache()).catch(() => {}));
@@ -269,13 +234,10 @@ self.addEventListener('fetch', (event) => {
   if (event.request.method !== 'GET' && event.request.method !== 'HEAD') return;
   if (event.request.cache === 'only-if-cached' && event.request.mode !== 'same-origin') return;
 
-  // Rutas de batch (no existen) → 404 inmediato
   if (isBatchPath(url.pathname)) {
     event.respondWith(new Response('', { status: 404 }));
     return;
   }
-
-  // Frontend estático → pasa tal cual + aislamiento COOP/COEP
   if (isFrontend(url.pathname)) {
     event.respondWith((async () => {
       try {
@@ -290,7 +252,5 @@ self.addEventListener('fetch', (event) => {
     })());
     return;
   }
-
-  // Todo lo demás (loader, data, shaders, game, b/*) → CDN
   event.respondWith(handleAsset(event));
 });
