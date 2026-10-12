@@ -35,7 +35,7 @@
 	#fill { height: 100%; width: 0; background: #7cc576; }
 	#hud { position: fixed; left: 8px; bottom: 8px; max-width: 60vw; white-space: pre-wrap; opacity: .8; pointer-events: none; }
 	#fps { position: fixed; left: 8px; top: 6px; display: none; color: #0f0; font: bold 18px/1.2 Consolas, monospace; font-variant-numeric: tabular-nums; text-shadow: 1px 1px 2px #000, 0 0 3px #000; pointer-events: none; z-index: 10; }
-	/* Slots de anuncios */
+	/* Slots de anuncios Adsterra */
 	.ad-slot { position: absolute; left: 50%; transform: translateX(-50%); z-index: 20; pointer-events: auto; transition: opacity .5s ease-out; }
 	#adsterra-728-slot { top: 8px; }
 	#adsterra-320-slot { bottom: 60px; display: none; }
@@ -51,11 +51,11 @@
 <div id="hud"></div>
 <div id="loading">
 	<div id="ls-stage">
-		<!-- ═══ ADSTERRA 728x90 (arriba, desktop) ═══ -->
+		<!-- Anuncio 728x90 (desktop) -->
 		<div id="adsterra-728-slot" class="ad-slot">
 			<iframe id="adsterra-728-frame" width="728" height="90" scrolling="no"></iframe>
 		</div>
-		<!-- ═══ ADSTERRA 320x50 (abajo, móvil) ═══ -->
+		<!-- Anuncio 320x50 (móvil) -->
 		<div id="adsterra-320-slot" class="ad-slot">
 			<iframe id="adsterra-320-frame" width="320" height="50" scrolling="no"></iframe>
 		</div>
@@ -82,10 +82,7 @@
 </div>
 <div id="fps"></div>
 
-<!-- ═══════════════════════════════════════════════════════════════════════════
-     INYECCIÓN DE ANUNCIOS ADSTERRA (aislados en iframes para evitar que los
-     dos `atOptions` colisionen entre sí, que es el bug más común)
-     ═══════════════════════════════════════════════════════════════════════════ -->
+<!-- ═══ Adsterra: inyección en iframes aislados ═══ -->
 <script>
 (function injectAdsterraBanners() {
 	function writeAdIntoFrame(frameId, adKey, height, width) {
@@ -103,13 +100,9 @@
 			console.warn('[Adsterra] no se pudo inyectar el banner ' + width + 'x' + height + ':', e);
 		}
 	}
-
-	// Banner 728x90 (desktop)
 	writeAdIntoFrame('adsterra-728-frame', '76a4887bf5246065c1644d5ff3ee96ae', 90, 728);
-	// Banner 320x50 (móvil)
 	writeAdIntoFrame('adsterra-320-frame', '0c552db9603823b8354d2c686ebe16d7', 50, 320);
 
-	// Oculta los banners cuando el juego empieza (evento global)
 	window.__hideAdsterra = function () {
 		['adsterra-728-slot', 'adsterra-320-slot'].forEach(function (id) {
 			var el = document.getElementById(id);
@@ -326,7 +319,6 @@ showModes();
 			ready = true;
 			hud.textContent = 'click the game to capture the mouse (Esc releases it, Shift+P switches keyboard mode, = shows FPS)';
 			setTimeout(() => { hud.textContent = ''; }, 15000);
-			// ── Ocultar los anuncios de Adsterra cuando el mundo carga ──
 			if (typeof window.__hideAdsterra === 'function') window.__hideAdsterra();
 		}
 	};
@@ -392,29 +384,23 @@ if (remoteLog) {
 }
 addEventListener('pagehide', () => { try { new BroadcastChannel('game-io').postMessage('close'); } catch (e) {} });
 
-// SW desactivado — Cloudflare ya cachea todo con HIT.
-// Registrar el SW (necesario para traducir rutas a gta.deloskiyt.pl)
-(async () => {
-  if (!('serviceWorker' in navigator)) return;
-  try {
-    const reg = await navigator.serviceWorker.register('/sw2.js', { scope: '/' });
-    if (!navigator.serviceWorker.controller) {
-      if (!sessionStorage.getItem('sw_reloaded_v35')) {
-        sessionStorage.setItem('sw_reloaded_v35', '1');
-        location.reload();
-        return;
-      }
-    } else {
-      sessionStorage.removeItem('sw_reloaded_v35');
-    }
-    await navigator.serviceWorker.ready;
-  } catch (e) { console.warn('[SW]', e); }
-})();
+// ═══════════════════════════════════════════════════════════════════════════════
+// SW DESACTIVADO — El Worker de Cloudflare (gta-proxy) hace todo el proxy a
+// gta.deloskiyt.pl y también inyecta los headers COOP/COEP.
+// El archivo sw2.js puede quedarse en GitHub, simplemente NO se registra.
+// Desregistramos cualquier SW previo por si quedó de una versión anterior.
+// ═══════════════════════════════════════════════════════════════════════════════
+if ('serviceWorker' in navigator) {
+	navigator.serviceWorker.getRegistrations()
+		.then((regs) => regs.forEach((r) => r.unregister().catch(() => {})))
+		.catch(() => {});
+}
+// Limpiar TODAS las cachés viejas (por builds anteriores)
 (async () => {
 	try {
 		if (window.caches) {
 			const keys = await caches.keys();
-			for (const k of keys) if (k.startsWith('gamedata')) await caches.delete(k);
+			for (const k of keys) await caches.delete(k);
 		}
 	} catch (e) {}
 })();
