@@ -6,15 +6,12 @@
 <style>
 	html, body { margin: 0; height: 100%; background: #000; color: #ccc; font: 12px monospace; overflow: hidden; }
 	#canvas { display: block; position: absolute; left: 0; top: 0; width: 100vw; height: 100vh; background: #000; }
-	/* title screen: the game's loading screen (LOADINGSCREEN_STARTUP) on its 1280x720 stage, scaled to the window; see the script below */
 	@font-face { font-family: 'Chalet'; src: url('/b/8b0b5899ed/title/chalet.woff') format('woff'); }
 	#loading { position: fixed; inset: 0; background: #000; overflow: hidden; transition: opacity .8s; z-index: 5; }
 	#loading.done { opacity: 0; pointer-events: none; }
 	#ls-stage { position: absolute; left: 0; top: 0; width: 1280px; height: 720px; transform-origin: 0 0; overflow: hidden; font: 12px Chalet, sans-serif; color: #fff; }
 	#ls-screens { position: absolute; inset: 0; }
 	.ls-screen { position: absolute; inset: 0; }
-	/* one camera per layer, so layers composite in display-list order like Scaleform (no depth test): 640 / tan(55 deg / 2) = 1229, Scaleform's default 3D camera
-	   at the stage centre (moved against the screen's slide, see the script) */
 	.ls-cam { position: absolute; inset: 0; perspective: 1229px; perspective-origin: 640px 360px; }
 	.ls-layer { position: absolute; left: 0; top: 0; transform-origin: 0 0; background-size: 100% 100%; }
 	#ls-logo { position: absolute; left: 95px; top: 492.5px; width: 186px; height: 186px; }
@@ -31,7 +28,6 @@
 	@keyframes ls-spin { from { transform: rotate(0deg) scaleX(-1); } to { transform: rotate(-360deg) scaleX(-1); } }
 	#label { text-shadow: .85px .85px 1px rgba(0, 0, 0, .45); }
 	#pct { margin-left: 15px; font-variant-numeric: tabular-nums; }
-	/* kept for now: the port's progress bar along the bottom edge, the newest log line centred above it and the data downloaded above that */
 	#ls-log { position: absolute; left: 8px; right: 8px; bottom: 6px; display: flex; flex-direction: column; align-items: center; font: 10px/1.35 Consolas, monospace; color: rgba(190, 190, 190, .75); text-shadow: 0 0 2px #000, 1px 1px 1px #000; white-space: pre; pointer-events: none; }
 	#console { max-width: 100%; overflow: hidden; text-overflow: ellipsis; }
 	#data { color: #6a9; }
@@ -72,13 +68,6 @@ const postLog = (text) => { if (remoteLog) fetch('/log', { method: 'POST', body:
 	};
 }
 // ---- title screen: the game's own loading screen, LOADINGSCREEN_STARTUP (scaleform_frontend.rpf), redone in HTML ----------------------------------------
-// Ported from its ActionScript (com.rockstargames.gtav.loadingScreens.LOADINGSCREEN_STARTUP, decompiled with JPEXS FFDec) as it plays while the game loads
-// (CTX_GAMELOAD). On the 1280x720 stage (scaled to the window, black outside 16:9): the built-in beach screen and the 17 loadingscreen<N> art screens in one of
-// the movie's six random orders; each is a background panel tilted in 3D (Scaleform's camera: 55 degree field of view around the stage centre, pivot at the
-// layer's top-left; Scaleform's +Z points away from the viewer, CSS's towards it, hence the negated angles) and foreground cut-outs. Every 14 s the next screen
-// slides in (0.85 s, cubic in-out, from alternating sides) and the old one out; a screen's layers tween linearly to their end values over 42 s. The GTA V logo
-// sits bottom left and the instructional button bar bottom right at the boot-time safe zone (7.5 %, CHudTools::GetFakeLoadingScreenSafeZone).
-// Art, logo, spinner and the font ($Font2 = Chalet London 1960) are the game's (phase3/make_title.py, served at /b/8b0b5899ed/title/).
 let stopTitle = () => {};
 {
 	const stage = document.getElementById('ls-stage'), holder = document.getElementById('ls-screens');
@@ -91,13 +80,13 @@ let stopTitle = () => {};
 	const L = (tex, w, h, x, y, yr, to) => ({ tex, w, h, x, y, yr, to });
 	const BG = (n, yr, to, x = 98) => L('ls' + n + '_background', 1024, 512, x, 95, yr, to);
 	const FG = (n, name, w, h, x, y, toX, yr = 0) => L('ls' + n + '_' + name, w, h, x, y, yr, { x: toX });
-	const SCREENS = [		// the movie's loadingScreens array: setup (size, position, _yrotation) and tweenTo of every layer, bottom to top
+	const SCREENS = [
 		[L('beach_bg', 1024, 512, 98, 95, 20, { yr: -6, xr: 5 }), L('beach_fg', 343, 629, 480, 95, 0, { x: 720 })],
-		null,		// loadingscreen_builtin1 (Frisk): its symbols are not in this build's movie, and no order uses it
+		null,
 		[BG(0, 7, { yr: -7 }), FG(0, 'foreground', 299, 599, 360, 140, 560, 7)],
 		[BG(1, 6, { yr: -12 }), FG(1, 'foreground', 503, 206, 300, 465, 480), FG(1, 'foreground_franklin', 368, 588, 440, 140, 745)],
 		[BG(2, 7, { yr: -5, xr: 5 }), FG(2, 'foreground', 311, 558, 745, 200, 450), FG(2, 'foreground_chop', 320, 512, 640, 260, 310)],
-		[BG(3, 12, { yr: -4 }, 110), FG(3, 'foreground', 412, 609, 440, 120, 730)],		// its foreground_car is an "isInFla" layer missing from the movie: the game shows no car
+		[BG(3, 12, { yr: -4 }, 110), FG(3, 'foreground', 412, 609, 440, 120, 730)],
 		[BG(4, 7, { yr: -4, xr: 5 }), FG(4, 'foreground', 251, 643, 400, 85, 250)],
 		[BG(5, 7, { yr: -6 }), FG(5, 'foreground', 389, 640, 450, 95, 700)],
 		[BG(6, 7, { yr: 0, xr: 5 }), FG(6, 'foreground', 367, 603, 410, 115, 800)],
@@ -116,14 +105,12 @@ let stopTitle = () => {};
 		[0, 7, 16, 14, 13, 3, 10, 2, 15, 18, 8, 9, 4, 17, 12, 6, 11], [0, 8, 18, 9, 13, 4, 11, 14, 7, 17, 6, 12, 3, 16, 2, 15, 10],
 		[0, 11, 12, 7, 18, 14, 9, 13, 4, 2, 15, 11, 8, 16, 6, 3, 17], [0, 10, 16, 2, 13, 17, 8, 9, 18, 3, 12, 6, 7, 4, 14, 15, 10]];
 	const order = ORDERS[Math.floor(Math.random() * ORDERS.length)];
-	const cubicInOut = (t) => (t < 0.5 ? 4 * t * t * t : 1 - Math.pow(2 - 2 * t, 3) / 2);		// TweenStar Cubic.easeInOut
-	// the screen's horizontal position; its layers' cameras stay at the stage centre (Scaleform's camera does not move with the clip)
+	const cubicInOut = (t) => (t < 0.5 ? 4 * t * t * t : 1 - Math.pow(2 - 2 * t, 3) / 2);
 	const slide = (s, x) => {
 		s.el.style.transform = 'translateX(' + x + 'px)';
 		for (const c of s.cams) c.style.perspectiveOrigin = (640 - x) + 'px 360px';
 	};
 	const place = (l, x, yr, xr) => { l.el.style.transform = 'translate3d(' + x + 'px,' + l.y + 'px,0) rotateY(' + -yr + 'deg) rotateX(' + -xr + 'deg)'; };
-	// a screen's images, decoded before it may show (the movie waits for its texture dictionary the same way)
 	const prepare = (i) => {
 		const layers = SCREENS[order[i]].map((d) => ({ ...d, img: Object.assign(new Image(), { src: '/b/8b0b5899ed/title/art/' + d.tex + '.webp' }) }));
 		return Promise.all(layers.map((l) => l.img.decode().catch(() => {}))).then(() => layers);
@@ -131,7 +118,7 @@ let stopTitle = () => {};
 	let active = null, leaving = null, index = 0, alt = -1, timer = 0, raf = 0, stopped = false;
 	const show = (defs) => {
 		const now = performance.now();
-		alt = alt <= 0 ? 1 : -1;		// updateScreenIndex: the side alternates
+		alt = alt <= 0 ? 1 : -1;
 		const el = document.createElement('div');
 		el.className = 'ls-screen';
 		const cams = [];
@@ -148,7 +135,7 @@ let stopTitle = () => {};
 		}) };
 		for (const l of s.layers) place(l, l.x0, l.yr0, l.xr0);
 		slide(s, s.slideFrom);
-		holder.appendChild(el);		// above the screen that leaves
+		holder.appendChild(el);
 		if (leaving) leaving.el.remove();
 		leaving = active;
 		if (leaving) { leaving.slideFrom = 0; leaving.slideTo = -alt * 1280; leaving.start = now; }
@@ -160,7 +147,7 @@ let stopTitle = () => {};
 			if (!s) continue;
 			const p = Math.min(1, (now - s.start) / 850);
 			if (p < 1 || !s.slid) { slide(s, s.slideFrom + (s.slideTo - s.slideFrom) * cubicInOut(p)); s.slid = p === 1; }
-			if (s === active && p === 1 && !s.settled) s.settled = now;		// loadscreenIsSettled: the layers start their 42 s tweens
+			if (s === active && p === 1 && !s.settled) s.settled = now;
 			if (s.settled) {
 				const q = Math.min(1, (now - s.settled) / 42000);
 				for (const l of s.layers) place(l, l.x0 + (l.x1 - l.x0) * q, l.yr0 + (l.yr1 - l.yr0) * q, l.xr0 + (l.xr1 - l.xr0) * q);
@@ -175,23 +162,16 @@ let stopTitle = () => {};
 		show(defs);
 		index = (index + 1) % order.length;
 		next = prepare(index);
-		timer = setTimeout(cycle, 14000);		// timerDuration
+		timer = setTimeout(cycle, 14000);
 	});
 	timer = setTimeout(cycle, 500);
 	raf = requestAnimationFrame(tick);
 	stopTitle = () => { stopped = true; clearTimeout(timer); cancelAnimationFrame(raf); };
 }
 // ---- start choice: Story Mode / Sandbox Mode, and Sandbox Mode's map, in the title screen's button bar ---------------------------------------------------------
-// The game's own loading-time choice (CLoadingScreens::RefreshButtonLayout: "Loading Story Mode" with a spinner, "Online" as a button) with Sandbox Mode in the
-// Online slot. Buttons are laid out like updateButtonLayout: the spinner item rightmost; on PC the icons are key caps (a click works too). Enter = Story Mode;
-// Space = Sandbox Mode, which asks for the map: 5 = the GTA V map, 6 = "GTA VI Map" (the env_test level), Backspace = back. The choice goes into the engine's
-// input block (WasmInputBlock.startMode, wasm/platform/input/browser_input_wasm.cpp): 1 = Story Mode (the release startup: a new game from the Prologue),
-// 2 = Sandbox Mode on the GTA V map (free roam at a random spot with every weapon), 3 = Sandbox Mode on env_test. It can change until the engine takes it
-// (where it reads -level, about 62 % into the load; it waits there if nothing was chosen, and the page then pulses the key caps); after that only the chosen
-// item stays. ?mode=story|sandbox chooses up front (with &map=env_test for Sandbox Mode on env_test).
 let startMode = q.get('mode') === 'story' ? 1 : q.get('mode') === 'sandbox' ? (q.get('map') === 'env_test' ? 3 : 2) : 0;
-let startModeWord = null, startCommitted = false, pickingMap = false, waitingChoice = false;		// waitingChoice: the engine waits for the choice
-const ACTS = {		// button: text, key cap, key codes
+let startModeWord = null, startCommitted = false, pickingMap = false, waitingChoice = false;
+const ACTS = {
 	back: ['Back', 'Backspace', ['Backspace']],
 	map5: ['GTA V Map', '5', ['Digit5', 'Numpad5']],
 	map6: ['GTA VI Map', '6', ['Digit6', 'Numpad6']],
@@ -211,7 +191,7 @@ const showModes = () => {
 		b.replaceChildren(text, icon);
 		b.style.order = loading ? 1 : 0;
 		b.disabled = startCommitted;
-		b.hidden = startCommitted ? !loading : pickingMap === isMode(act);		// the modes, or the map choice with Back
+		b.hidden = startCommitted ? !loading : pickingMap === isMode(act);
 		b.classList.toggle('chosen', loading);
 	}
 	if (startMode) modesEl.classList.remove('ask');
@@ -231,7 +211,7 @@ const act = (a) => {
 	if (a === 'story') choose(1);
 	else if (a === 'map5') choose(2);
 	else if (a === 'map6') choose(3);
-	else { pickingMap = a === 'sandbox'; showModes(); }		// Sandbox Mode (or its loading item: change the map) asks for the map; Back closes that
+	else { pickingMap = a === 'sandbox'; showModes(); }
 };
 modesEl.addEventListener('click', (e) => { const b = e.target.closest('button'); if (b && !b.hidden) act(b.dataset.act); });
 addEventListener('keydown', (e) => {
@@ -255,13 +235,13 @@ showModes();
 	bc.onmessage = (ev) => {
 		const m = ev.data;
 		lastActivity = performance.now();
-		if (m.dl) {		// bytes of game data fetched by an engine thread since its last report
+		if (m.dl) {
 			dataBytes += m.dl;
 			samples.push([performance.now(), m.dl]);
 			return;
 		}
 		if (m.lines) {
-			if (loadingGone || !m.lines.length) return;		// the log line above the progress bar is gone: no DOM work for it during play
+			if (loadingGone || !m.lines.length) return;
 			lastLine = m.lines[m.lines.length - 1];
 			dirty = true;
 			return;
@@ -269,16 +249,13 @@ showModes();
 		if (m.gpuLost) { hud.textContent = 'The graphics device was lost (' + m.gpuLost + '): the screen will stay black. Reload the page.'; hud.style.color = '#f66'; return; }
 		if (m.error) { label.textContent = m.error; label.style.color = '#e66'; return; }
 		if (m.pct > target) { target = m.pct; if (m.label) { lastLabel = m.label; if (!waitingChoice) label.textContent = m.label; } if (m.pct >= 72 && worldBase < 0) worldBase = dataBytes; }
-		if (m.choice && !startMode) { waitingChoice = true; modesEl.classList.add('ask'); showModes(); }		// the engine waits for the choice: showModes asks for it in the label
-		if (m.commit) { startCommitted = true; pickingMap = false; if (m.mode) startMode = m.mode; showModes(); }		// the engine took the choice
-		if (m.compiling !== undefined && !waitingChoice) { label.textContent = lastLabel = 'Preparing shaders'; target = Math.max(target, 99); }		// the world is up; the GPU worker holds it until its pipelines are compiled
+		if (m.choice && !startMode) { waitingChoice = true; modesEl.classList.add('ask'); showModes(); }
+		if (m.commit) { startCommitted = true; pickingMap = false; if (m.mode) startMode = m.mode; showModes(); }
+		if (m.compiling !== undefined && !waitingChoice) { label.textContent = lastLabel = 'Preparing shaders'; target = Math.max(target, 99); }
 		if (m.world) { ready = true; hud.textContent = 'click the game to capture the mouse (Esc releases it, Shift+P switches keyboard mode, = shows FPS)'; setTimeout(() => { hud.textContent = ''; }, 15000); }
 	};
-	// Between reports the bar creeps forward (at most 6 points past the last report) so a long stage does not look frozen.
 	const dataEl = document.getElementById('data');
-	const WORLD_BYTES = 1.2e9;		// game data the world needs after the scripts start (measured: about 1.2-1.4 GB the first time)
-	// Stall watchdog: nothing (no log line, no data, no progress) from any engine thread for 30 s while loading. A tab that ran out of memory dies ("Aw, Snap!") and cannot say so,
-	// but one that is thrashing or deadlocked can: show it, and leave a timestamped line in the server log for diagnosis.
+	const WORLD_BYTES = 1.2e9;
 	setInterval(() => {
 		if (ready) return;
 		if (waitingChoice) { if (!startMode) { lastActivity = performance.now(); return; } waitingChoice = false; label.textContent = lastLabel; }
@@ -294,23 +271,21 @@ showModes();
 		while (samples.length && now - samples[0][0] > 3000) samples.shift();
 		const speed = samples.reduce((a, x) => a + x[1], 0) / 3;
 		if (dataBytes) dataEl.textContent = 'Game data: ' + (dataBytes / 1048576 | 0) + ' MB' + (speed > 1e4 ? ' (' + (speed / 1048576).toFixed(1) + ' MB/s)' : '');
-		// from the scripts stage on, progress also follows the data that arrives (72 -> 98 %)
 		if (worldBase >= 0 && !ready) target = Math.max(target, 72 + 26 * Math.min(1, (dataBytes - worldBase) / WORLD_BYTES));
 		const cap = ready ? 100 : Math.min(99, target + 6);
 		const goal = ready ? 100 : (shown < target ? target : cap);
 		shown += (goal - shown) * (goal === target || ready ? 0.12 : 0.004);
-		if (dirty) {		// the newest line only
+		if (dirty) {
 			dirty = false;
 			consoleEl.textContent = lastLine;
 		}
 		fill.style.width = shown.toFixed(1) + '%';
 		pct.textContent = Math.round(shown) + '%';
-		if (ready && shown > 99.5) { loading.classList.add('done'); setTimeout(() => { loading.remove(); stopTitle(); }, 1000); loadingGone = true; clearInterval(progressTimer); }		// once: the page does no loading-screen work during play
+		if (ready && shown > 99.5) { loading.classList.add('done'); setTimeout(() => { loading.remove(); stopTitle(); }, 1000); loadingGone = true; clearInterval(progressTimer); }
 	}, 50);
 }
 const hud = document.getElementById('hud');
-// FPS counter, top left: off by default, the = key toggles it. The GPU worker counts presented frames and posts the rate twice a second on 'game-fps'. The key does not reach
-// the game (capture phase on window, before the input handlers; this build has debug key bindings).
+// FPS counter, top left: off by default, the = key toggles it.
 {
 	const el = document.getElementById('fps');
 	let on = false;
@@ -327,8 +302,6 @@ const hud = document.getElementById('hud');
 	addEventListener('keyup', (e) => { if (isToggle(e)) { e.stopImmediatePropagation(); e.preventDefault(); } }, { capture: true });
 }
 const canvas = document.getElementById('canvas');
-// With ?log=1, log lines of the engine threads and the GPU worker arrive here (prejs.js / wgpu_worker.js post them on 'game-log' without blocking) and go to the dev server
-// in order, one POST at a time with whatever queued up meanwhile.
 if (remoteLog) {
 	const queue = [];
 	let sending = false;
@@ -336,49 +309,114 @@ if (remoteLog) {
 		if (sending || !queue.length) return;
 		sending = true;
 		const body = queue.splice(0).join('\n');
-		try { await fetch('/log', { method: 'POST', body, keepalive: body.length < 60000 }); } catch (e) { /* server gone */ }
+		try { await fetch('/log', { method: 'POST', body, keepalive: body.length < 60000 }); } catch (e) { }
 		sending = false;
 		pump();
 	};
 	new BroadcastChannel('game-log').onmessage = (ev) => { queue.push(ev.data); if (queue.length > 20000) queue.splice(0, queue.length - 20000); pump(); };
 }
-// Release the io worker's exclusive storage handles as soon as this page goes away (a quick reload would otherwise find them locked and run without the store).
 addEventListener('pagehide', () => { try { new BroadcastChannel('game-io').postMessage('close'); } catch (e) {} });
 
 // ══════════════════════════════════════════════════════════════════════════════
 // SW DESACTIVADO — Cloudflare cachea cdn.apkprojects.xyz con HIT.
-// El Service Worker añadía overhead y limitaba la velocidad a ~4.6 MB/s.
+// El Service Worker añadía overhead y limitaba la velocidad.
 // Sin SW, el navegador va directo a Cloudflare y usa todo el ancho de banda.
-// El archivo sw2.js puede seguir en el repo; simplemente no se registra.
 // ══════════════════════════════════════════════════════════════════════════════
 async function setupCache() {
 	try {
-		// Desregistrar cualquier Service Worker anterior (por si quedó de una versión previa).
 		if ('serviceWorker' in navigator) {
 			const regs = await navigator.serviceWorker.getRegistrations();
 			for (const r of regs) {
 				try { await r.unregister(); } catch (e) {}
 			}
 		}
-		// Limpiar cachés viejas "gamedata*" dejadas por builds anteriores.
 		if (window.caches) {
 			const keys = await caches.keys();
 			for (const k of keys) if (k.startsWith('gamedata')) await caches.delete(k);
 		}
 	} catch (e) { console.warn('could not set up the cache: ' + e); }
 }
-let lowMemory = false;		// set below (module scope: the ?mem readout further down also needs it)
-let startSize = [1280, 720], wantSize = null;		// set below (module scope: installInput uses them)
+
+// ══════════════════════════════════════════════════════════════════════════════
+// PRECARGA PARALELA DE ARCHIVOS PEQUEÑOS
+// Descarga en paralelo los shaders, índices y XMLs antes de arrancar el motor.
+// Reduce el tiempo de carga porque:
+//   1. Aprovecha el ancho de banda durante la inicialización
+//   2. Los archivos quedan en la caché HTTP del navegador
+//   3. El motor los encuentra instantáneamente cuando los pida
+// ══════════════════════════════════════════════════════════════════════════════
+async function precargarArchivosPequenos() {
+	const BASE_FILES = [
+		'/data/manifest.json',
+		'/data/bootset.json',
+		'/data/bootset_low.json',
+		'/shaders/index.json',
+		'/shaders/pipelines.json',
+		'/shaders/pipelines_low.json',
+	];
+
+	// Descubre la lista de shaders desde el índice (si existe y tiene formato conocido)
+	const shaderFiles = [];
+	try {
+		const r = await fetch('/shaders/index.json', { cache: 'force-cache' });
+		if (r.ok) {
+			const idx = await r.json();
+			const list = idx.shaders || idx.files || idx.list || (Array.isArray(idx) ? idx : []);
+			for (const s of list) {
+				const name = typeof s === 'string' ? s : (s && (s.name || s.file)) || '';
+				if (name && name.endsWith('.json')) shaderFiles.push('/shaders/' + name);
+			}
+		}
+	} catch (e) { console.warn('[Preload] no pude leer shaders/index.json:', e); }
+
+	const ALL_FILES = [...BASE_FILES, ...shaderFiles];
+	console.log(`[Preload] ${ALL_FILES.length} archivos a precargar`);
+
+	const label = document.getElementById('label');
+	const pct = document.getElementById('pct');
+	const fill = document.getElementById('fill');
+
+	const CONCURRENCY = 12;
+	let done = 0;
+	const queue = [...ALL_FILES];
+
+	const workers = [];
+	for (let i = 0; i < CONCURRENCY; i++) {
+		workers.push((async () => {
+			while (queue.length) {
+				const url = queue.shift();
+				try {
+					const r = await fetch(url, { cache: 'force-cache' });
+					if (r.ok) await r.blob();
+				} catch (e) { }
+				done++;
+				if (label) label.textContent = `Precargando ${done}/${ALL_FILES.length}: ${url.split('/').pop()}`;
+				if (pct) pct.textContent = Math.round(done / ALL_FILES.length * 100) + '%';
+				if (fill) fill.style.width = (done / ALL_FILES.length * 100).toFixed(1) + '%';
+			}
+		})());
+	}
+	await Promise.all(workers);
+	console.log(`[Preload] ✓ ${done} archivos precargados`);
+}
+
+let lowMemory = false;
+let startSize = [1280, 720], wantSize = null;
 if (!crossOriginIsolated) { document.getElementById('label').textContent = 'not cross-origin isolated: open the page over https (or localhost); the server sends COOP/COEP'; document.getElementById('label').style.color = '#e66'; }
 else {
 	const offscreen = canvas.transferControlToOffscreen();
 	await setupCache();
-	// Low-memory profile (?low=1 forces it, ?low=0 forbids it; default: navigator.deviceMemory <= 4, which browsers report as 4 for 4 GB and less):
-	// every engine thread is a Web Worker of ~20 MB and the engine sizes its thread count from the core count, so pretend to have 2 cores (54 threads
-	// instead of 80-116); quarter the texture memory (texture quality 0 = top mip skipped on the GPU), no network stack, and the minimum ped/vehicle
-	// variety, city density, LOD and quality settings: measured in a Node run at the world, GPU memory 1.16 GB -> 0.5 GB and streamed assets 1.38 GB -> 0.95 GB.
-	// Shadows off (-shadowQuality=-1, engine level 0 below the menu's lowest; SettingsManager.cpp, wasm): the cascade shadow pass was a third of all draws (Node, 1366x600:
-	// 600-900 of 1,300-2,900 per frame), and a 4-core Chromebook spent ~110 us per draw. ?shadows=1 keeps them at the lowest level.
+
+	// ── Precarga de archivos pequeños (paralelo) ──
+	// ?nopreload=1 lo desactiva.
+	if (q.get('nopreload') !== '1') {
+		try {
+			await precargarArchivosPequenos();
+		} catch (e) {
+			console.warn('[Preload] fallo parcial (no bloquea):', e);
+		}
+	}
+
 	const lowParam = q.get('low');
 	lowMemory = lowParam === '1' || (lowParam !== '0' && navigator.deviceMemory && navigator.deviceMemory <= 4);
 	const LOW_ARGS = ['-textureQuality=0', '-pedVariety=0', '-vehicleVariety=0', '-shadowQuality=' + (q.get('shadows') === '1' ? 0 : -1), '-reflectionQuality=0', '-particleQuality=0',
@@ -386,8 +424,6 @@ else {
 	const cores = +(q.get('cores') || 0) || (lowMemory ? 2 : navigator.hardwareConcurrency);
 	if (lowMemory) hud.textContent = 'Low-memory device (' + (navigator.deviceMemory || '?') + ' GB reported): close other tabs. If the tab shows "Aw, Snap!" or SIGILL it ran out of memory.';
 postLog('[page env] ' + JSON.stringify({ deviceMemory: navigator.deviceMemory, cores: navigator.hardwareConcurrency, usingCores: cores, low: lowMemory, isolated: crossOriginIsolated, ua: navigator.userAgent.slice(0, 120), screen: screen.width + 'x' + screen.height + '@' + devicePixelRatio }));
-// Back buffer = the browser window in device pixels (native resolution), following window resizes live (see installInput). ?scale=0.75 renders at 75 % (faster), ?fixed=1 keeps the
-// start-up size whatever the window does, ?res=1920x1080 forces a size. Even numbers, at most 3840x2160 (2560x1440 in the low-memory profile: screen-sized render targets dominate GPU memory).
 wantSize = () => {
 	const forced = /^(\d+)x(\d+)$/.exec(q.get('res') || '');
 	if (forced) return [+forced[1], +forced[2]];
@@ -398,16 +434,8 @@ wantSize = () => {
 	return [Math.max(320, Math.round(w / 2) * 2), Math.max(240, Math.round(h / 2) * 2)];
 };
 startSize = wantSize();
-// Script and replay channels: ~87 % of all log lines in play (the scripts print leaderboard and status lines every few frames). Below warning they are off: formatting, the
-// log transport and the dev server's log file cost the main thread for nothing. ?verbose=1 keeps everything.
 const LOG_ARGS = q.get('verbose') ? [] : ['-Script_all=warning', '-replay_all=warning'];
-// -fastscriptcore: the script interpreter's production core (scrThread::Run static). Without it this build runs the debugging core, which looks up two breakpoint tables
-// for every script instruction (scrThread::Run was ~8 % of the main thread).
 const ENGINE_ARGS = ['-fastscriptcore'];
-// Chrome on Windows rounds every wait with a timeout (Atomics.wait: the engine's sleeps, its 1 ms event waits, the frame limiter, the yields of its spin loops) up to the OS
-// timer tick, 15.6 ms, unless the renderer process has a timer below 16 ms pending, which switches the process to a fine tick (measured: a 1 ms wait takes 15.5 ms; with
-// this timer 2.1 ms, a 4 ms wait 5.0 ms). The game has no such timer, so every short sleep cost a whole tick: the limiter held a 60 fps cap to 37 fps and the visibility
-// wait added 15 ms to a frame. An empty callback; nothing else on this thread runs while the game plays.
 setInterval(() => {}, 1);
 const worker = new Worker(BASE + '/loader.js');
 	worker.onmessage = (ev) => {
@@ -419,28 +447,28 @@ const worker = new Worker(BASE + '/loader.js');
 	worker.postMessage({
 		canvas: offscreen,
 		base: BASE,
-		args: ['-rootdir=/game/', ...(q.get('nogpu') ? [] : ['-wgpu']), '-nodisplaycalibration', '-noSocialClub', '-pc:nosocialclub', ...(q.get('newgame') === '1' ? ['-noautoload'] : []), '-nonetwork', '-output', '-width=' + startSize[0], '-height=' + startSize[1], '-forceResolution', ...LOG_ARGS, ...ENGINE_ARGS, '-frameLimit=' + (q.get('fps') === '30' ? 2 : q.get('fps') === '0' ? 0 : 1),		// the game's own limiter: VSync 2 (its default) = 30 fps; 1 = 60 fps; ?fps=0 uncapped (diagnostics). Story Mode continues from the newest savegame (the engine skips that for Sandbox Mode); ?newgame=1 (-noautoload) starts it from the Prologue instead
+		args: ['-rootdir=/game/', ...(q.get('nogpu') ? [] : ['-wgpu']), '-nodisplaycalibration', '-noSocialClub', '-pc:nosocialclub', ...(q.get('newgame') === '1' ? ['-noautoload'] : []), '-nonetwork', '-output', '-width=' + startSize[0], '-height=' + startSize[1], '-forceResolution', ...LOG_ARGS, ...ENGINE_ARGS, '-frameLimit=' + (q.get('fps') === '30' ? 2 : q.get('fps') === '0' ? 0 : 1),
 		 ...(cores <= 2 ? ['-numCores=' + cores] : []), ...(lowMemory ? LOW_ARGS : []), ...(q.get('args') || '').split(',').filter(Boolean)],
 		shotEvery: +(q.get('shot') || 0),
-		shotRt: q.get('shotrt') === '1',		// ?shotrt=1 (with ?shot=N): every render target of one frame after the world is shown to the dev server's shots/ (wgpu_worker.js)
-		noHints: q.get('nohints') === '1',		// ?nohints=1: do not fetch the streamer's queued reads ahead (io_worker.js drainHints; diagnostics)
-		noPack: q.get('nopack') === '1',		// ?nopack=1: fetch shaders one by one, not from the shader packs (wgpu_worker.js; diagnostics)
-		gpuLimits: q.get('limits') || '',		// ?limits=maxSampledTexturesPerShaderStage:16,... : request a smaller GPU device than the adapter offers (reproduces a weaker device's limits; wgpu_worker.js)
-		keepThreads: (q.get('keep') || '').split(',').reduce((m, g) => m | ({ replay: 1, net: 2, bink: 4, idle: 8 }[g] || 0), 0),		// ?keep=replay,net,bink,idle: start those thread groups (diagnostics)
+		shotRt: q.get('shotrt') === '1',
+		noHints: q.get('nohints') === '1',
+		noPack: q.get('nopack') === '1',
+		gpuLimits: q.get('limits') || '',
+		keepThreads: (q.get('keep') || '').split(',').reduce((m, g) => m | ({ replay: 1, net: 2, bink: 4, idle: 8 }[g] || 0), 0),
 		cores,
 		noStore: !!(q.get('nocache') || q.get('nosw')),
 		fullConsole: !!q.get('console'),
-		remoteLog,		// ?log=1 (above): loader.js passes it on to the engine threads and the GPU and io workers
-		trace: !!q.get('trace'),		// ?trace=1: log every engine file request (io_worker.js)
-		slots: +(q.get('slots') || 0),		// ?slots=N: frames in flight of the GPU worker (diagnostics)
-		syncPipelines: !!q.get('syncpipelines'),		// ?syncpipelines=1: the GPU worker compiles pipelines synchronously (no draws skipped while one compiles)
-		record: !!q.get('record'),		// ?record=1: log the boot read set (io_worker.js), for record_bootset.py
+		remoteLog,
+		trace: !!q.get('trace'),
+		slots: +(q.get('slots') || 0),
+		syncPipelines: !!q.get('syncpipelines'),
+		record: !!q.get('record'),
 		lowMemory,
 	}, [offscreen]);
 }
 
-// ?mem=1 (diagnostics, needs ?log=1): performance.measureUserAgentSpecificMemory() every 15 s (needs cross-origin isolation), posted to the dev server's log.
-if (remoteLog && (q.get('mem') || lowMemory) && performance.measureUserAgentSpecificMemory) {		// with ?log=1 on by default in the low-memory profile: the last reading before a crash/stall is in the log
+// ?mem=1 (diagnostics, needs ?log=1): performance.measureUserAgentSpecificMemory() every 15 s.
+if (remoteLog && (q.get('mem') || lowMemory) && performance.measureUserAgentSpecificMemory) {
 	const report = async () => {
 		try {
 			const r = await performance.measureUserAgentSpecificMemory();
@@ -452,8 +480,6 @@ if (remoteLog && (q.get('mem') || lowMemory) && performance.measureUserAgentSpec
 	setTimeout(report, 15000);
 }
 
-// ---- audio: the engine mixer writes into a ring in shared memory (platform/audio/browser_audio_wasm.cpp); an AudioWorklet plays it -------------------
-// Browsers only allow audio after a user gesture: the context is created on the first click/key press.
 let audioPending = null, audioGesture = false, audioStarted = false;
 function tryStartAudio() {
 	if (!audioPending || !audioGesture || audioStarted) return;
@@ -467,7 +493,7 @@ function tryStartAudio() {
 			await ctx.resume();
 			addEventListener('pointerdown', () => ctx.resume());
 			addEventListener('keydown', () => ctx.resume());
-			if (q.get('mem')) {		// diagnostics: ring state every 5 s
+			if (q.get('mem')) {
 				const hdr = new Int32Array(audioPending.memory.buffer, audioPending.ring, 8);
 				setInterval(() => postLog('[page audio] state ' + ctx.state + ', frames written ' + (hdr[0] >>> 0) + ', read ' + (hdr[1] >>> 0) + ', fill ' + (((hdr[0] - hdr[1]) >>> 0)) + ', worklet calls ' + (hdr[3] >>> 0) + ', peak ' + (Atomics.exchange(hdr, 4, 0) / 1e6).toFixed(3)), 5000);
 			}
@@ -477,8 +503,6 @@ function tryStartAudio() {
 }
 for (const type of ['pointerdown', 'keydown']) addEventListener(type, () => { audioGesture = true; tryStartAudio(); }, { capture: true });
 
-// ---- input: DOM events -> the engine's input block in shared memory (platform/input/browser_input_wasm.cpp) ------------------------
-// Layout of WasmInputBlock: 256 key bytes, then int32 words: mouseX, mouseY, dX, dY, dZ, buttons, focus, locked, textHead, textTail, text[64] (uint16).
 const VK = {
 	Backspace: 0x08, Tab: 0x09, Enter: 0x0D, NumpadEnter: 0xFD, Pause: 0x13, CapsLock: 0x14, Escape: 0x1B, Space: 0x20, PageUp: 0x21, PageDown: 0x22,
 	End: 0x23, Home: 0x24, ArrowLeft: 0x25, ArrowUp: 0x26, ArrowRight: 0x27, ArrowDown: 0x28, PrintScreen: 0x2C, Insert: 0x2D, Delete: 0x2E,
@@ -491,9 +515,6 @@ for (let i = 0; i < 10; i++) { VK['Digit' + i] = 0x30 + i; VK['Numpad' + i] = 0x
 for (let i = 0; i < 26; i++) VK['Key' + String.fromCharCode(65 + i)] = 0x41 + i;
 for (let i = 1; i <= 24; i++) VK['F' + i] = 0x6F + i;
 
-// ?dbg=1: draw isolation for hunting rendering artifacts. The GPU worker runs only the first N draws of each frame (N in the input block, -1 = all) and
-// reports the pipeline of the last one it ran. Find the smallest N at which the artifact appears: that draw paints it. F1/F2: N -1/+1, F3/F4: N -25/+25,
-// F5: back to all draws, F6: write the current draw to the server log (the log is what to send).
 function installDebugPanel(memory, block) {
 	const dbg = new Int32Array(memory.buffer, block + 424, 2);
 	const panel = document.createElement('div');
@@ -520,9 +541,9 @@ function installInput(memory, block) {
 	const w = new Int32Array(memory.buffer, block + 256, 10);
 	const U16 = new Uint16Array(memory.buffer, block + 256 + 40, 64);
 	const MX = 0, MY = 1, DX = 2, DY = 3, DZ = 4, BTN = 5, FOCUS = 6, LOCKED = 7, HEAD = 8, TAIL = 9;
-	let W = startSize[0], H = startSize[1];		// back buffer size in device pixels (mouse clamping); updated when the window is resized
-	const ext = new Int32Array(memory.buffer, block + 424, 4);		// dbgDrawLimit, dbgFrameDraws, winW, winH
-	startModeWord = new Int32Array(memory.buffer, block + 440, 1);		// startMode (the start menu above)
+	let W = startSize[0], H = startSize[1];
+	const ext = new Int32Array(memory.buffer, block + 424, 4);
+	startModeWord = new Int32Array(memory.buffer, block + 440, 1);
 	if (startMode) Atomics.store(startModeWord, 0, startMode);
 	Atomics.store(ext, 2, W); Atomics.store(ext, 3, H);
 	if (!q.get('fixed')) {
@@ -542,12 +563,9 @@ function installInput(memory, block) {
 	Atomics.store(w, MX, W >> 1);
 	Atomics.store(w, MY, H >> 1);
 
-	// Input tracing: the first events the page sees and where they go (POST /log), so a session that loses its keyboard says at which stage
 	let traced = 0;
 	const trace = (msg) => { if (traced < 80) { traced++; postLog('[page input] ' + msg); } };
 	const passThrough = (e) => e.code === 'F12' || e.code === 'F11' || (e.ctrlKey && e.shiftKey && (e.code === 'KeyI' || e.code === 'KeyJ')) || e.code === 'F5';
-	// Aircraft and submarine pitch and roll are on the numpad in the game (8/2/4/6, target select 7/9), which many keyboards lack. The numpad keys are bound to nothing else, so I/K (pitch), J/L (roll)
-	// and U/O (target left/right) press the same keys for the engine; the real numpad keeps working.
 	const FLY_ALIAS = { KeyI: 'Numpad8', KeyK: 'Numpad2', KeyJ: 'Numpad4', KeyL: 'Numpad6', KeyU: 'Numpad7', KeyO: 'Numpad9' };
 	const held = new Set();
 	const syncFlyAlias = () => { for (const [src, target] of Object.entries(FLY_ALIAS)) Atomics.store(keys, VK[target], held.has(src) || held.has(target) ? 0x80 : 0); };
@@ -604,8 +622,6 @@ function installInput(memory, block) {
 			Atomics.store(w, MY, y);
 		}
 	});
-	// Notches from the real scroll distance: Chrome reports ~100 px per notch on Windows (pixel mode), 3 lines in line mode; fractions (trackpads, smooth
-	// scrolling) accumulate. The engine consumes one notch per frame (browser_input_wasm.cpp), so a long scroll keeps scrolling for a few frames.
 	let wheelAccum = 0;
 	addEventListener('wheel', (e) => {
 		e.preventDefault();
