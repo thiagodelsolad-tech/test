@@ -1,15 +1,13 @@
 /**
- * sw.js — v38
- * Fuente primaria: gta.deloskiyt.pl/b/8b0b5899ed
- * Fallback: cdn.apkprojects.xyz
+ * sw.js — v39
+ * Solo CDN propio: cdn.apkprojects.xyz
  */
 
-const PRIMARY_BASE  = 'https://gta.deloskiyt.pl/b/8b0b5899ed';
-const FALLBACK_BASE = 'https://cdn.apkprojects.xyz';
-const FALLBACK_BIN  = 'mirror/playgta5.com/b/8b0b5899ed';
-const FALLBACK_ROOT = 'mirror/playgta5.com/data';
+const R2_BASE     = 'https://cdn.apkprojects.xyz';
+const PREFIX_ROOT = 'mirror/playgta5.com/data';
+const PREFIX_BIN  = 'mirror/playgta5.com/b/8b0b5899ed';
 
-const CACHE = 'gta5-v38';
+const CACHE = 'gta5-v39';
 const MAX_BYTES = 5 * 1024 * 1024 * 1024;
 
 const TIMEOUT_DEFAULT = 45000;
@@ -29,43 +27,60 @@ function isBatchPath(p) {
   return p.startsWith('/data/batchc/') || p === '/data/batch' || p.startsWith('/data/batch?');
 }
 
-function primaryURL(localPath) {
-  if (localPath === '/game.wasm') return PRIMARY_BASE + '/game.wasm';
-  if (localPath.startsWith('/shaders/')) return PRIMARY_BASE + localPath;
-  if (localPath.startsWith('/data/')) return PRIMARY_BASE + '/' + localPath.slice(6);
-  if (localPath.startsWith('/game/')) return PRIMARY_BASE + '/' + localPath.slice(6);
-  return PRIMARY_BASE + localPath;
-}
-
-function fallbackURLs(localPath) {
+// ============================================================
+// Candidatos en el CDN para cada ruta local
+// ============================================================
+function candidatesFor(localPath) {
   if (localPath === '/game.wasm') {
     return [
-      FALLBACK_BASE + '/' + FALLBACK_BIN + '/game.wasm',
-      FALLBACK_BASE + '/' + FALLBACK_ROOT + '/game.wasm',
+      `${PREFIX_BIN}/game.wasm`,
+      `${PREFIX_ROOT}/game.wasm`,
+      `mirror/playgta5.com/game.wasm`,
+      `game.wasm`,
     ];
   }
+
   if (localPath.startsWith('/shaders/')) {
     const rest = localPath.slice(9);
     return [
-      FALLBACK_BASE + '/' + FALLBACK_BIN + '/shaders/' + rest,
-      FALLBACK_BASE + '/' + FALLBACK_ROOT + '/shaders/' + rest,
+      `${PREFIX_BIN}/shaders/${rest}`,
+      `${PREFIX_ROOT}/shaders/${rest}`,
     ];
   }
-  if (localPath.startsWith('/data/')) {
-    const rest = localPath.slice(6);
-    return [
-      FALLBACK_BASE + '/' + FALLBACK_ROOT + '/' + rest,
-      FALLBACK_BASE + '/' + FALLBACK_BIN + '/' + rest,
-    ];
-  }
+
+  if (localPath === '/data/manifest.json')    return ['manifest.json', `${PREFIX_ROOT}/manifest.json`];
+  if (localPath === '/data/bootset.json')     return ['bootset.json', `${PREFIX_ROOT}/bootset.json`];
+  if (localPath === '/data/bootset_low.json') return ['bootset_low.json', `${PREFIX_ROOT}/bootset_low.json`];
+
   if (localPath.startsWith('/game/')) {
     const rest = localPath.slice(6);
     return [
-      FALLBACK_BASE + '/' + FALLBACK_ROOT + '/' + rest,
-      FALLBACK_BASE + '/' + FALLBACK_BIN + '/' + rest,
+      `${PREFIX_ROOT}/${rest}`,
+      `${PREFIX_ROOT}/game/${rest}`,
+      `${PREFIX_BIN}/${rest}`,
     ];
   }
-  return [FALLBACK_BASE + localPath.slice(1)];
+
+  if (localPath.startsWith('/data/')) {
+    const rest = localPath.slice(6);
+    const list = [
+      `${PREFIX_ROOT}/${rest}`,
+      `${PREFIX_ROOT}/common/data/${rest}`,
+    ];
+    if (rest.startsWith('x64/levels/gta5/')) {
+      const after = rest.slice('x64/levels/gta5/'.length);
+      const slash = after.indexOf('/');
+      if (slash > 0) {
+        const folder = after.slice(0, slash);
+        const sub = after.slice(slash + 1);
+        list.push(`${PREFIX_ROOT}/x64/levels/gta5/_${folder}/${sub}`);
+      }
+    }
+    return list;
+  }
+
+  const rest = localPath.slice(1);
+  return [`${PREFIX_ROOT}/${rest}`, `${PREFIX_BIN}/${rest}`];
 }
 
 function injectIsolation(r) {
@@ -76,6 +91,9 @@ function injectIsolation(r) {
   return new Response(r.body, { status: r.status, statusText: r.statusText, headers: h });
 }
 
+// ============================================================
+// Ciclo de vida
+// ============================================================
 self.addEventListener('install', () => self.skipWaiting());
 self.addEventListener('activate', (event) => {
   event.waitUntil((async () => {
@@ -166,18 +184,17 @@ async function handleAsset(event) {
   }
   if (cached && !range) return injectIsolation(cached);
 
+  const candidates = candidatesFor(pathname);
+  if (!candidates.length) return new Response('', { status: 404 });
+
   const timeout = range ? TIMEOUT_RANGE
                 : pathname.endsWith('.rpf') ? TIMEOUT_FULL
                 : TIMEOUT_DEFAULT;
 
-  const primary = primaryURL(pathname);
-  let res = await fastFetch(primary, req, timeout);
-
-  if (!res) {
-    const fallbacks = fallbackURLs(pathname);
-    const results = await Promise.all(fallbacks.map((u) => fastFetch(u, req, timeout)));
-    res = results.find((r) => r !== null) || null;
-  }
+  const results = await Promise.all(
+    candidates.map((c) => fastFetch(`${R2_BASE}/${c}`, req, timeout))
+  );
+  const res = results.find((r) => r !== null) || null;
 
   if (!res) return new Response('', { status: 404 });
 
@@ -185,7 +202,7 @@ async function handleAsset(event) {
     const cacheable = res.clone();
     event.waitUntil?.(cache.put(pathname, cacheable).then(() => scheduleTrimCache()).catch(() => {}));
   }
-  if (range && res.status === 200) console.warn('[SW] Range ignorado por R2:', pathname);
+  if (range && res.status === 200) console.warn('[SW] Range ignorado por CDN:', pathname);
 
   return injectIsolation(res);
 }
