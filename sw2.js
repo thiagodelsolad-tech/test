@@ -1,15 +1,18 @@
 /**
- * sw.js — v44
- * FIX: no usar headers custom (Cache-Control, Pragma) → evita preflight CORS
- * FIX: no usar ?b= query param → evita preflight CORS
- * FIX: shaders .fxc van a /data/common/shaders/, metadatos a /b/.../shaders/
+ * sw2.js — v45
+ * CDN: cdn.apkprojects.xyz
+ *
+ * Cambios respecto a v44:
+ *  - shaderCandidates(): ahora prioriza /data/common/shaders/ (ruta real)
+ *  - CACHE bump a gta5-v45
+ *  - Resto igual: sin headers custom (evita preflight CORS)
  */
 
 const R2_BASE     = 'https://cdn.apkprojects.xyz';
 const PREFIX_ROOT = 'mirror/playgta5.com/data';
 const PREFIX_BIN  = 'mirror/playgta5.com/b/8b0b5899ed';
 
-const CACHE = 'gta5-v44';
+const CACHE = 'gta5-v45';
 const MAX_BYTES = 5 * 1024 * 1024 * 1024;
 
 const TIMEOUT_DEFAULT = 45000;
@@ -19,7 +22,7 @@ const TIMEOUT_FULL    = 300000;
 const PREFETCH_PAR = 8;
 
 const FRONTEND = new Set([
-  '/', '/index.html', '/sw.js', '/CNAME', '/README.md',
+  '/', '/index.html', '/sw.js', '/sw2.js', '/sw3.js', '/CNAME', '/README.md',
   '/loader.js', '/game.js', '/wgpu_worker.js', '/io_worker.js', '/audio-worklet.js',
   '/chalet.woff', '/favicon.ico', '/robots.txt', '/google88b6175162f03564.html',
 ]);
@@ -37,29 +40,33 @@ function isShaderPath(p) {
 }
 
 // ============================================================
-// Candidatos
+// Candidatos de shaders
+// ✅ Prioriza /data/common/shaders/ (la ruta real donde están)
 // ============================================================
 function shaderCandidates(localPath) {
   const idx = localPath.indexOf('/shaders/');
-  const rest = localPath.slice(idx + '/shaders/'.length); // "win32_40/normal_cubemap_reflect.fxc"
-  const isFxc = rest.endsWith('.fxc');
+  const rest = localPath.slice(idx + '/shaders/'.length); // "win32_40/emissivestrong.fxc"
 
-  if (isFxc) {
-    // Los .fxc van a /data/common/shaders/
+  // Metadatos y .bin siempre en /b/.../shaders/
+  if (!rest.endsWith('.fxc')) {
     return [
-      `${PREFIX_ROOT}/common/shaders/${rest}`,
       `${PREFIX_BIN}/shaders/${rest}`,
+      `${PREFIX_ROOT}/common/shaders/${rest}`,
       `${PREFIX_ROOT}/shaders/${rest}`,
     ];
   }
-  // index.json, pipelines.json → /b/.../shaders/
+
+  // .fxc → ruta real primero
   return [
-    `${PREFIX_BIN}/shaders/${rest}`,
     `${PREFIX_ROOT}/common/shaders/${rest}`,
+    `${PREFIX_BIN}/shaders/${rest}`,
     `${PREFIX_ROOT}/shaders/${rest}`,
   ];
 }
 
+// ============================================================
+// Candidatos generales
+// ============================================================
 function candidatesFor(localPath) {
   if (localPath === '/game.wasm') {
     return [
@@ -124,8 +131,7 @@ function candidatesFor(localPath) {
 }
 
 // ============================================================
-// Headers de respuesta
-// ✅ NO añadir Cache-Control a la respuesta (también puede causar preflight)
+// Headers de respuesta (solo aislamiento COOP/COEP)
 // ============================================================
 function injectIsolation(r) {
   const h = new Headers(r.headers);
@@ -149,15 +155,21 @@ self.addEventListener('activate', (event) => {
   })());
 });
 
+// ============================================================
+// Prefetch del bootset
+// ============================================================
 async function prefetchBootset() {
   try {
     const cache = await caches.open(CACHE);
-    const done = await cache.match('/__bootset_done_v44__');
+    const done = await cache.match('/__bootset_done_v45__');
     if (done) return;
+
     const res = await fetch(`${R2_BASE}/bootset.json`);
     if (!res.ok) return;
+
     const entries = await res.json();
     let i = 0;
+
     const worker = async () => {
       while (i < entries.length) {
         const entry = entries[i++];
@@ -171,56 +183,60 @@ async function prefetchBootset() {
         } catch (e) {}
       }
     };
+
     await Promise.all(Array.from({ length: PREFETCH_PAR }, worker));
-    await cache.put('/__bootset_done_v44__', new Response('1'));
+    await cache.put('/__bootset_done_v45__', new Response('1'));
   } catch (e) {}
 }
 
+// ============================================================
+// Recorte de caché
+// ============================================================
 let trimScheduled = false;
 function scheduleTrimCache() {
   if (trimScheduled) return;
   trimScheduled = true;
   setTimeout(() => { trimScheduled = false; trimCache(); }, 8000);
 }
+
 async function trimCache() {
   try {
     const c = await caches.open(CACHE);
     const reqs = await c.keys();
-    let total = 0; const sizes = [];
+    let total = 0;
+    const sizes = [];
     for (const r of reqs) {
       const res = await c.match(r);
       if (!res) continue;
       const len = parseInt(res.headers.get('Content-Length') || '0', 10) || 0;
-      sizes.push({ r, len }); total += len;
+      sizes.push({ r, len });
+      total += len;
     }
     if (total <= MAX_BYTES) return;
     let removed = 0;
     for (const { r, len } of sizes) {
       if (total - removed <= MAX_BYTES * 0.9) break;
-      await c.delete(r); removed += len;
+      await c.delete(r);
+      removed += len;
     }
   } catch (e) {}
 }
 
 // ============================================================
-// Fetch simplificado: SIN headers custom, SIN query params
-// Usa la opción `cache` del fetch que NO dispara preflight
+// Fetch SIN headers custom (evita preflight CORS)
 // ============================================================
-function fastFetch(url, req, timeout, noCache = false) {
+function fastFetch(url, req, timeout) {
   const ctrl = new AbortController();
   const timer = setTimeout(() => ctrl.abort(), timeout);
-
-  // Solo Range si el motor lo pide. Nada más.
   const headers = {};
   const range = req.headers.get('Range');
   if (range) headers['Range'] = range;
 
   return fetch(url, {
     method: 'GET',
-    headers,               // ← solo Range, NADA de Cache-Control / Pragma
+    headers,
     mode: 'cors',
     credentials: 'omit',
-    cache: noCache ? 'reload' : 'default',  // ← opción del fetch, no header HTTP
     signal: ctrl.signal,
   })
     .then((r) => { clearTimeout(timer); return (r.ok || r.status === 206) ? r : null; })
@@ -228,7 +244,7 @@ function fastFetch(url, req, timeout, noCache = false) {
 }
 
 // ============================================================
-// Range parsing + serve desde cache
+// Range parsing
 // ============================================================
 function parseRange(rangeHeader, totalSize) {
   if (!rangeHeader) return null;
@@ -267,13 +283,13 @@ async function handleAsset(event) {
   const pathname = url.pathname;
   const range = req.headers.get('Range');
 
-  // SHADERS: siempre ir a red con cache: 'reload' (bypass de todas las cachés)
+  // SHADERS: nunca cache, siempre red
   if (isShaderPath(pathname)) {
     const shaders = shaderCandidates(pathname);
     for (const c of shaders) {
       const fullUrl = `${R2_BASE}/${c}`;
       console.log('[SW] shader →', fullUrl);
-      const r = await fastFetch(fullUrl, req, TIMEOUT_DEFAULT, true);
+      const r = await fastFetch(fullUrl, req, TIMEOUT_DEFAULT);
       if (r) return injectIsolation(r);
     }
     console.warn('[SW] shader 404:', pathname);
@@ -301,7 +317,7 @@ async function handleAsset(event) {
 
   let res = null;
   for (const c of candidates) {
-    res = await fastFetch(`${R2_BASE}/${c}`, req, timeout, false);
+    res = await fastFetch(`${R2_BASE}/${c}`, req, timeout);
     if (res) break;
   }
 
@@ -318,6 +334,9 @@ async function handleAsset(event) {
   return injectIsolation(res);
 }
 
+// ============================================================
+// Fetch principal
+// ============================================================
 self.addEventListener('fetch', (event) => {
   const url = new URL(event.request.url);
 
