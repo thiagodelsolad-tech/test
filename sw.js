@@ -1,19 +1,24 @@
 /**
- * sw.js — v40
+ * sw.js — v41
  * CDN: cdn.apkprojects.xyz
- * Mejora: más candidatos para RPF de levels (que es donde falla el motor)
+ * Fixes:
+ *  - Candidatos en SECUENCIAL (no paralelo) → no multiplica tráfico x10
+ *  - Prefetch del bootset en background con paralelismo moderado
+ *  - Cache bump a v41
  */
 
 const R2_BASE     = 'https://cdn.apkprojects.xyz';
 const PREFIX_ROOT = 'mirror/playgta5.com/data';
 const PREFIX_BIN  = 'mirror/playgta5.com/b/8b0b5899ed';
 
-const CACHE = 'gta5-v40';
+const CACHE = 'gta5-v41';
 const MAX_BYTES = 5 * 1024 * 1024 * 1024;
 
 const TIMEOUT_DEFAULT = 45000;
 const TIMEOUT_RANGE   = 15000;
 const TIMEOUT_FULL    = 300000;
+
+const PREFETCH_PAR = 8;
 
 const FRONTEND = new Set([
   '/', '/index.html', '/sw.js', '/CNAME', '/README.md',
@@ -24,12 +29,15 @@ const FRONTEND = new Set([
 function isFrontend(p) {
   return FRONTEND.has(p) || p.startsWith('/img/') || p.startsWith('/.github/');
 }
+
 function isBatchPath(p) {
   return p.startsWith('/data/batchc/') || p === '/data/batch' || p.startsWith('/data/batch?');
 }
 
+// ============================================================
+// Candidatos en el CDN para cada ruta local
+// ============================================================
 function candidatesFor(localPath) {
-  // game.wasm
   if (localPath === '/game.wasm') {
     return [
       `${PREFIX_BIN}/game.wasm`,
@@ -39,20 +47,20 @@ function candidatesFor(localPath) {
     ];
   }
 
-  // shaders
   if (localPath.startsWith('/shaders/')) {
     const rest = localPath.slice(9);
-    return [`${PREFIX_BIN}/shaders/${rest}`, `${PREFIX_ROOT}/shaders/${rest}`];
+    return [
+      `${PREFIX_BIN}/shaders/${rest}`,
+      `${PREFIX_ROOT}/shaders/${rest}`,
+    ];
   }
 
-  // manifest / bootset
   if (localPath === '/data/manifest.json')    return ['manifest.json', `${PREFIX_ROOT}/manifest.json`];
   if (localPath === '/data/bootset.json')     return ['bootset.json', `${PREFIX_ROOT}/bootset.json`];
   if (localPath === '/data/bootset_low.json') return ['bootset_low.json', `${PREFIX_ROOT}/bootset_low.json`];
 
-  // ✅ RPF: el motor pide /game/x64/levels/... — probamos muuuuchas variantes
   if (localPath.startsWith('/game/')) {
-    const rest = localPath.slice(6); // "x64/levels/gta5/_hills/cityhills_01/ch1.rpf"
+    const rest = localPath.slice(6);
     const list = [
       `${PREFIX_ROOT}/${rest}`,
       `${PREFIX_ROOT}/game/${rest}`,
@@ -60,32 +68,27 @@ function candidatesFor(localPath) {
       `${PREFIX_BIN}/game/${rest}`,
     ];
 
-    // Levels: probamos con y sin "_" en la carpeta
     if (rest.startsWith('x64/levels/gta5/')) {
       const after = rest.slice('x64/levels/gta5/'.length);
       const slash = after.indexOf('/');
       if (slash > 0) {
         const folder = after.slice(0, slash);
         const sub = after.slice(slash + 1);
-        const folderNoUnderscore = folder.replace(/^_/, '');
-        const folderWithUnderscore = folder.startsWith('_') ? folder : '_' + folder;
+        const noUnderscore = folder.replace(/^_/, '');
+        const withUnderscore = folder.startsWith('_') ? folder : '_' + folder;
 
-        // Variantes
-        list.push(`${PREFIX_ROOT}/x64/levels/gta5/${folderNoUnderscore}/${sub}`);
-        list.push(`${PREFIX_ROOT}/x64/levels/gta5/${folderWithUnderscore}/${sub}`);
-        list.push(`${PREFIX_BIN}/x64/levels/gta5/${folderNoUnderscore}/${sub}`);
-        list.push(`${PREFIX_BIN}/x64/levels/gta5/${folderWithUnderscore}/${sub}`);
-
-        // A veces los levels están en el nivel raíz del bucket
-        list.push(`${PREFIX_ROOT}/levels/gta5/${folderNoUnderscore}/${sub}`);
-        list.push(`${PREFIX_ROOT}/levels/gta5/${folderWithUnderscore}/${sub}`);
+        list.push(`${PREFIX_ROOT}/x64/levels/gta5/${noUnderscore}/${sub}`);
+        list.push(`${PREFIX_ROOT}/x64/levels/gta5/${withUnderscore}/${sub}`);
+        list.push(`${PREFIX_BIN}/x64/levels/gta5/${noUnderscore}/${sub}`);
+        list.push(`${PREFIX_BIN}/x64/levels/gta5/${withUnderscore}/${sub}`);
+        list.push(`${PREFIX_ROOT}/levels/gta5/${noUnderscore}/${sub}`);
+        list.push(`${PREFIX_ROOT}/levels/gta5/${withUnderscore}/${sub}`);
       }
     }
 
     return list;
   }
 
-  // /data/...
   if (localPath.startsWith('/data/')) {
     const rest = localPath.slice(6);
     const list = [
@@ -98,8 +101,9 @@ function candidatesFor(localPath) {
       if (slash > 0) {
         const folder = after.slice(0, slash);
         const sub = after.slice(slash + 1);
-        list.push(`${PREFIX_ROOT}/x64/levels/gta5/${folder.replace(/^_/, '')}/${sub}`);
-        list.push(`${PREFIX_ROOT}/x64/levels/gta5/_${folder.replace(/^_/, '')}/${sub}`);
+        const noUnderscore = folder.replace(/^_/, '');
+        list.push(`${PREFIX_ROOT}/x64/levels/gta5/${noUnderscore}/${sub}`);
+        list.push(`${PREFIX_ROOT}/x64/levels/gta5/_${noUnderscore}/${sub}`);
       }
     }
     return list;
@@ -114,55 +118,124 @@ function injectIsolation(r) {
   h.set('Cross-Origin-Opener-Policy', 'same-origin');
   h.set('Cross-Origin-Embedder-Policy', 'require-corp');
   h.set('Cross-Origin-Resource-Policy', 'cross-origin');
-  return new Response(r.body, { status: r.status, statusText: r.statusText, headers: h });
+  return new Response(r.body, {
+    status: r.status,
+    statusText: r.statusText,
+    headers: h,
+  });
 }
 
+// ============================================================
+// Ciclo de vida
+// ============================================================
 self.addEventListener('install', () => self.skipWaiting());
+
 self.addEventListener('activate', (event) => {
   event.waitUntil((async () => {
     const keys = await caches.keys();
     await Promise.all(keys.filter((k) => k !== CACHE).map((k) => caches.delete(k)));
     await self.clients.claim();
+    prefetchBootset();
   })());
 });
 
+// ============================================================
+// Prefetch del bootset en background
+// ============================================================
+async function prefetchBootset() {
+  try {
+    const cache = await caches.open(CACHE);
+    const done = await cache.match('/__bootset_done_v41__');
+    if (done) return;
+
+    const res = await fetch(`${R2_BASE}/bootset.json`);
+    if (!res.ok) return;
+
+    const entries = await res.json();
+    let i = 0;
+
+    const worker = async () => {
+      while (i < entries.length) {
+        const entry = entries[i++];
+        const path = Array.isArray(entry) ? entry[0] : entry;
+        const url = `${R2_BASE}/${PREFIX_ROOT}/${path}`;
+        const key = new Request(`/data/${path}`);
+        try {
+          if (await cache.match(key)) continue;
+          const r = await fetch(url, { mode: 'cors', credentials: 'omit' });
+          if (r.ok) await cache.put(key, r);
+        } catch (e) {}
+      }
+    };
+
+    await Promise.all(Array.from({ length: PREFETCH_PAR }, worker));
+    await cache.put('/__bootset_done_v41__', new Response('1'));
+  } catch (e) {}
+}
+
+// ============================================================
+// Recorte de caché
+// ============================================================
 let trimScheduled = false;
 function scheduleTrimCache() {
   if (trimScheduled) return;
   trimScheduled = true;
   setTimeout(() => { trimScheduled = false; trimCache(); }, 8000);
 }
+
 async function trimCache() {
   try {
     const c = await caches.open(CACHE);
     const reqs = await c.keys();
-    let total = 0; const sizes = [];
+    let total = 0;
+    const sizes = [];
     for (const r of reqs) {
       const res = await c.match(r);
       if (!res) continue;
       const len = parseInt(res.headers.get('Content-Length') || '0', 10) || 0;
-      sizes.push({ r, len }); total += len;
+      sizes.push({ r, len });
+      total += len;
     }
     if (total <= MAX_BYTES) return;
     let removed = 0;
     for (const { r, len } of sizes) {
       if (total - removed <= MAX_BYTES * 0.9) break;
-      await c.delete(r); removed += len;
+      await c.delete(r);
+      removed += len;
     }
   } catch (e) {}
 }
 
+// ============================================================
+// Fetch con timeout y Range preservado
+// ============================================================
 function fastFetch(url, req, timeout) {
   const ctrl = new AbortController();
   const timer = setTimeout(() => ctrl.abort(), timeout);
   const headers = {};
   const range = req.headers.get('Range');
   if (range) headers['Range'] = range;
-  return fetch(url, { method: 'GET', headers, mode: 'cors', credentials: 'omit', signal: ctrl.signal })
-    .then((r) => { clearTimeout(timer); return (r.ok || r.status === 206) ? r : null; })
-    .catch(() => { clearTimeout(timer); return null; });
+
+  return fetch(url, {
+    method: 'GET',
+    headers,
+    mode: 'cors',
+    credentials: 'omit',
+    signal: ctrl.signal,
+  })
+    .then((r) => {
+      clearTimeout(timer);
+      return (r.ok || r.status === 206) ? r : null;
+    })
+    .catch(() => {
+      clearTimeout(timer);
+      return null;
+    });
 }
 
+// ============================================================
+// Parseo de Range + servido desde caché
+// ============================================================
 function parseRange(rangeHeader, totalSize) {
   if (!rangeHeader) return null;
   const m = /^bytes=(\d*)-(\d*)$/.exec(rangeHeader.trim());
@@ -170,8 +243,12 @@ function parseRange(rangeHeader, totalSize) {
   let start = m[1] === '' ? null : parseInt(m[1], 10);
   let end   = m[2] === '' ? null : parseInt(m[2], 10);
   if (start === null && end === null) return null;
-  if (start === null) { start = Math.max(0, totalSize - end); end = totalSize - 1; }
-  else if (end === null || end >= totalSize) { end = totalSize - 1; }
+  if (start === null) {
+    start = Math.max(0, totalSize - end);
+    end = totalSize - 1;
+  } else if (end === null || end >= totalSize) {
+    end = totalSize - 1;
+  }
   if (start > end || start >= totalSize) return null;
   return { start, end };
 }
@@ -188,9 +265,17 @@ async function serveRangeFromCache(cachedResponse, rangeHeader) {
   headers.set('Content-Length', String(slice.byteLength));
   headers.set('Accept-Ranges', 'bytes');
   headers.set('Content-Type', 'application/octet-stream');
-  return new Response(slice, { status: 206, statusText: 'Partial Content', headers });
+  return new Response(slice, {
+    status: 206,
+    statusText: 'Partial Content',
+    headers,
+  });
 }
 
+// ============================================================
+// Manejo de assets
+// ✅ FIX CLAVE: candidatos en SECUENCIAL (no paralelo)
+// ============================================================
 async function handleAsset(event) {
   const req = event.request;
   const url = new URL(req.url);
@@ -214,14 +299,15 @@ async function handleAsset(event) {
                 : pathname.endsWith('.rpf') ? TIMEOUT_FULL
                 : TIMEOUT_DEFAULT;
 
-  // ✅ Prueba los candidatos EN PARALELO y usa el primero que responda
-  const results = await Promise.all(
-    candidates.map((c) => fastFetch(`${R2_BASE}/${c}`, req, timeout))
-  );
-  const res = results.find((r) => r !== null) || null;
+  // ✅ SECUENCIAL: prueba uno a uno hasta encontrar el que existe
+  let res = null;
+  for (const c of candidates) {
+    res = await fastFetch(`${R2_BASE}/${c}`, req, timeout);
+    if (res) break;
+  }
 
   if (!res) {
-    console.warn('[SW] 404 definitivo:', pathname);
+    console.warn('[SW] 404 tras probar ' + candidates.length + ' rutas:', pathname);
     return new Response('', { status: 404 });
   }
 
@@ -233,8 +319,12 @@ async function handleAsset(event) {
   return injectIsolation(res);
 }
 
+// ============================================================
+// Fetch principal
+// ============================================================
 self.addEventListener('fetch', (event) => {
   const url = new URL(event.request.url);
+
   if (url.origin !== self.location.origin) return;
   if (event.request.method !== 'GET' && event.request.method !== 'HEAD') return;
   if (event.request.cache === 'only-if-cached' && event.request.mode !== 'same-origin') return;
@@ -243,6 +333,7 @@ self.addEventListener('fetch', (event) => {
     event.respondWith(new Response('', { status: 404 }));
     return;
   }
+
   if (isFrontend(url.pathname)) {
     event.respondWith((async () => {
       try {
@@ -257,5 +348,6 @@ self.addEventListener('fetch', (event) => {
     })());
     return;
   }
+
   event.respondWith(handleAsset(event));
 });
