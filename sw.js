@@ -1,26 +1,21 @@
 /**
- * sw.js — v37
+ * sw.js — v38
  * Fuente primaria: gta.deloskiyt.pl/b/8b0b5899ed
  * Fallback: cdn.apkprojects.xyz
- * Soporta Range requests desde caché (206 Partial Content correcto)
  */
 
-// Fuente 1: el port original
-const PRIMARY_BASE = 'https://gta.deloskiyt.pl/b/8b0b5899ed';
-
-// Fuente 2: tu mirror R2
+const PRIMARY_BASE  = 'https://gta.deloskiyt.pl/b/8b0b5899ed';
 const FALLBACK_BASE = 'https://cdn.apkprojects.xyz';
 const FALLBACK_BIN  = 'mirror/playgta5.com/b/8b0b5899ed';
 const FALLBACK_ROOT = 'mirror/playgta5.com/data';
 
-const CACHE = 'gta5-v37';
-const MAX_BYTES = 5 * 1024 * 1024 * 1024; // 5 GB
+const CACHE = 'gta5-v38';
+const MAX_BYTES = 5 * 1024 * 1024 * 1024;
 
 const TIMEOUT_DEFAULT = 45000;
 const TIMEOUT_RANGE   = 15000;
 const TIMEOUT_FULL    = 300000;
 
-// Rutas servidas localmente por GitHub Pages (NO se proxean)
 const FRONTEND = new Set([
   '/', '/index.html', '/sw.js', '/CNAME', '/README.md',
   '/loader.js', '/game.js', '/wgpu_worker.js', '/io_worker.js', '/audio-worklet.js',
@@ -30,29 +25,18 @@ const FRONTEND = new Set([
 function isFrontend(p) {
   return FRONTEND.has(p) || p.startsWith('/img/') || p.startsWith('/.github/');
 }
-
 function isBatchPath(p) {
   return p.startsWith('/data/batchc/') || p === '/data/batch' || p.startsWith('/data/batch?');
 }
 
-// ============================================================
-// URL primaria — todo bajo /b/8b0b5899ed/ en gta.deloskiyt.pl
-// ============================================================
 function primaryURL(localPath) {
   if (localPath === '/game.wasm') return PRIMARY_BASE + '/game.wasm';
   if (localPath.startsWith('/shaders/')) return PRIMARY_BASE + localPath;
-  if (localPath.startsWith('/data/')) {
-    return PRIMARY_BASE + '/' + localPath.slice(6);
-  }
-  if (localPath.startsWith('/game/')) {
-    return PRIMARY_BASE + '/' + localPath.slice(6);
-  }
+  if (localPath.startsWith('/data/')) return PRIMARY_BASE + '/' + localPath.slice(6);
+  if (localPath.startsWith('/game/')) return PRIMARY_BASE + '/' + localPath.slice(6);
   return PRIMARY_BASE + localPath;
 }
 
-// ============================================================
-// URLs de fallback (tu R2)
-// ============================================================
 function fallbackURLs(localPath) {
   if (localPath === '/game.wasm') {
     return [
@@ -84,26 +68,15 @@ function fallbackURLs(localPath) {
   return [FALLBACK_BASE + localPath.slice(1)];
 }
 
-// ============================================================
-// Cabeceras COOP/COEP
-// ============================================================
 function injectIsolation(r) {
   const h = new Headers(r.headers);
   h.set('Cross-Origin-Opener-Policy', 'same-origin');
   h.set('Cross-Origin-Embedder-Policy', 'require-corp');
   h.set('Cross-Origin-Resource-Policy', 'cross-origin');
-  return new Response(r.body, {
-    status: r.status,
-    statusText: r.statusText,
-    headers: h,
-  });
+  return new Response(r.body, { status: r.status, statusText: r.statusText, headers: h });
 }
 
-// ============================================================
-// Ciclo de vida
-// ============================================================
 self.addEventListener('install', () => self.skipWaiting());
-
 self.addEventListener('activate', (event) => {
   event.waitUntil((async () => {
     const keys = await caches.keys();
@@ -112,69 +85,43 @@ self.addEventListener('activate', (event) => {
   })());
 });
 
-// ============================================================
-// Recorte de caché
-// ============================================================
 let trimScheduled = false;
 function scheduleTrimCache() {
   if (trimScheduled) return;
   trimScheduled = true;
   setTimeout(() => { trimScheduled = false; trimCache(); }, 8000);
 }
-
 async function trimCache() {
   try {
     const c = await caches.open(CACHE);
     const reqs = await c.keys();
-    let total = 0;
-    const sizes = [];
+    let total = 0; const sizes = [];
     for (const r of reqs) {
       const res = await c.match(r);
       if (!res) continue;
       const len = parseInt(res.headers.get('Content-Length') || '0', 10) || 0;
-      sizes.push({ r, len });
-      total += len;
+      sizes.push({ r, len }); total += len;
     }
     if (total <= MAX_BYTES) return;
     let removed = 0;
     for (const { r, len } of sizes) {
       if (total - removed <= MAX_BYTES * 0.9) break;
-      await c.delete(r);
-      removed += len;
+      await c.delete(r); removed += len;
     }
   } catch (e) {}
 }
 
-// ============================================================
-// Fetch con timeout y Range preservado
-// ============================================================
 function fastFetch(url, req, timeout) {
   const ctrl = new AbortController();
   const timer = setTimeout(() => ctrl.abort(), timeout);
   const headers = {};
   const range = req.headers.get('Range');
   if (range) headers['Range'] = range;
-
-  return fetch(url, {
-    method: 'GET',
-    headers,
-    mode: 'cors',
-    credentials: 'omit',
-    signal: ctrl.signal,
-  })
-    .then((r) => {
-      clearTimeout(timer);
-      return (r.ok || r.status === 206) ? r : null;
-    })
-    .catch(() => {
-      clearTimeout(timer);
-      return null;
-    });
+  return fetch(url, { method: 'GET', headers, mode: 'cors', credentials: 'omit', signal: ctrl.signal })
+    .then((r) => { clearTimeout(timer); return (r.ok || r.status === 206) ? r : null; })
+    .catch(() => { clearTimeout(timer); return null; });
 }
 
-// ============================================================
-// Parseo de Range + servido desde caché
-// ============================================================
 function parseRange(rangeHeader, totalSize) {
   if (!rangeHeader) return null;
   const m = /^bytes=(\d*)-(\d*)$/.exec(rangeHeader.trim());
@@ -182,12 +129,8 @@ function parseRange(rangeHeader, totalSize) {
   let start = m[1] === '' ? null : parseInt(m[1], 10);
   let end   = m[2] === '' ? null : parseInt(m[2], 10);
   if (start === null && end === null) return null;
-  if (start === null) {
-    start = Math.max(0, totalSize - end);
-    end = totalSize - 1;
-  } else if (end === null || end >= totalSize) {
-    end = totalSize - 1;
-  }
+  if (start === null) { start = Math.max(0, totalSize - end); end = totalSize - 1; }
+  else if (end === null || end >= totalSize) { end = totalSize - 1; }
   if (start > end || start >= totalSize) return null;
   return { start, end };
 }
@@ -204,16 +147,9 @@ async function serveRangeFromCache(cachedResponse, rangeHeader) {
   headers.set('Content-Length', String(slice.byteLength));
   headers.set('Accept-Ranges', 'bytes');
   headers.set('Content-Type', 'application/octet-stream');
-  return new Response(slice, {
-    status: 206,
-    statusText: 'Partial Content',
-    headers,
-  });
+  return new Response(slice, { status: 206, statusText: 'Partial Content', headers });
 }
 
-// ============================================================
-// Manejo de assets
-// ============================================================
 async function handleAsset(event) {
   const req = event.request;
   const url = new URL(req.url);
@@ -222,17 +158,14 @@ async function handleAsset(event) {
   const cache = await caches.open(CACHE);
   const cached = await cache.match(pathname);
 
-  // 1) Cache + Range → servir desde blob
   if (cached && range) {
     try {
       const ranged = await serveRangeFromCache(cached, range);
       if (ranged) return injectIsolation(ranged);
     } catch (e) {}
   }
-  // 2) Cache sin Range → devolver tal cual
   if (cached && !range) return injectIsolation(cached);
 
-  // 3) Ir a la red: primero primaria, luego fallbacks
   const timeout = range ? TIMEOUT_RANGE
                 : pathname.endsWith('.rpf') ? TIMEOUT_FULL
                 : TIMEOUT_DEFAULT;
@@ -242,33 +175,23 @@ async function handleAsset(event) {
 
   if (!res) {
     const fallbacks = fallbackURLs(pathname);
-    const results = await Promise.all(
-      fallbacks.map((u) => fastFetch(u, req, timeout))
-    );
+    const results = await Promise.all(fallbacks.map((u) => fastFetch(u, req, timeout)));
     res = results.find((r) => r !== null) || null;
   }
 
   if (!res) return new Response('', { status: 404 });
 
-  // Cachear solo si es 200 completo y sin Range
   if (!range && res.status === 200) {
     const cacheable = res.clone();
-    event.waitUntil?.(
-      cache.put(pathname, cacheable)
-        .then(() => scheduleTrimCache())
-        .catch(() => {})
-    );
+    event.waitUntil?.(cache.put(pathname, cacheable).then(() => scheduleTrimCache()).catch(() => {}));
   }
+  if (range && res.status === 200) console.warn('[SW] Range ignorado por R2:', pathname);
 
   return injectIsolation(res);
 }
 
-// ============================================================
-// Fetch principal
-// ============================================================
 self.addEventListener('fetch', (event) => {
   const url = new URL(event.request.url);
-
   if (url.origin !== self.location.origin) return;
   if (event.request.method !== 'GET' && event.request.method !== 'HEAD') return;
   if (event.request.cache === 'only-if-cached' && event.request.mode !== 'same-origin') return;
@@ -277,7 +200,6 @@ self.addEventListener('fetch', (event) => {
     event.respondWith(new Response('', { status: 404 }));
     return;
   }
-
   if (isFrontend(url.pathname)) {
     event.respondWith((async () => {
       try {
@@ -292,6 +214,5 @@ self.addEventListener('fetch', (event) => {
     })());
     return;
   }
-
   event.respondWith(handleAsset(event));
 });
