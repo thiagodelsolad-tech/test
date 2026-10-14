@@ -1,8 +1,21 @@
-const CDN = 'https://gta.deloskiyt.pl';
-const CACHE = 'gta5-v37';
+/**
+ * sw2.js — v38
+ * Assets desde gta.deloskiyt.pl con fallback automático a R2.
+ * Si el CDN principal devuelve HTML (404 disfrazado) o falla,
+ * pide el mismo archivo a cdn.apkprojects.xyz/mirror/playgta5.com.
+ */
+
+const CDN_PRIMARY = 'https://gta.deloskiyt.pl';
+const CDN_FALLBACK = 'https://cdn.apkprojects.xyz/mirror/playgta5.com';
+const CACHE = 'gta5-v38';
 const MAX_BYTES = 8 * 1024 * 1024 * 1024;
+
 const FRONTEND = new Set(['/', '/index.html', '/sw2.js', '/sw.js', '/favicon.ico', '/robots.txt', '/_headers']);
-function isFrontend(p) { return FRONTEND.has(p) || p.startsWith('/img/') || p.startsWith('/.github/'); }
+
+function isFrontend(p) {
+  return FRONTEND.has(p) || p.startsWith('/img/') || p.startsWith('/.github/');
+}
+
 function iso(r) {
   const h = new Headers(r.headers);
   h.set('Cross-Origin-Opener-Policy', 'same-origin');
@@ -10,12 +23,26 @@ function iso(r) {
   h.set('Cross-Origin-Resource-Policy', 'cross-origin');
   return new Response(r.body, { status: r.status, statusText: r.statusText, headers: h });
 }
+
+// ¿La respuesta es válida para lo que pedimos?
+function isGoodResponse(res, pathname) {
+  if (!res) return false;
+  if (res.status !== 200 && res.status !== 206) return false;
+  const ct = (res.headers.get('content-type') || '').toLowerCase();
+  // Si pedimos JS/JSON pero nos devuelven HTML → es una página de error disfrazada
+  if ((pathname.endsWith('.js') || pathname.endsWith('.json')) && ct.includes('text/html')) {
+    return false;
+  }
+  return true;
+}
+
 self.addEventListener('install', () => self.skipWaiting());
 self.addEventListener('activate', (e) => e.waitUntil((async () => {
   const keys = await caches.keys();
   await Promise.all(keys.filter(k => k !== CACHE).map(k => caches.delete(k)));
   await self.clients.claim();
 })()));
+
 async function trim() {
   try {
     const c = await caches.open(CACHE);
@@ -35,14 +62,34 @@ async function trim() {
     }
   } catch (e) {}
 }
+
+async function fetchFrom(url, range) {
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), range ? 15000 : 300000);
+  const headers = {};
+  if (range) headers['Range'] = range;
+  try {
+    const res = await fetch(url, {
+      method: 'GET', headers, mode: 'cors', credentials: 'omit', signal: ctrl.signal,
+    });
+    clearTimeout(timer);
+    return res;
+  } catch (e) {
+    clearTimeout(timer);
+    return null;
+  }
+}
+
 async function asset(event) {
   const req = event.request;
   const url = new URL(req.url);
   const p = url.pathname;
   const range = req.headers.get('Range');
   const cache = await caches.open(CACHE);
+
   const cached = await cache.match(p);
   if (cached && !range) return iso(cached);
+
   if (cached && range) {
     try {
       const buf = await cached.arrayBuffer();
@@ -62,31 +109,38 @@ async function asset(event) {
       }
     } catch (e) {}
   }
-  const ctrl = new AbortController();
-  const timer = setTimeout(() => ctrl.abort(), range ? 15000 : 300000);
-  const hdrs = {};
-  if (range) hdrs['Range'] = range;
-  try {
-    const res = await fetch(CDN + p + url.search, {
-      method: 'GET', headers: hdrs, mode: 'cors', credentials: 'omit', signal: ctrl.signal,
-    });
-    clearTimeout(timer);
-    if (res.ok || res.status === 206) {
-      if (res.status === 200 && !range) {
-        event.waitUntil?.(cache.put(p, res.clone()).then(() => trim()).catch(() => {}));
-      }
-      return iso(res);
+
+  // 1. Intenta gta.deloskiyt.pl (rápido)
+  let res = await fetchFrom(CDN_PRIMARY + p + url.search, range);
+
+  // 2. Si la respuesta es mala (404/HTML disfrazado), prueba R2
+  if (!isGoodResponse(res, p)) {
+    const fallbackRes = await fetchFrom(CDN_FALLBACK + p + url.search, range);
+    if (isGoodResponse(fallbackRes, p)) {
+      res = fallbackRes;
     }
-    return new Response('', { status: res.status });
-  } catch (e) {
-    clearTimeout(timer);
-    return new Response('', { status: 504 });
   }
+
+  if (!res || (!isGoodResponse(res, p) && res.status !== 206)) {
+    return new Response('', { status: 404 });
+  }
+
+  // Cachear respuestas completas (200, sin Range)
+  if (res.status === 200 && !range) {
+    try {
+      const clone = res.clone();
+      event.waitUntil?.(cache.put(p, clone).then(() => trim()).catch(() => {}));
+    } catch (e) {}
+  }
+
+  return iso(res);
 }
+
 self.addEventListener('fetch', (event) => {
   const url = new URL(event.request.url);
   if (url.origin !== self.location.origin) return;
   if (event.request.method !== 'GET' && event.request.method !== 'HEAD') return;
+
   if (isFrontend(url.pathname)) {
     event.respondWith((async () => {
       try { return iso(await fetch(event.request)); }
