@@ -1,14 +1,24 @@
 /**
- * sw2.js — v38
- * Assets desde gta.deloskiyt.pl con fallback automático a R2.
- * Si el CDN principal devuelve HTML (404 disfrazado) o falla,
- * pide el mismo archivo a cdn.apkprojects.xyz/mirror/playgta5.com.
+ * sw2.js — v39
+ * Los workers JS (loader, audio-worklet, wgpu, io, game) se sirven
+ * directamente desde Cloudflare Pages (raíz del repo).
+ * Los assets (data, shaders, rpf, title) desde gta.deloskiyt.pl con
+ * fallback a R2.
  */
 
 const CDN_PRIMARY = 'https://gta.deloskiyt.pl';
 const CDN_FALLBACK = 'https://cdn.apkprojects.xyz/mirror/playgta5.com';
-const CACHE = 'gta5-v38';
+const CACHE = 'gta5-v39';
 const MAX_BYTES = 8 * 1024 * 1024 * 1024;
+
+// Workers JS que están en la raíz del repo (NO pedirlos al CDN)
+const ROOT_JS = new Set([
+  '/b/8b0b5899ed/loader.js',
+  '/b/8b0b5899ed/audio-worklet.js',
+  '/b/8b0b5899ed/game.js',
+  '/b/8b0b5899ed/io_worker.js',
+  '/b/8b0b5899ed/wgpu_worker.js',
+]);
 
 const FRONTEND = new Set(['/', '/index.html', '/sw2.js', '/sw.js', '/favicon.ico', '/robots.txt', '/_headers']);
 
@@ -24,15 +34,16 @@ function iso(r) {
   return new Response(r.body, { status: r.status, statusText: r.statusText, headers: h });
 }
 
-// ¿La respuesta es válida para lo que pedimos?
 function isGoodResponse(res, pathname) {
   if (!res) return false;
   if (res.status !== 200 && res.status !== 206) return false;
   const ct = (res.headers.get('content-type') || '').toLowerCase();
-  // Si pedimos JS/JSON pero nos devuelven HTML → es una página de error disfrazada
-  if ((pathname.endsWith('.js') || pathname.endsWith('.json')) && ct.includes('text/html')) {
-    return false;
+  // Para JS, MIME DEBE ser javascript (browsers lo exigen para módulos)
+  if (pathname.endsWith('.js')) {
+    if (!ct.includes('javascript')) return false;
   }
+  // Para JSON, MIME no debe ser HTML
+  if (pathname.endsWith('.json') && ct.includes('text/html')) return false;
   return true;
 }
 
@@ -85,8 +96,24 @@ async function asset(event) {
   const url = new URL(req.url);
   const p = url.pathname;
   const range = req.headers.get('Range');
-  const cache = await caches.open(CACHE);
 
+  // ═══════════════════════════════════════════════════════════════════
+  // 1. WORKERS JS → servir del ROOT de Cloudflare Pages (mismo origin)
+  //    (evita el CDN que no tiene estos archivos en /b/8b0b5899ed/)
+  // ═══════════════════════════════════════════════════════════════════
+  if (ROOT_JS.has(p)) {
+    const rootPath = '/' + p.split('/').pop();  // /b/8b0b5899ed/loader.js → /loader.js
+    try {
+      const res = await fetch(rootPath);
+      if (res.ok) return iso(res);
+    } catch (e) {}
+    // Si falla, cae al CDN como último recurso
+  }
+
+  // ═══════════════════════════════════════════════════════════════════
+  // 2. Caché local
+  // ═══════════════════════════════════════════════════════════════════
+  const cache = await caches.open(CACHE);
   const cached = await cache.match(p);
   if (cached && !range) return iso(cached);
 
@@ -110,22 +137,19 @@ async function asset(event) {
     } catch (e) {}
   }
 
-  // 1. Intenta gta.deloskiyt.pl (rápido)
+  // ═══════════════════════════════════════════════════════════════════
+  // 3. CDN primario → CDN fallback
+  // ═══════════════════════════════════════════════════════════════════
   let res = await fetchFrom(CDN_PRIMARY + p + url.search, range);
-
-  // 2. Si la respuesta es mala (404/HTML disfrazado), prueba R2
   if (!isGoodResponse(res, p)) {
-    const fallbackRes = await fetchFrom(CDN_FALLBACK + p + url.search, range);
-    if (isGoodResponse(fallbackRes, p)) {
-      res = fallbackRes;
-    }
+    const fb = await fetchFrom(CDN_FALLBACK + p + url.search, range);
+    if (isGoodResponse(fb, p)) res = fb;
   }
 
-  if (!res || (!isGoodResponse(res, p) && res.status !== 206)) {
+  if (!isGoodResponse(res, p)) {
     return new Response('', { status: 404 });
   }
 
-  // Cachear respuestas completas (200, sin Range)
   if (res.status === 200 && !range) {
     try {
       const clone = res.clone();
