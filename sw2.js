@@ -467,7 +467,9 @@ function failure(err, path) {
   setIso(h);
   if (err && err.code === 'missing') {
     // Solo para 404 reales (nunca por fallos de red): evita JSON.parse sobre HTML.
-    if (path.endsWith('.json')) {
+    // Se devuelve {} también para .meta, .ymt, .dat y archivos SIN extensión
+    // (el io_worker los parsea como JSON y el motor tiene defaults internos).
+    if (/\.(json|meta|ymt|dat)$/i.test(path) || !path.includes('.')) {
       h.set('Content-Type', 'application/json');
       return new Response('{}', { status: 200, headers: h });
     }
