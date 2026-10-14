@@ -1,9 +1,8 @@
 const CDN_PRIMARY = 'https://gta.deloskiyt.pl';
 const CDN_FALLBACK = 'https://cdn.apkprojects.xyz/mirror/playgta5.com';
-const CACHE = 'gta5-v40';
+const CACHE = 'gta5-v41';
 const MAX_BYTES = 8 * 1024 * 1024 * 1024;
 
-// Estos los sirve Cloudflare Pages vía _redirects — NO interceptar
 const ROOT_JS = new Set([
   '/b/8b0b5899ed/loader.js',
   '/b/8b0b5899ed/audio-worklet.js',
@@ -30,8 +29,11 @@ function isGoodResponse(res, pathname) {
   if (!res) return false;
   if (res.status !== 200 && res.status !== 206) return false;
   const ct = (res.headers.get('content-type') || '').toLowerCase();
+  // HTML nunca es válido para assets binarios o JS
+  if (ct.includes('text/html')) return false;
+  // Verifica MIME específico por tipo
   if (pathname.endsWith('.js') && !ct.includes('javascript')) return false;
-  if (pathname.endsWith('.json') && ct.includes('text/html')) return false;
+  if (pathname.endsWith('.wasm') && !ct.includes('wasm') && !ct.includes('octet-stream')) return false;
   return true;
 }
 
@@ -109,6 +111,26 @@ async function asset(event) {
     } catch (e) {}
   }
 
+  // ═══════════════════════════════════════════════════════════════════
+  // Los .wasm y .rpf SIEMPRE van al R2 (el CDN gta no los tiene)
+  // ═══════════════════════════════════════════════════════════════════
+  const isWasmOrRpf = p.endsWith('.wasm') || p.endsWith('.rpf');
+
+  if (isWasmOrRpf) {
+    const res = await fetchFrom(CDN_FALLBACK + p + url.search, range);
+    if (!isGoodResponse(res, p)) return new Response('', { status: 404 });
+    if (res.status === 200 && !range) {
+      try {
+        const clone = res.clone();
+        event.waitUntil?.(cache.put(p, clone).then(() => trim()).catch(() => {}));
+      } catch (e) {}
+    }
+    return iso(res);
+  }
+
+  // ═══════════════════════════════════════════════════════════════════
+  // Todo lo demás: primario (gta) → fallback (R2)
+  // ═══════════════════════════════════════════════════════════════════
   let res = await fetchFrom(CDN_PRIMARY + p + url.search, range);
   if (!isGoodResponse(res, p)) {
     const fb = await fetchFrom(CDN_FALLBACK + p + url.search, range);
@@ -132,8 +154,6 @@ self.addEventListener('fetch', (event) => {
   if (url.origin !== self.location.origin) return;
   if (event.request.method !== 'GET' && event.request.method !== 'HEAD') return;
 
-  // ═══ Los workers JS los sirve Cloudflare Pages vía _redirects.
-  //     No interceptar: dejar que el navegador pida directo. ═══
   if (ROOT_JS.has(url.pathname)) return;
 
   if (isFrontend(url.pathname)) {
