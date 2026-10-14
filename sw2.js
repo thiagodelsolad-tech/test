@@ -1,6 +1,6 @@
 const CDN_PRIMARY = 'https://gta.deloskiyt.pl';
 const CDN_FALLBACK = 'https://cdn.apkprojects.xyz/mirror/playgta5.com';
-const CACHE = 'gta5-v41';
+const CACHE = 'gta5-v42';
 const MAX_BYTES = 8 * 1024 * 1024 * 1024;
 
 const ROOT_JS = new Set([
@@ -29,9 +29,7 @@ function isGoodResponse(res, pathname) {
   if (!res) return false;
   if (res.status !== 200 && res.status !== 206) return false;
   const ct = (res.headers.get('content-type') || '').toLowerCase();
-  // HTML nunca es válido para assets binarios o JS
   if (ct.includes('text/html')) return false;
-  // Verifica MIME específico por tipo
   if (pathname.endsWith('.js') && !ct.includes('javascript')) return false;
   if (pathname.endsWith('.wasm') && !ct.includes('wasm') && !ct.includes('octet-stream')) return false;
   return true;
@@ -87,6 +85,7 @@ async function asset(event) {
   const p = url.pathname;
   const range = req.headers.get('Range');
   const cache = await caches.open(CACHE);
+  const wantsJson = p.endsWith('.json');
 
   const cached = await cache.match(p);
   if (cached && !range) return iso(cached);
@@ -111,38 +110,43 @@ async function asset(event) {
     } catch (e) {}
   }
 
-  // ═══════════════════════════════════════════════════════════════════
-  // Los .wasm y .rpf SIEMPRE van al R2 (el CDN gta no los tiene)
-  // ═══════════════════════════════════════════════════════════════════
   const isWasmOrRpf = p.endsWith('.wasm') || p.endsWith('.rpf');
 
   if (isWasmOrRpf) {
     const res = await fetchFrom(CDN_FALLBACK + p + url.search, range);
-    if (!isGoodResponse(res, p)) return new Response('', { status: 404 });
+    if (!isGoodResponse(res, p)) {
+      if (wantsJson) return iso(new Response('{}', { status: 200, headers: { 'Content-Type': 'application/json' } }));
+      return new Response('', { status: 404 });
+    }
     if (res.status === 200 && !range) {
       try {
-        const clone = res.clone();
-        event.waitUntil?.(cache.put(p, clone).then(() => trim()).catch(() => {}));
+        event.waitUntil?.(cache.put(p, res.clone()).then(() => trim()).catch(() => {}));
       } catch (e) {}
     }
     return iso(res);
   }
 
-  // ═══════════════════════════════════════════════════════════════════
-  // Todo lo demás: primario (gta) → fallback (R2)
-  // ═══════════════════════════════════════════════════════════════════
   let res = await fetchFrom(CDN_PRIMARY + p + url.search, range);
   if (!isGoodResponse(res, p)) {
     const fb = await fetchFrom(CDN_FALLBACK + p + url.search, range);
     if (isGoodResponse(fb, p)) res = fb;
   }
 
-  if (!isGoodResponse(res, p)) return new Response('', { status: 404 });
+  if (!isGoodResponse(res, p)) {
+    // ═══ CLAVE: si es JSON y no está en ningún CDN → devolver {} vacío ═══
+    // Esto evita que io_worker haga JSON.parse() sobre HTML o vacío.
+    if (wantsJson) {
+      return iso(new Response('{}', {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' },
+      }));
+    }
+    return new Response('', { status: 404 });
+  }
 
   if (res.status === 200 && !range) {
     try {
-      const clone = res.clone();
-      event.waitUntil?.(cache.put(p, clone).then(() => trim()).catch(() => {}));
+      event.waitUntil?.(cache.put(p, res.clone()).then(() => trim()).catch(() => {}));
     } catch (e) {}
   }
 
