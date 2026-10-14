@@ -6,7 +6,6 @@
 <style>
 	html, body { margin: 0; height: 100%; background: #000; color: #ccc; font: 12px monospace; overflow: hidden; }
 	#canvas { display: block; position: absolute; left: 0; top: 0; width: 100vw; height: 100vh; background: #000; }
-	@font-face { font-family: 'Chalet'; src: url('/b/8b0b5899ed/title/chalet.woff') format('woff'); }
 	#loading { position: fixed; inset: 0; background: #000; overflow: hidden; transition: opacity .8s; z-index: 5; }
 	#loading.done { opacity: 0; pointer-events: none; }
 	#ls-stage { position: absolute; left: 0; top: 0; width: 1280px; height: 720px; transform-origin: 0 0; overflow: hidden; font: 12px Chalet, sans-serif; color: #fff; }
@@ -24,7 +23,7 @@
 	#modes.ask button:not(:disabled) .ls-key { animation: ls-ask 1.2s ease-in-out infinite; }
 	@keyframes ls-ask { 50% { opacity: .35; } }
 	.ls-key { margin-left: 4px; min-width: 12px; height: 15px; padding: 0 4px; line-height: 16px; border-radius: 2px; background: #fff; color: #000; font-size: 10px; text-transform: uppercase; }
-	.ls-spin { flex: none; width: 22px; height: 22px; margin-left: 2px; background: url('/b/8b0b5899ed/title/spinner.png') center / 24px 24px no-repeat; animation: ls-spin 2s steps(60) infinite; }
+	.ls-spin { flex: none; width: 22px; height: 22px; margin-left: 2px; background: var(--spinner) center / 24px 24px no-repeat; animation: ls-spin 2s steps(60) infinite; }
 	@keyframes ls-spin { from { transform: rotate(0deg) scaleX(-1); } to { transform: rotate(-360deg) scaleX(-1); } }
 	#label { text-shadow: .85px .85px 1px rgba(0, 0, 0, .45); }
 	#pct { margin-left: 15px; font-variant-numeric: tabular-nums; }
@@ -57,7 +56,7 @@
 			<iframe id="adsterra-320-frame" width="320" height="50" scrolling="no"></iframe>
 		</div>
 		<div id="ls-screens"></div>
-		<img id="ls-logo" src="/b/8b0b5899ed/title/logo.png" alt="">
+		<img id="ls-logo" alt="">
 		<div id="ls-bars">
 			<div id="modes" class="ls-bar">
 				<button data-act="back"></button>
@@ -111,6 +110,69 @@ const q = new URLSearchParams(location.search);
 const BASE = '/b/8b0b5899ed';
 const remoteLog = q.get('log') === '1';
 const postLog = (text) => { if (remoteLog) fetch('/log', { method: 'POST', body: text }).catch(() => {}); };
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// GATE DEL SW: va PRIMERO. Nada que dependa de assets (fuente, logo, spinner,
+// slideshow, workers) se pide hasta que el SW controle la página. Si no, esas
+// peticiones van directo al origin y reciben el index.html en vez del asset.
+// ═══════════════════════════════════════════════════════════════════════════════
+async function waitForSWControl() {
+	if (!('serviceWorker' in navigator)) return true;
+	try {
+		await navigator.serviceWorker.register('/sw2.js', { scope: '/' });
+		await navigator.serviceWorker.ready;
+		if (navigator.serviceWorker.controller) return true;
+		// Aún no controla: esperar controllerchange (máx 1.5 s; tras Ctrl+Shift+R nunca llega)
+		return await new Promise((resolve) => {
+			const timeout = setTimeout(() => {
+				navigator.serviceWorker.removeEventListener('controllerchange', onChange);
+				resolve(!!navigator.serviceWorker.controller);
+			}, 1500);
+			const onChange = () => {
+				if (navigator.serviceWorker.controller) {
+					clearTimeout(timeout);
+					navigator.serviceWorker.removeEventListener('controllerchange', onChange);
+					resolve(true);
+				}
+			};
+			navigator.serviceWorker.addEventListener('controllerchange', onChange);
+		});
+	} catch (e) {
+		console.warn('[SW]', e);
+		return false;
+	}
+}
+
+const hasSWControl = await waitForSWControl();
+
+// Si no hay control tras esperar, forzar UNA recarga (solo una vez por sesión)
+if (!hasSWControl) {
+	if (!sessionStorage.getItem('sw_forced_reload_v44')) {
+		sessionStorage.setItem('sw_forced_reload_v44', '1');
+		console.log('[SW] Instalado. Recargando para que tome control...');
+		location.reload();
+		// Bloquear el resto del script hasta que recargue
+		await new Promise(() => {});
+	}
+	console.error('[SW] No obtuvo control tras la recarga. El juego puede fallar.');
+} else {
+	sessionStorage.removeItem('sw_forced_reload_v44');
+	console.log('[SW] Control OK. Arrancando motor...');
+}
+
+// Aislamiento: el SW añade COOP/COEP a la navegación, así que una recarga lo activa.
+if (!crossOriginIsolated && hasSWControl && !sessionStorage.getItem('sw_iso_reload_v44')) {
+	sessionStorage.setItem('sw_iso_reload_v44', '1');
+	location.reload();
+	await new Promise(() => {});
+}
+if (crossOriginIsolated) sessionStorage.removeItem('sw_iso_reload_v44');
+
+// Recursos que antes cargaban sin SW (CSS/HTML estático):
+document.documentElement.style.setProperty('--spinner', "url('" + BASE + "/title/spinner.png')");
+document.getElementById('ls-logo').src = BASE + '/title/logo.png';
+new FontFace('Chalet', "url('" + BASE + "/title/chalet.woff') format('woff')")
+	.load().then((f) => document.fonts.add(f)).catch(() => {});
 
 {
 	let posted = 0;
@@ -367,55 +429,6 @@ if (remoteLog) {
 	new BroadcastChannel('game-log').onmessage = (ev) => { queue.push(ev.data); if (queue.length > 20000) queue.splice(0, queue.length - 20000); pump(); };
 }
 addEventListener('pagehide', () => { try { new BroadcastChannel('game-io').postMessage('close'); } catch (e) {} });
-
-// ═══════════════════════════════════════════════════════════════════════════════
-// GATE CRÍTICO DEL SW: los workers (io_worker, wgpu_worker, loader) deben
-// crearse SOLO cuando el SW ya controla la página. Si no, sus fetches van
-// directos al origin y reciben HTML en vez de los assets → crash de JSON.parse.
-// ═══════════════════════════════════════════════════════════════════════════════
-async function waitForSWControl() {
-	if (!('serviceWorker' in navigator)) return true;
-	try {
-		await navigator.serviceWorker.register('/sw2.js', { scope: '/' });
-		await navigator.serviceWorker.ready;
-		if (navigator.serviceWorker.controller) return true;
-		// Aún no controla: esperar el evento controllerchange (máx 6s)
-		return await new Promise((resolve) => {
-			const timeout = setTimeout(() => {
-				navigator.serviceWorker.removeEventListener('controllerchange', onChange);
-				resolve(!!navigator.serviceWorker.controller);
-			}, 6000);
-			const onChange = () => {
-				if (navigator.serviceWorker.controller) {
-					clearTimeout(timeout);
-					navigator.serviceWorker.removeEventListener('controllerchange', onChange);
-					resolve(true);
-				}
-			};
-			navigator.serviceWorker.addEventListener('controllerchange', onChange);
-		});
-	} catch (e) {
-		console.warn('[SW]', e);
-		return false;
-	}
-}
-
-const hasSWControl = await waitForSWControl();
-
-// Si no hay control tras esperar, forzar UNA recarga (solo una vez por sesión)
-if (!hasSWControl) {
-	if (!sessionStorage.getItem('sw_forced_reload_v44')) {
-		sessionStorage.setItem('sw_forced_reload_v44', '1');
-		console.log('[SW] Instalado. Recargando para que tome control...');
-		location.reload();
-		// Bloquear el resto del script hasta que recargue
-		await new Promise(() => {});
-	}
-	console.error('[SW] No obtuvo control tras la recarga. El juego puede fallar.');
-} else {
-	sessionStorage.removeItem('sw_forced_reload_v44');
-	console.log('[SW] Control OK. Arrancando motor...');
-}
 
 let lowMemory = false;
 let startSize = [1280, 720], wantSize = null;
