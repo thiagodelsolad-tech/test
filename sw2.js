@@ -1,322 +1,548 @@
-/* ============================================================
- *  Service Worker — PlayGTA5
- *  Cache + fallback multi-CDN + soporte COOP/COEP
- * ============================================================ */
+'use strict';
 
-const CDN_PRIMARY  = 'https://gta.deloskiyt.pl';
+/* ───────────────────────── Configuración ───────────────────────── */
+
+const CDN_PRIMARY = 'https://gta.deloskiyt.pl';
 const CDN_FALLBACK = 'https://cdn.apkprojects.xyz/mirror/playgta5.com';
 
-const CACHE_PREFIX = 'gta5-';
-const CACHE        = CACHE_PREFIX + 'v43';
-const MAX_BYTES    = 8 * 1024 * 1024 * 1024; // 8 GB
+// Caché pequeña de código/frontend (versionada: se borra al subir de versión).
+const STATIC_PREFIX = 'gta5-static-';
+const STATIC_CACHE = STATIC_PREFIX + 'v43';
+// Cachés pesadas (SIN versión: sobreviven a las actualizaciones del SW).
+const CHUNK_CACHE = 'gta5-chunks';
+const META_CACHE = 'gta5-meta';
 
-const ROOT_JS = new Set([
-  '/b/8b0b5899ed/loader.js',
-  '/b/8b0b5899ed/audio-worklet.js',
-  '/b/8b0b5899ed/game.js',
-  '/b/8b0b5899ed/io_worker.js',
-  '/b/8b0b5899ed/wgpu_worker.js',
-]);
+// ¡No cambies CHUNK_SIZE sin vaciar antes CHUNK_CACHE y META_CACHE!
+const CHUNK_SIZE = 4 * 1024 * 1024; // 4 MiB por trozo
+const MAX_BYTES = 30 * 1024 * 1024 * 1024; // tope propio (el juego pesa ~20 GB)
+const QUOTA_FRACTION = 0.9; // nunca usar más de este % de la cuota del navegador
+
+const HEADER_TIMEOUT = 20000; // esperar cabeceras del CDN
+const BODY_TIMEOUT = 90000; // descargar un trozo completo
+const TOUCH_INTERVAL = 60000; // cada cuánto actualizar "último uso"
+const TRIM_INTERVAL = 15000; // mínimo entre limpiezas automáticas
 
 const FRONTEND = new Set([
-  '/', '/index.html', '/sw2.js', '/sw.js',
-  '/favicon.ico', '/robots.txt', '/_headers', '/_redirects',
+  '/', '/index.html', '/sw2.js', '/sw.js', '/favicon.ico',
+  '/robots.txt', '/_headers', '/_redirects',
 ]);
 
-/* ---------- utilidades ---------- */
+// Scripts propios del juego (el hash del build puede cambiar).
+const LOCAL_CODE = /^\/b\/[0-9a-f]+\/(loader|audio-worklet|game|io_worker|wgpu_worker)\.js$/;
+
+// .wasm y .rpf: se prueba primero el mirror (comportamiento original).
+// Si el primario también los sirve bien, puedes quitar esta regla.
+const FALLBACK_FIRST = /\.(wasm|rpf)$/;
+
+const MISSING = { state: 'missing' };
+const ERROR = { state: 'error' };
+
+/* ───────────────────────── Utilidades ───────────────────────── */
 
 function isFrontend(p) {
   return FRONTEND.has(p) || p.startsWith('/img/') || p.startsWith('/.github/');
 }
 
+function isLocalCode(p) {
+  return LOCAL_CODE.test(p);
+}
+
+function setIso(h) {
+  h.set('Cross-Origin-Opener-Policy', 'same-origin');
+  h.set('Cross-Origin-Embedder-Policy', 'credentialless');
+  h.set('Cross-Origin-Resource-Policy', 'cross-origin');
+}
+
 function iso(r) {
+  // Las respuestas opacas / redirects manuales no se pueden reconstruir.
+  if (!r || r.status === 0 || r.type === 'opaque' || r.type === 'opaqueredirect' || r.type === 'error') return r;
   const h = new Headers(r.headers);
-  h.set('Cross-Origin-Opener-Policy', 'same-origin');
-  h.set('Cross-Origin-Embedder-Policy', 'credentialless');
-  h.set('Cross-Origin-Resource-Policy', 'cross-origin');
-  return new Response(r.body, {
-    status: r.status,
-    statusText: r.statusText,
-    headers: h,
-  });
+  setIso(h);
+  return new Response(r.body, { status: r.status, statusText: r.statusText, headers: h });
 }
 
-function headFrom(r) {
-  const h = new Headers(r.headers);
-  h.set('Cross-Origin-Opener-Policy', 'same-origin');
-  h.set('Cross-Origin-Embedder-Policy', 'credentialless');
-  h.set('Cross-Origin-Resource-Policy', 'cross-origin');
-  return new Response(null, {
-    status: r.status,
-    statusText: r.statusText,
-    headers: h,
-  });
+function typeFor(path) {
+  if (path.endsWith('.wasm')) return 'application/wasm';
+  if (path.endsWith('.js') || path.endsWith('.mjs')) return 'text/javascript';
+  if (path.endsWith('.json')) return 'application/json';
+  return null;
 }
 
-function errorResponse(status, statusText) {
-  return iso(new Response('', {
-    status,
-    statusText: statusText || (status === 404 ? 'Not Found' : 'Gateway Timeout'),
-  }));
+function discard(res) {
+  try { if (res && res.body) res.body.cancel().catch(() => {}); } catch (e) { /* nada */ }
 }
 
-function emptyJsonResponse() {
-  return iso(new Response('{}', {
-    status: 200,
-    headers: { 'Content-Type': 'application/json' },
-  }));
+function isQuota(e) {
+  return !!e && (e.name === 'QuotaExceededError' || e.code === 22);
 }
 
-function isGoodResponse(res, pathname, method) {
-  if (!res) return false;
-  if (method === 'HEAD') {
-    // El CDN puede omitir Content-Type en HEAD; basta con 200.
-    return res.status === 200;
-  }
-  if (res.status !== 200 && res.status !== 206) return false;
-  const ct = (res.headers.get('content-type') || '').toLowerCase();
-  if (ct.includes('text/html') || ct.includes('application/xhtml+xml')) return false;
-  if (pathname.endsWith('.js')   && !ct.includes('javascript')) return false;
-  if (pathname.endsWith('.wasm') && !ct.includes('wasm') && !ct.includes('octet-stream')) return false;
-  if (pathname.endsWith('.json') && !ct.includes('json')) return false;
-  return true;
+function netError(msg) {
+  return Object.assign(new Error(msg || 'network'), { code: 'network' });
 }
 
-/* ---------- ciclo de vida ---------- */
+function metaKey(base) {
+  return self.location.origin + '/__meta/' + encodeURIComponent(base);
+}
 
-self.addEventListener('install', (event) => {
-  event.waitUntil(self.skipWaiting());
-});
+function chunkKey(base, i) {
+  return self.location.origin + '/__chunk/' + i + '/' + encodeURIComponent(base);
+}
 
-self.addEventListener('activate', (event) => {
-  event.waitUntil((async () => {
-    const keys = await caches.keys();
-    await Promise.all(
-      keys
-        .filter(k => k.startsWith(CACHE_PREFIX) && k !== CACHE)
-        .map(k => caches.delete(k))
-    );
-    await self.clients.claim();
-  })());
-});
+function expectedLen(meta, i) {
+  return Math.min(CHUNK_SIZE, meta.size - i * CHUNK_SIZE);
+}
 
-/* ---------- gestión de tamaño ---------- */
+function cachedBytes(meta) {
+  let n = 0;
+  for (let i = 0; i < meta.have.length; i++) if (meta.have[i]) n += expectedLen(meta, i);
+  return n;
+}
 
-async function entrySize(res) {
-  const len = parseInt(res.headers.get('Content-Length') || '0', 10);
-  if (len > 0) return len;
+/* ───────────────────────── Ciclo de vida ───────────────────────── */
+
+self.addEventListener('install', () => self.skipWaiting());
+
+self.addEventListener('activate', (e) => e.waitUntil((async () => {
+  const keys = await caches.keys();
+  await Promise.all(keys
+    .filter((k) =>
+      (k.startsWith(STATIC_PREFIX) && k !== STATIC_CACHE) ||
+      /^gta5-v\d+$/.test(k)) // caché antigua (formato anterior, sin trozos)
+    .map((k) => caches.delete(k)));
+  await self.clients.claim();
   try {
-    const blob = await res.clone().blob();
-    return blob.size;
+    if (navigator.storage && navigator.storage.persist) await navigator.storage.persist();
+  } catch (err) { /* opcional */ }
+})()));
+
+/* ───────────────────────── Metadatos por archivo ───────────────────────── */
+
+const metas = new Map(); // base -> meta (en memoria)
+const inflight = new Map(); // clave de trozo -> Promise<ArrayBuffer>
+
+function parseMeta(j) {
+  if (!j || typeof j.base !== 'string' || !(j.size >= 0) || j.chunkSize !== CHUNK_SIZE) return null;
+  const chunks = Math.max(1, Math.ceil(j.size / CHUNK_SIZE));
+  if (typeof j.have !== 'string' || j.have.length !== chunks) return null;
+  return {
+    base: j.base,
+    size: j.size,
+    type: j.type || 'application/octet-stream',
+    chunks,
+    have: Uint8Array.from(j.have, (c) => (c === '1' ? 1 : 0)),
+    lastUsed: j.lastUsed || 0,
+    active: 0,
+    saving: Promise.resolve(),
+  };
+}
+
+async function loadMeta(base) {
+  let m = metas.get(base);
+  if (m) return m;
+  const mc = await caches.open(META_CACHE);
+  const res = await mc.match(metaKey(base));
+  if (!res) return null;
+  try {
+    m = parseMeta(await res.json());
   } catch (e) {
-    return 0;
+    m = null;
   }
+  if (!m) {
+    await mc.delete(metaKey(base));
+    return null;
+  }
+  const existing = metas.get(base);
+  if (existing) return existing;
+  metas.set(base, m);
+  return m;
 }
 
-async function trim() {
-  try {
-    const c = await caches.open(CACHE);
-    const reqs = await c.keys();
-    const sizes = [];
-    let total = 0;
-
-    for (const r of reqs) {
-      const res = await c.match(r);
-      if (!res) continue;
-      const len = await entrySize(res);
-      sizes.push({ r, len });
-      total += len;
-    }
-
-    if (total <= MAX_BYTES) return;
-
-    let removed = 0;
-    for (const { r, len } of sizes) {
-      if (total - removed <= MAX_BYTES * 0.9) break;
-      await c.delete(r);
-      removed += len;
-    }
-  } catch (e) { /* noop */ }
+function saveMeta(meta) {
+  // Serializado por archivo: siempre se escribe el estado más reciente.
+  meta.saving = meta.saving.then(async () => {
+    if (!metas.has(meta.base)) metas.set(meta.base, meta);
+    const mc = await caches.open(META_CACHE);
+    await mc.put(metaKey(meta.base), new Response(JSON.stringify({
+      base: meta.base,
+      size: meta.size,
+      type: meta.type,
+      chunkSize: CHUNK_SIZE,
+      chunks: meta.chunks,
+      lastUsed: meta.lastUsed,
+      have: Array.from(meta.have).join(''),
+    }), { headers: { 'Content-Type': 'application/json' } }));
+  }).catch((e) => console.warn('[SW] No se pudo guardar metadatos:', e));
+  return meta.saving;
 }
 
-/* ---------- fetch a CDN ---------- */
+/* ───────────────────────── Descarga de trozos ───────────────────────── */
 
-async function fetchFrom(url, range, method) {
-  const ctrl  = new AbortController();
-  const timer = setTimeout(() => ctrl.abort(), range ? 15000 : 120000);
-  const headers = {};
-  if (range) headers['Range'] = range;
+function originsFor(path) {
+  return FALLBACK_FIRST.test(path)
+    ? [CDN_FALLBACK, CDN_PRIMARY]
+    : [CDN_PRIMARY, CDN_FALLBACK];
+}
 
+async function tryOrigin(origin, pq, path, start, end, knownSize) {
+  const ctrl = new AbortController();
+  let timer = setTimeout(() => ctrl.abort(), HEADER_TIMEOUT);
   try {
-    const res = await fetch(url, {
-      method: method || 'GET',
-      headers,
+    const res = await fetch(origin + pq, {
+      method: 'GET',
+      headers: { Range: 'bytes=' + start + '-' + end },
       mode: 'cors',
       credentials: 'omit',
-      cache: 'no-store',
       signal: ctrl.signal,
     });
     clearTimeout(timer);
-    return res;
+
+    if (res.status === 404 || res.status === 410) { discard(res); return MISSING; }
+    if (res.status === 416 && start === 0) {
+      discard(res); // archivo vacío
+      return { state: 'ok', buf: new ArrayBuffer(0), total: 0, ct: '' };
+    }
+    if (res.status !== 206 && res.status !== 200) { discard(res); return ERROR; }
+
+    const ct = (res.headers.get('content-type') || '').toLowerCase();
+    if (ct.includes('text/html')) { discard(res); return MISSING; }
+    if (path.endsWith('.js') && !ct.includes('javascript')) { discard(res); return MISSING; }
+    if (path.endsWith('.wasm') && !ct.includes('wasm') && !ct.includes('octet-stream')) { discard(res); return MISSING; }
+
+    let total = null;
+    if (res.status === 206) {
+      const m = /^bytes (\d+)-(\d+)\/(\d+|\*)$/.exec(res.headers.get('Content-Range') || '');
+      if (m) {
+        if (parseInt(m[1], 10) !== start) { discard(res); return ERROR; }
+        if (m[3] !== '*') total = parseInt(m[3], 10);
+      }
+    } else {
+      // 200: el servidor ignoró Range. Solo sirve si el archivo cabe en un trozo.
+      const len = parseInt(res.headers.get('Content-Length') || '', 10);
+      if (start !== 0 || !(len >= 0 && len <= CHUNK_SIZE)) { discard(res); return ERROR; }
+      total = len;
+    }
+
+    timer = setTimeout(() => ctrl.abort(), BODY_TIMEOUT);
+    const buf = await res.arrayBuffer();
+    clearTimeout(timer);
+
+    if (total === null) {
+      if (start === 0 && buf.byteLength < CHUNK_SIZE) {
+        total = buf.byteLength;
+      } else {
+        console.error('[SW] El CDN no expone Content-Range (falta Access-Control-Expose-Headers):', origin);
+        return ERROR;
+      }
+    }
+    if (knownSize != null && total !== knownSize) return ERROR; // el archivo cambió
+    const expected = Math.min(end, total - 1) - start + 1;
+    if (buf.byteLength !== expected) return ERROR;
+
+    return { state: 'ok', buf, total, ct };
   } catch (e) {
     clearTimeout(timer);
-    return null;
+    console.warn('[SW] Fallo de red con', origin, e && e.name);
+    return ERROR;
   }
 }
 
-/* ---------- rangos desde caché ---------- */
-
-async function sliceCached(cached, range) {
-  const m = /^bytes=(\d*)-(\d*)$/.exec(range.trim());
-  if (!m) return null;
-  if (m[1] === '' && m[2] === '') return null;
-
-  let blob;
-  try {
-    blob = await cached.clone().blob();
-  } catch (e) {
-    return null;
+async function readCachedChunk(base, i) {
+  const meta = metas.get(base);
+  if (!meta || !meta.have[i]) return null;
+  const cc = await caches.open(CHUNK_CACHE);
+  const res = await cc.match(chunkKey(base, i));
+  if (res) {
+    const buf = await res.arrayBuffer();
+    if (buf.byteLength === expectedLen(meta, i)) return buf;
+    await cc.delete(chunkKey(base, i));
   }
-  const total = blob.size;
-  if (total <= 0) return null;
+  meta.have[i] = 0; // el navegador lo expulsó o está corrupto
+  return null;
+}
 
-  let s, e;
-  if (m[1] === '') {
-    // rango sufijo: bytes=-N  → últimos N bytes
+async function putChunk(base, i, buf) {
+  const cc = await caches.open(CHUNK_CACHE);
+  const mk = () => new Response(buf, { headers: { 'Content-Length': String(buf.byteLength) } });
+  try {
+    await cc.put(chunkKey(base, i), mk());
+    return true;
+  } catch (e) {
+    if (!isQuota(e)) { console.warn('[SW] cache.put falló:', e); return false; }
+    await trim(true);
+    try {
+      await cc.put(chunkKey(base, i), mk());
+      return true;
+    } catch (e2) {
+      console.warn('[SW] Sin espacio para cachear el trozo (se sirve sin guardar):', e2);
+      return false;
+    }
+  }
+}
+
+async function downloadChunk(ctx, i) {
+  const { base, path, pq } = ctx;
+  const known = metas.get(base);
+  const knownSize = known ? known.size : null;
+  const start = i * CHUNK_SIZE;
+  let end = start + CHUNK_SIZE - 1;
+  if (knownSize != null) end = Math.min(end, knownSize - 1);
+
+  let sawError = false;
+  for (const origin of originsFor(path)) {
+    const r = await tryOrigin(origin, pq, path, start, end, knownSize);
+    if (r.state === 'error') { sawError = true; continue; }
+    if (r.state !== 'ok') continue;
+
+    let meta = metas.get(base);
+    if (!meta) {
+      meta = {
+        base,
+        size: r.total,
+        type: typeFor(path) || r.ct || 'application/octet-stream',
+        chunks: Math.max(1, Math.ceil(r.total / CHUNK_SIZE)),
+        have: new Uint8Array(Math.max(1, Math.ceil(r.total / CHUNK_SIZE))),
+        lastUsed: Date.now(),
+        active: 0,
+        saving: Promise.resolve(),
+      };
+      metas.set(base, meta);
+    }
+    if (r.buf.byteLength > 0 && await putChunk(base, i, r.buf)) {
+      meta.have[i] = 1;
+      saveMeta(meta);
+      trim(false);
+    } else if (r.buf.byteLength === 0) {
+      saveMeta(meta);
+    }
+    return r.buf;
+  }
+  throw Object.assign(new Error(sawError ? 'network' : 'missing'), { code: sawError ? 'network' : 'missing' });
+}
+
+async function getChunkBuf(ctx, i) {
+  const hit = await readCachedChunk(ctx.base, i);
+  if (hit) return hit;
+  const key = chunkKey(ctx.base, i);
+  let p = inflight.get(key);
+  if (!p) {
+    p = downloadChunk(ctx, i).finally(() => inflight.delete(key));
+    inflight.set(key, p);
+  }
+  return p;
+}
+
+/* ───────────────────────── Limpieza LRU ───────────────────────── */
+
+let trimPromise = null;
+let lastTrim = 0;
+
+function trim(force) {
+  if (trimPromise) return trimPromise;
+  if (!force && Date.now() - lastTrim < TRIM_INTERVAL) return Promise.resolve();
+  trimPromise = doTrim(force)
+    .catch((e) => console.warn('[SW] trim falló:', e))
+    .finally(() => { lastTrim = Date.now(); trimPromise = null; });
+  return trimPromise;
+}
+
+async function evict(meta) {
+  const cc = await caches.open(CHUNK_CACHE);
+  const jobs = [];
+  for (let i = 0; i < meta.have.length; i++) {
+    if (meta.have[i]) { jobs.push(cc.delete(chunkKey(meta.base, i))); meta.have[i] = 0; }
+  }
+  await Promise.all(jobs);
+  metas.delete(meta.base);
+  const mc = await caches.open(META_CACHE);
+  await mc.delete(metaKey(meta.base));
+}
+
+async function doTrim(force) {
+  const mc = await caches.open(META_CACHE);
+  const reqs = await mc.keys();
+  const prefix = metaKey('');
+  const all = [];
+  for (const r of reqs) {
+    const m = await loadMeta(decodeURIComponent(r.url.slice(prefix.length)));
+    if (m) all.push(m);
+  }
+  let total = all.reduce((a, m) => a + cachedBytes(m), 0);
+
+  let budget = MAX_BYTES;
+  try {
+    const est = await navigator.storage.estimate();
+    if (est && est.quota) {
+      const others = Math.max(0, (est.usage || 0) - total);
+      budget = Math.min(budget, est.quota * QUOTA_FRACTION - others);
+    }
+  } catch (e) { /* sin estimate */ }
+  budget = Math.max(0, budget);
+  if (force) budget = Math.min(budget, total * 0.9);
+  if (total <= budget) return;
+
+  const target = budget * 0.9;
+  all.sort((a, b) => a.lastUsed - b.lastUsed); // el menos usado primero
+  for (const m of all) {
+    if (total <= target) break;
+    if (m.active > 0) continue; // no tocar lo que se está sirviendo
+    total -= cachedBytes(m);
+    await evict(m);
+  }
+}
+
+/* ───────────────────────── Rangos y streaming ───────────────────────── */
+
+// null → sin rango válido (se responde 200 completo); {bad:true} → 416; {s,e} → 206
+function parseRange(header, size) {
+  if (!header) return null;
+  const m = /^\s*bytes\s*=\s*(\d*)\s*-\s*(\d*)\s*$/i.exec(header);
+  if (!m || (m[1] === '' && m[2] === '')) return null; // sintaxis inválida o multi-rango
+  let s;
+  let e;
+  if (m[1] === '') { // sufijo: los últimos N bytes
     const n = parseInt(m[2], 10);
-    if (!Number.isFinite(n) || n <= 0) return null;
-    s = Math.max(0, total - n);
-    e = total - 1;
+    if (n === 0) return { bad: true };
+    s = Math.max(0, size - n);
+    e = size - 1;
   } else {
     s = parseInt(m[1], 10);
-    e = m[2] === '' ? total - 1 : parseInt(m[2], 10);
+    if (m[2] === '') {
+      e = size - 1;
+    } else {
+      const req = parseInt(m[2], 10);
+      if (req < s) return null; // inválido → se ignora
+      e = Math.min(req, size - 1);
+    }
   }
-
-  if (!Number.isFinite(s) || !Number.isFinite(e)) return null;
-  if (e >= total) e = total - 1;
-  if (s < 0 || s > e || s >= total) {
-    // rango insatisfacible
-    const h = new Headers(cached.headers);
-    h.set('Content-Range', `bytes */${total}`);
-    h.set('Accept-Ranges', 'bytes');
-    return iso(new Response('', { status: 416, statusText: 'Range Not Satisfiable', headers: h }));
-  }
-
-  const slice = blob.slice(s, e + 1);
-  const h = new Headers(cached.headers);
-  h.delete('Content-Encoding');
-  h.set('Content-Range',  `bytes ${s}-${e}/${total}`);
-  h.set('Content-Length', String(slice.size));
-  h.set('Accept-Ranges',  'bytes');
-  return iso(new Response(slice, {
-    status: 206,
-    statusText: 'Partial Content',
-    headers: h,
-  }));
+  if (s >= size) return { bad: true };
+  return { s, e };
 }
 
-/* ---------- handler de assets ---------- */
+function chunkStream(ctx, meta, start, end, firstBuf) {
+  meta.active++;
+  let released = false;
+  const release = () => { if (!released) { released = true; meta.active--; } };
+  let i = Math.floor(start / CHUNK_SIZE);
+  const last = Math.floor(end / CHUNK_SIZE);
+  let first = firstBuf;
 
-async function asset(event) {
-  const req    = event.request;
-  const method = req.method;
-  const url    = new URL(req.url);
-  const p      = url.pathname;
-  const key    = p + url.search;      // incluye query string
-  const range  = req.headers.get('Range');
-  const cache  = await caches.open(CACHE);
-  const wantsJson = p.endsWith('.json');
-
-  const cached = await cache.match(key);
-
-  if (cached) {
-    if (!range) {
-      return method === 'HEAD' ? headFrom(cached) : iso(cached);
-    }
-    const partial = await sliceCached(cached, range);
-    if (partial) return partial;
-  }
-
-  const isWasmOrRpf = p.endsWith('.wasm') || p.endsWith('.rpf');
-
-  let res = null;
-
-  if (isWasmOrRpf) {
-    res = await fetchFrom(CDN_FALLBACK + p + url.search, range, method);
-    if (!isGoodResponse(res, p, method)) {
-      const second = await fetchFrom(CDN_PRIMARY + p + url.search, range, method);
-      if (isGoodResponse(second, p, method)) res = second;
-    }
-  } else {
-    res = await fetchFrom(CDN_PRIMARY + p + url.search, range, method);
-    if (!isGoodResponse(res, p, method)) {
-      const fb = await fetchFrom(CDN_FALLBACK + p + url.search, range, method);
-      if (isGoodResponse(fb, p, method)) res = fb;
-    }
-  }
-
-  // Si pedimos un rango y el CDN ignoró la cabecera, la respuesta no es válida
-  // para una petición Range: la descartamos.
-  if (range && res && res.status === 200) res = null;
-
-  if (!isGoodResponse(res, p, method)) {
-    if (wantsJson && method !== 'HEAD') return emptyJsonResponse();
-    return errorResponse(404);
-  }
-
-  // Solo cacheamos respuestas completas (200) de tipo GET.
-  if (method === 'GET' && res.status === 200 && !range) {
-    try {
-      const clone = res.clone();
-      event.waitUntil(cache.put(key, clone).then(trim).catch(() => {}));
-    } catch (e) { /* noop */ }
-  }
-
-  return method === 'HEAD' ? headFrom(res) : iso(res);
+  return new ReadableStream({
+    async pull(controller) {
+      try {
+        const buf = first || await getChunkBuf(ctx, i);
+        first = null;
+        const cs = i * CHUNK_SIZE;
+        const from = Math.max(start, cs) - cs;
+        const to = Math.min(end, cs + buf.byteLength - 1) - cs;
+        controller.enqueue(new Uint8Array(buf, from, to - from + 1));
+        i++;
+        if (i > last) { controller.close(); release(); }
+      } catch (e) {
+        release();
+        controller.error(e);
+      }
+    },
+    cancel() { release(); },
+  });
 }
 
-/* ---------- handler de frontend ---------- */
+function failure(err, path) {
+  const h = new Headers({ 'Content-Type': 'text/plain; charset=utf-8', 'Cache-Control': 'no-store' });
+  setIso(h);
+  if (err && err.code === 'missing') {
+    // Solo para 404 reales (nunca por fallos de red): evita JSON.parse sobre HTML.
+    if (path.endsWith('.json')) {
+      h.set('Content-Type', 'application/json');
+      return new Response('{}', { status: 200, headers: h });
+    }
+    return new Response('Not found', { status: 404, headers: h });
+  }
+  h.set('Retry-After', '5');
+  return new Response('Servicio no disponible', { status: 503, headers: h });
+}
 
-async function frontend(event) {
-  const req   = event.request;
-  const cache = await caches.open(CACHE);
+async function serveAsset(req, url) {
+  const path = url.pathname;
+  const pq = path + url.search; // la query forma parte de la clave
+  const base = url.origin + pq;
+  const ctx = { base, path, pq };
 
   try {
-    const res = await fetch(req);
-
-    if (req.method === 'GET' && res && res.status === 200) {
-      try {
-        const clone = res.clone();
-        event.waitUntil(cache.put(req, clone).catch(() => {}));
-      } catch (e) { /* noop */ }
+    let meta = await loadMeta(base);
+    if (!meta) {
+      await getChunkBuf(ctx, 0); // descubre tamaño y tipo
+      meta = await loadMeta(base);
+      if (!meta) throw netError('sin metadatos');
+    }
+    if (Date.now() - meta.lastUsed > TOUCH_INTERVAL) {
+      meta.lastUsed = Date.now();
+      saveMeta(meta);
     }
 
-    return req.method === 'HEAD' ? headFrom(res) : iso(res);
-  } catch (e) {
-    // Fallback offline: primero por petición exacta, luego por pathname.
-    const c = (await cache.match(req)) ||
-              (await cache.match(new URL(req.url).pathname));
-    if (c) return req.method === 'HEAD' ? headFrom(c) : iso(c);
-    return errorResponse(504, 'Gateway Timeout');
+    const size = meta.size;
+    const headers = new Headers({ 'Content-Type': meta.type, 'Accept-Ranges': 'bytes' });
+    setIso(headers);
+
+    if (size === 0) {
+      headers.set('Content-Length', '0');
+      return new Response(null, { status: 200, headers });
+    }
+
+    const rng = parseRange(req.headers.get('Range'), size);
+    if (rng && rng.bad) {
+      headers.set('Content-Range', 'bytes */' + size);
+      return new Response(null, { status: 416, headers });
+    }
+
+    const s = rng ? rng.s : 0;
+    const e = rng ? rng.e : size - 1;
+    const status = rng ? 206 : 200;
+    headers.set('Content-Length', String(e - s + 1));
+    if (rng) headers.set('Content-Range', 'bytes ' + s + '-' + e + '/' + size);
+
+    if (req.method === 'HEAD') return new Response(null, { status, headers });
+
+    // Se pide el primer trozo antes de responder para poder devolver 503/404 limpios.
+    const first = await getChunkBuf(ctx, Math.floor(s / CHUNK_SIZE));
+    return new Response(chunkStream(ctx, meta, s, e, first), { status, headers });
+  } catch (err) {
+    return failure(err, path);
   }
 }
 
-/* ---------- router ---------- */
+/* ───────────────────────── Frontend y código propio ───────────────────────── */
+
+async function networkFirst(req) {
+  const cache = await caches.open(STATIC_CACHE);
+  try {
+    const res = await fetch(req);
+    if (req.method === 'GET' && res.status === 200 && res.type === 'basic') {
+      cache.put(req, res.clone()).catch((e) => console.warn('[SW] cache.put frontend:', e));
+    }
+    return iso(res);
+  } catch (e) {
+    const c = await cache.match(req);
+    if (c) return iso(c);
+    const h = new Headers({ 'Content-Type': 'text/plain; charset=utf-8', 'Cache-Control': 'no-store' });
+    setIso(h);
+    return new Response('Sin conexión', { status: 503, headers: h });
+  }
+}
+
+/* ───────────────────────── Fetch ───────────────────────── */
 
 self.addEventListener('fetch', (event) => {
-  const url = new URL(event.request.url);
+  const req = event.request;
+  if (req.cache === 'only-if-cached' && req.mode !== 'same-origin') return;
+
+  const url = new URL(req.url);
   if (url.origin !== self.location.origin) return;
+  if (req.method !== 'GET' && req.method !== 'HEAD') return;
 
-  const method = event.request.method;
-  if (method !== 'GET' && method !== 'HEAD') return;
-
-  // Estos scripts los gestiona el navegador directamente.
-  if (ROOT_JS.has(url.pathname)) return;
-
-  if (isFrontend(url.pathname)) {
-    event.respondWith(frontend(event));
+  const p = url.pathname;
+  if (isFrontend(p) || isLocalCode(p)) {
+    event.respondWith(networkFirst(req));
     return;
   }
-
-  event.respondWith(asset(event));
+  event.respondWith(serveAsset(req, url));
 });
