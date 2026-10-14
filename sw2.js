@@ -76,6 +76,19 @@ function isQuota(e) {
   return !!e && (e.name === 'QuotaExceededError' || e.code === 22);
 }
 
+// Algunos hostings/CDN devuelven el index.html con 200 y un Content-Type engañoso.
+// Se detecta por el contenido: ningún asset de /b/ o /game/ debería empezar por <!doctype o <html.
+function expectsNonHtml(path) {
+  return !/\.(html?|svg|xml)$/i.test(path);
+}
+
+function looksLikeHtml(buf) {
+  const n = Math.min(64, buf.byteLength);
+  if (n === 0) return false;
+  const head = new TextDecoder('latin1').decode(new Uint8Array(buf, 0, n)).trimStart().toLowerCase();
+  return head.startsWith('<!doctype') || head.startsWith('<html');
+}
+
 function netError(msg) {
   return Object.assign(new Error(msg || 'network'), { code: 'network' });
 }
@@ -226,6 +239,8 @@ async function tryOrigin(origin, pq, path, start, end, knownSize) {
     const buf = await res.arrayBuffer();
     clearTimeout(timer);
 
+    if (start === 0 && expectsNonHtml(path) && looksLikeHtml(buf)) return MISSING;
+
     if (total === null) {
       if (start === 0 && buf.byteLength < CHUNK_SIZE) {
         total = buf.byteLength;
@@ -253,7 +268,8 @@ async function readCachedChunk(base, i) {
   const res = await cc.match(chunkKey(base, i));
   if (res) {
     const buf = await res.arrayBuffer();
-    if (buf.byteLength === expectedLen(meta, i)) return buf;
+    const poisoned = i === 0 && expectsNonHtml(new URL(base).pathname) && looksLikeHtml(buf);
+    if (!poisoned && buf.byteLength === expectedLen(meta, i)) return buf;
     await cc.delete(chunkKey(base, i));
   }
   meta.have[i] = 0; // el navegador lo expulsó o está corrupto
