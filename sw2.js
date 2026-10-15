@@ -1,8 +1,7 @@
 'use strict';
 
 /* ───────────────────────── Configuración ───────────────────────── */
-
-const CDN_PRIMARY = 'https://fiveplay.lol';
+const CDN_PRIMARY = 'https://fiveplay.lol/playgta5.com';
 const CDN_FALLBACK = 'https://cdn.apkprojects.xyz/mirror/playgta5.com';
 
 const STATIC_PREFIX = 'gta5-static-';
