@@ -1,16 +1,20 @@
 'use strict';
 
 /* ───────────────────────── Configuración ───────────────────────── */
+
 const CDN_PRIMARY = 'https://fiveplay.lol/playgta5.com';
 const CDN_FALLBACK = 'https://cdn.apkprojects.xyz/mirror/playgta5.com';
 
 const STATIC_PREFIX = 'gta5-static-';
-const STATIC_CACHE = STATIC_PREFIX + 'v43';
-const CHUNK_CACHE = 'gta5-chunks';
-const META_CACHE = 'gta5-meta';
+const STATIC_CACHE = STATIC_PREFIX + 'v44';
+// ⚠️ Cachés versionadas: al subir la versión se limpian y evitan chunks corruptos
+// del tamaño anterior (4 MiB) mezclados con el nuevo (16 MiB).
+const CHUNK_CACHE = 'gta5-chunks-v2';
+const META_CACHE = 'gta5-meta-v2';
 
-const CHUNK_SIZE = 4 * 1024 * 1024;
-const MAX_BYTES = 30 * 1024 * 1024 * 1024;
+// ⚠️ Cambiar esto invalida TODA la caché existente. Versionada arriba.
+const CHUNK_SIZE = 16 * 1024 * 1024; // 16 MiB por trozo
+const MAX_BYTES = 30 * 1024 * 1024 * 1024; // tope propio
 const QUOTA_FRACTION = 0.9;
 
 const HEADER_TIMEOUT = 20000;
@@ -110,6 +114,7 @@ self.addEventListener('activate', (e) => e.waitUntil((async () => {
   await Promise.all(keys
     .filter((k) =>
       (k.startsWith(STATIC_PREFIX) && k !== STATIC_CACHE) ||
+      (k === 'gta5-chunks' || k === 'gta5-meta') ||
       /^gta5-v\d+$/.test(k))
     .map((k) => caches.delete(k)));
   await self.clients.claim();
@@ -124,7 +129,7 @@ const metas = new Map();
 const inflight = new Map();
 
 function parseMeta(j) {
-  if (!j || typeof j.base !== 'string' || !(j.size >= 0) || j.chunkSize !== CHUNK_SIZE) return null;
+  if (!j || typeof j.base !== 'string' || !Number.isFinite(j.size) || j.size < 0 || j.chunkSize !== CHUNK_SIZE) return null;
   const chunks = Math.max(1, Math.ceil(j.size / CHUNK_SIZE));
   if (typeof j.have !== 'string' || j.have.length !== chunks) return null;
   return {
@@ -261,6 +266,7 @@ async function readCachedChunk(base, i) {
     await cc.delete(chunkKey(base, i));
   }
   meta.have[i] = 0;
+  saveMeta(meta);
   return null;
 }
 
@@ -341,7 +347,11 @@ let trimPromise = null;
 let lastTrim = 0;
 
 function trim(force) {
-  if (trimPromise) return trimPromise;
+  if (trimPromise) {
+    // Si ya hay un trim en curso y se pide uno forzado, se encadena otro forzado
+    // al terminar; así el reintento tras QuotaExceededError sí libera espacio.
+    return force ? trimPromise.then(() => trim(true)) : trimPromise;
+  }
   if (!force && Date.now() - lastTrim < TRIM_INTERVAL) return Promise.resolve();
   trimPromise = doTrim(force)
     .catch((e) => console.warn('[SW] trim falló:', e))
@@ -367,7 +377,14 @@ async function doTrim(force) {
   const prefix = metaKey('');
   const all = [];
   for (const r of reqs) {
-    const m = await loadMeta(decodeURIComponent(r.url.slice(prefix.length)));
+    let base;
+    try {
+      base = decodeURIComponent(r.url.slice(prefix.length));
+    } catch (e) {
+      await mc.delete(r);
+      continue;
+    }
+    const m = await loadMeta(base);
     if (m) all.push(m);
   }
   let total = all.reduce((a, m) => a + cachedBytes(m), 0);
@@ -471,8 +488,11 @@ async function serveAsset(req, url) {
 
   try {
     let meta = await loadMeta(base);
+    let probe = null;
     if (!meta) {
-      await getChunkBuf(ctx, 0);
+      // Se conserva el buffer del trozo 0 para no volver a descargarlo
+      // (p. ej. si no se pudo guardar en caché por falta de espacio).
+      probe = await getChunkBuf(ctx, 0);
       meta = await loadMeta(base);
       if (!meta) throw netError('sin metadatos');
     }
@@ -504,7 +524,8 @@ async function serveAsset(req, url) {
 
     if (req.method === 'HEAD') return new Response(null, { status, headers });
 
-    const first = await getChunkBuf(ctx, Math.floor(s / CHUNK_SIZE));
+    const idx = Math.floor(s / CHUNK_SIZE);
+    const first = (idx === 0 && probe) ? probe : await getChunkBuf(ctx, idx);
     return new Response(chunkStream(ctx, meta, s, e, first), { status, headers });
   } catch (err) {
     return failure(err, path);
