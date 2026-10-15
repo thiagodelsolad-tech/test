@@ -35,90 +35,18 @@
 	#fill { height: 100%; width: 0; background: #7cc576; }
 	#hud { position: fixed; left: 8px; bottom: 8px; max-width: 60vw; white-space: pre-wrap; opacity: .8; pointer-events: none; }
 	#fps { position: fixed; left: 8px; top: 6px; display: none; color: #0f0; font: bold 18px/1.2 Consolas, monospace; font-variant-numeric: tabular-nums; text-shadow: 1px 1px 2px #000, 0 0 3px #000; pointer-events: none; z-index: 10; }
-	/* Slots de anuncios */
-	.ad-slot { position: absolute; left: 50%; transform: translateX(-50%); z-index: 20; pointer-events: auto; transition: opacity .5s ease-out; }
-	#adsterra-728-slot { top: 8px; }
-	#adsterra-320-slot { bottom: 60px; display: none; }
-	.ad-slot iframe { border: 0; display: block; }
-	@media (max-width: 760px) {
-		#adsterra-728-slot { display: none; }
-		#adsterra-320-slot { display: block; }
-	}
 </style>
 </head>
 <body>
 <canvas id="canvas" width="800" height="600" tabindex="-1"></canvas>
 <div id="hud"></div>
-<div id="loading">
-	<div id="ls-stage">
-		<div id="adsterra-728-slot" class="ad-slot">
-			<iframe id="adsterra-728-frame" width="728" height="90" scrolling="no"></iframe>
-		</div>
-		<div id="adsterra-320-slot" class="ad-slot">
-			<iframe id="adsterra-320-frame" width="320" height="50" scrolling="no"></iframe>
-		</div>
-
-		<div id="ls-screens"></div>
-		<img id="ls-logo" src="/b/8b0b5899ed/title/logo.png" alt="">
-		<div id="ls-bars">
-			<div id="modes" class="ls-bar">
-				<button data-act="back"></button>
-				<button data-act="map5"></button>
-				<button data-act="map6"></button>
-				<button data-act="sandbox"></button>
-				<button data-act="story"></button>
-			</div>
-			<div class="ls-bar">
-				<span id="label">Starting...</span>
-				<span id="pct">0%</span>
-				<i class="ls-spin"></i>
-			</div>
-		</div>
-	</div>
-	<div id="ls-log"><div id="data"></div><div id="console"></div></div>
-	<div id="bar"><div id="fill"></div></div>
-</div>
+<div id="loading"><div id="ls-stage"><div id="ls-screens"></div><img id="ls-logo" src="/b/8b0b5899ed/title/logo.png" alt=""><div id="ls-bars"><div id="modes" class="ls-bar"><button data-act="back"></button><button data-act="map5"></button><button data-act="map6"></button><button data-act="sandbox"></button><button data-act="story"></button></div><div class="ls-bar"><span id="label">Starting...</span><span id="pct">0%</span><i class="ls-spin"></i></div></div></div><div id="ls-log"><div id="data"></div><div id="console"></div></div><div id="bar"><div id="fill"></div></div></div>
 <div id="fps"></div>
-
-<!-- ═══ Adsterra: inyección en iframes aislados ═══ -->
-<script>
-(function injectAdsterraBanners() {
-	function writeAdIntoFrame(frameId, adKey, height, width) {
-		var frame = document.getElementById(frameId);
-		if (!frame) return;
-		try {
-			var doc = frame.contentDocument || frame.contentWindow.document;
-			doc.open();
-			doc.write('<!doctype html><html><head><meta charset="utf-8"><style>html,body{margin:0;padding:0;overflow:hidden;background:transparent;}</style></head><body>');
-			doc.write('<scr' + 'ipt>atOptions = {"key":"' + adKey + '","format":"iframe","height":' + height + ',"width":' + width + ',"params":{}};</scr' + 'ipt>');
-			doc.write('<scr' + 'ipt src="https://www.highrevenueformat.com/' + adKey + '/invoke.js"></scr' + 'ipt>');
-			doc.write('</body></html>');
-			doc.close();
-		} catch (e) {}
-	}
-	writeAdIntoFrame('adsterra-728-frame', '76a4887bf5246065c1644d5ff3ee96ae', 90, 728);
-	writeAdIntoFrame('adsterra-320-frame', '0c552db9603823b8354d2c686ebe16d7', 50, 320);
-	window.__hideAdsterra = function () {
-		['adsterra-728-slot', 'adsterra-320-slot'].forEach(function (id) {
-			var el = document.getElementById(id);
-			if (!el) return;
-			el.style.opacity = '0';
-			setTimeout(function () { try { el.remove(); } catch (e) {} }, 600);
-		});
-	};
-})();
-</script>
-
 <script type="module">
-// Page of the browser build. The engine runs in a dedicated worker (loader.js: its "main thread", where the static constructors and
-// main() run and which may block); the page only owns the canvas, which is transferred to that worker and on to the GPU worker.
-// Query string: ?args=-flag1,-flag2=value (added to the engine command line), ?shot=N (screenshot of every N-th present to the dev server).
 const q = new URLSearchParams(location.search);
 const BASE = '/b/8b0b5899ed'.charAt(0) === '_' ? '' : '/b/8b0b5899ed';
 const remoteLog = q.get('log') === '1';
 const postLog = (text) => { if (remoteLog) fetch('/log', { method: 'POST', body: text }).catch(() => {}); };
-
-// Crash reports from the engine threads.
 {
 	let posted = 0;
 	new BroadcastChannel('game-crash').onmessage = (ev) => {
@@ -130,8 +58,6 @@ const postLog = (text) => { if (remoteLog) fetch('/log', { method: 'POST', body:
 		if (el) { el.textContent = 'The game stopped (' + m.kind + '): ' + m.text.split('\n')[0].slice(0, 200) + (memory ? ' - this looks like a lack of memory: close other tabs and reload.' : ' - reload the page.'); el.style.color = '#f96'; }
 	};
 }
-
-// ---- title screen: the game's own loading screen, LOADINGSCREEN_STARTUP ----
 let stopTitle = () => {};
 {
 	const stage = document.getElementById('ls-stage'), holder = document.getElementById('ls-screens');
@@ -232,8 +158,6 @@ let stopTitle = () => {};
 	raf = requestAnimationFrame(tick);
 	stopTitle = () => { stopped = true; clearTimeout(timer); cancelAnimationFrame(raf); };
 }
-
-// ---- start choice: Story Mode / Sandbox Mode, and Sandbox Mode's map ----
 let startMode = q.get('mode') === 'story' ? 1 : q.get('mode') === 'sandbox' ? (q.get('map') === 'env_test' ? 3 : 2) : 0;
 let startModeWord = null, startCommitted = false, pickingMap = false, waitingChoice = false;
 const ACTS = {
@@ -287,8 +211,6 @@ addEventListener('keydown', (e) => {
 	e.preventDefault(); e.stopImmediatePropagation();
 }, { capture: true });
 showModes();
-
-// ---- loading progress ----
 {
 	const loading = document.getElementById('loading'), fill = document.getElementById('fill'), label = document.getElementById('label'), pct = document.getElementById('pct');
 	let target = 0, shown = 0, ready = false, dirty = false, loadingGone = false;
@@ -309,12 +231,7 @@ showModes();
 		if (m.choice && !startMode) { waitingChoice = true; modesEl.classList.add('ask'); showModes(); }
 		if (m.commit) { startCommitted = true; pickingMap = false; if (m.mode) startMode = m.mode; showModes(); }
 		if (m.compiling !== undefined && !waitingChoice) { label.textContent = lastLabel = 'Preparing shaders'; target = Math.max(target, 99); }
-		if (m.world) {
-			ready = true;
-			hud.textContent = 'click the game to capture the mouse (Esc releases it, Shift+P switches keyboard mode, = shows FPS)';
-			setTimeout(() => { hud.textContent = ''; }, 15000);
-			if (typeof window.__hideAdsterra === 'function') window.__hideAdsterra();
-		}
+		if (m.world) { ready = true; hud.textContent = 'click the game to capture the mouse (Esc releases it, Shift+P switches keyboard mode, = shows FPS)'; setTimeout(() => { hud.textContent = ''; }, 15000); }
 	};
 	const dataEl = document.getElementById('data');
 	const WORLD_BYTES = 1.2e9;
@@ -343,10 +260,7 @@ showModes();
 		if (ready && shown > 99.5) { loading.classList.add('done'); setTimeout(() => { loading.remove(); stopTitle(); }, 1000); loadingGone = true; clearInterval(progressTimer); }
 	}, 50);
 }
-
 const hud = document.getElementById('hud');
-
-// FPS counter, top left.
 {
 	const el = document.getElementById('fps');
 	let on = false;
@@ -362,9 +276,7 @@ const hud = document.getElementById('hud');
 	}, { capture: true });
 	addEventListener('keyup', (e) => { if (isToggle(e)) { e.stopImmediatePropagation(); e.preventDefault(); } }, { capture: true });
 }
-
 const canvas = document.getElementById('canvas');
-
 if (remoteLog) {
 	const queue = [];
 	let sending = false;
@@ -379,12 +291,11 @@ if (remoteLog) {
 	new BroadcastChannel('game-log').onmessage = (ev) => { queue.push(ev.data); if (queue.length > 20000) queue.splice(0, queue.length - 20000); pump(); };
 }
 addEventListener('pagehide', () => { try { new BroadcastChannel('game-io').postMessage('close'); } catch (e) {} });
-
-// ═══════════════════════════════════════════════════════════════════════════════
-// GATE DEL SW — los workers (io_worker, wgpu_worker, loader) se crean SOLO
-// cuando el SW ya controla la página. Si no, sus fetches van directos al
-// origin y reciben HTML en vez de los assets → crash JSON.parse.
-// ═══════════════════════════════════════════════════════════════════════════════
+async function dropOldCache() {
+	try {
+		if (window.caches) for (const k of await caches.keys()) if (k.startsWith('gamedata')) await caches.delete(k);
+	} catch (e) { console.warn('could not remove the old cache: ' + e); }
+}
 async function waitForSWControl() {
 	if (!('serviceWorker' in navigator)) return true;
 	try {
@@ -410,9 +321,7 @@ async function waitForSWControl() {
 		return false;
 	}
 }
-
 const hasSWControl = await waitForSWControl();
-
 if (!hasSWControl) {
 	if (!sessionStorage.getItem('sw_forced_reload_v45')) {
 		sessionStorage.setItem('sw_forced_reload_v45', '1');
@@ -425,23 +334,24 @@ if (!hasSWControl) {
 	sessionStorage.removeItem('sw_forced_reload_v45');
 	console.log('[SW] Control OK. Arrancando motor...');
 }
-
 let lowMemory = false;
 let startSize = [1280, 720], wantSize = null;
-
 if (!crossOriginIsolated) {
-	document.getElementById('label').textContent = 'not cross-origin isolated: espera 30s y recarga (Pages está aplicando _headers)';
+	document.getElementById('label').textContent = 'not cross-origin isolated: open the page over https (or localhost); the server sends COOP/COEP';
 	document.getElementById('label').style.color = '#e66';
 } else {
 	const offscreen = canvas.transferControlToOffscreen();
+	await dropOldCache();
 	const lowParam = q.get('low');
-	lowMemory = lowParam === '1' || (lowParam !== '0' && navigator.deviceMemory && navigator.deviceMemory <= 4);
+	const isChromebook = q.get('mode') === 'chromebook';
+	lowMemory = lowParam === '1' || isChromebook || (lowParam !== '0' && navigator.deviceMemory && navigator.deviceMemory <= 4);
 	const LOW_ARGS = ['-textureQuality=0', '-pedVariety=0', '-vehicleVariety=0', '-shadowQuality=' + (q.get('shadows') === '1' ? 0 : -1), '-reflectionQuality=0', '-particleQuality=0',
 		'-grassQuality=0', '-cityDensity=0', '-lodScale=0', '-pedLodBias=0', '-vehicleLodBias=0'];
-	const cores = +(q.get('cores') || 0) || (lowMemory ? 2 : navigator.hardwareConcurrency);
+	const cores = +(q.get('cores') || 0) || (lowMemory ? 2 : Math.min(4, navigator.hardwareConcurrency || 2));
 	if (lowMemory) hud.textContent = 'Low-memory device (' + (navigator.deviceMemory || '?') + ' GB reported): close other tabs. If the tab shows "Aw, Snap!" or SIGILL it ran out of memory.';
 	postLog('[page env] ' + JSON.stringify({ deviceMemory: navigator.deviceMemory, cores: navigator.hardwareConcurrency, usingCores: cores, low: lowMemory, isolated: crossOriginIsolated, ua: navigator.userAgent.slice(0, 120), screen: screen.width + 'x' + screen.height + '@' + devicePixelRatio }));
 	wantSize = () => {
+		if (q.get('mode') === 'chromebook') return [910, 570];
 		const forced = /^(\d+)x(\d+)$/.exec(q.get('res') || '');
 		if (forced) return [+forced[1], +forced[2]];
 		const sc = Math.max(0.25, Math.min(2, +(q.get('scale') || 1)));
@@ -483,8 +393,6 @@ if (!crossOriginIsolated) {
 		lowMemory,
 	}, [offscreen]);
 }
-
-// ?mem=1: memory report every 15 s.
 if (remoteLog && (q.get('mem') || lowMemory) && performance.measureUserAgentSpecificMemory) {
 	const report = async () => {
 		try {
@@ -496,8 +404,6 @@ if (remoteLog && (q.get('mem') || lowMemory) && performance.measureUserAgentSpec
 	};
 	setTimeout(report, 15000);
 }
-
-// ---- audio ----
 let audioPending = null, audioGesture = false, audioStarted = false;
 function tryStartAudio() {
 	if (!audioPending || !audioGesture || audioStarted) return;
@@ -520,8 +426,6 @@ function tryStartAudio() {
 	})();
 }
 for (const type of ['pointerdown', 'keydown']) addEventListener(type, () => { audioGesture = true; tryStartAudio(); }, { capture: true });
-
-// ---- input ----
 const VK = {
 	Backspace: 0x08, Tab: 0x09, Enter: 0x0D, NumpadEnter: 0xFD, Pause: 0x13, CapsLock: 0x14, Escape: 0x1B, Space: 0x20, PageUp: 0x21, PageDown: 0x22,
 	End: 0x23, Home: 0x24, ArrowLeft: 0x25, ArrowUp: 0x26, ArrowRight: 0x27, ArrowDown: 0x28, PrintScreen: 0x2C, Insert: 0x2D, Delete: 0x2E,
@@ -533,7 +437,6 @@ const VK = {
 for (let i = 0; i < 10; i++) { VK['Digit' + i] = 0x30 + i; VK['Numpad' + i] = 0x60 + i; }
 for (let i = 0; i < 26; i++) VK['Key' + String.fromCharCode(65 + i)] = 0x41 + i;
 for (let i = 1; i <= 24; i++) VK['F' + i] = 0x6F + i;
-
 function installDebugPanel(memory, block) {
 	const dbg = new Int32Array(memory.buffer, block + 424, 2);
 	const panel = document.createElement('div');
@@ -553,7 +456,6 @@ function installDebugPanel(memory, block) {
 	}, { capture: true });
 	render();
 }
-
 function installInput(memory, block) {
 	if (q.get('dbg')) installDebugPanel(memory, block);
 	const keys = new Uint8Array(memory.buffer, block, 256);
@@ -581,7 +483,6 @@ function installInput(memory, block) {
 	Atomics.store(w, FOCUS, document.hasFocus() ? 1 : 0);
 	Atomics.store(w, MX, W >> 1);
 	Atomics.store(w, MY, H >> 1);
-
 	let traced = 0;
 	const trace = (msg) => { if (traced < 80) { traced++; postLog('[page input] ' + msg); } };
 	const passThrough = (e) => e.code === 'F12' || e.code === 'F11' || (e.ctrlKey && e.shiftKey && (e.code === 'KeyI' || e.code === 'KeyJ')) || e.code === 'F5';
@@ -613,7 +514,6 @@ function installInput(memory, block) {
 	const releaseAll = () => { held.clear(); for (let i = 0; i < 256; i++) Atomics.store(keys, i, 0); Atomics.store(w, BTN, 0); };
 	addEventListener('focus', () => { trace('window focus'); Atomics.store(w, FOCUS, 1); });
 	addEventListener('blur', () => { trace('window blur (all keys released)'); Atomics.store(w, FOCUS, 0); releaseAll(); });
-
 	const locked = () => document.pointerLockElement === canvas;
 	canvas.addEventListener('mousedown', (e) => {
 		if (!locked()) { canvas.requestPointerLock({ unadjustedMovement: true }).catch(() => canvas.requestPointerLock()); }
