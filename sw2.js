@@ -2,23 +2,27 @@
 
 /* ───────────────────────── Configuración ───────────────────────── */
 
+// Solo fiveplay — R2 eliminado del flujo (evita el TypeError de CORS
+// en consola y no satura ni depende de dos CDNs).
 const CDN_PRIMARY = 'https://fiveplay.lol/playgta5.com';
-const CDN_FALLBACK = 'https://cdn.apkprojects.xyz/mirror/playgta5.com';
 
 const STATIC_PREFIX = 'gta5-static-';
-const STATIC_CACHE = STATIC_PREFIX + 'v44';
-// ⚠️ Cachés versionadas: al subir la versión se limpian y evitan chunks corruptos
-// del tamaño anterior (4 MiB) mezclados con el nuevo (16 MiB).
-const CHUNK_CACHE = 'gta5-chunks-v2';
-const META_CACHE = 'gta5-meta-v2';
+const STATIC_CACHE = STATIC_PREFIX + 'v45';
+const CHUNK_CACHE = 'gta5-chunks-v3';
+const META_CACHE = 'gta5-meta-v3';
 
-// ⚠️ Cambiar esto invalida TODA la caché existente. Versionada arriba.
 const CHUNK_SIZE = 16 * 1024 * 1024; // 16 MiB por trozo
-const MAX_BYTES = 30 * 1024 * 1024 * 1024; // tope propio
+const MAX_BYTES = 30 * 1024 * 1024 * 1024;
 const QUOTA_FRACTION = 0.9;
 
-const HEADER_TIMEOUT = 20000;
-const BODY_TIMEOUT = 90000;
+// ⚠️ Concurrencia limitada: fiveplay corta a las ~10-15 conexiones por IP.
+// Si subes esto por encima de 8, empezarás a ver AbortError / timeouts.
+const MAX_CONCURRENT = 8;
+let activeDownloads = 0;
+
+// ⚠️ Timeouts amplios: fiveplay puede tardar 20-30 s en servir un rango de 16 MiB.
+const HEADER_TIMEOUT = 45000;   // 45 s para las cabeceras
+const BODY_TIMEOUT = 180000;    // 3 min para el cuerpo completo
 const TOUCH_INTERVAL = 60000;
 const TRIM_INTERVAL = 15000;
 
@@ -28,8 +32,6 @@ const FRONTEND = new Set([
 ]);
 
 const LOCAL_CODE = /^\/b\/[0-9a-f]+\/(loader|audio-worklet|game|io_worker|wgpu_worker)\.js$/;
-
-const FALLBACK_FIRST = /\.(wasm|rpf)$/;
 
 const MISSING = { state: 'missing' };
 const ERROR = { state: 'error' };
@@ -114,7 +116,7 @@ self.addEventListener('activate', (e) => e.waitUntil((async () => {
   await Promise.all(keys
     .filter((k) =>
       (k.startsWith(STATIC_PREFIX) && k !== STATIC_CACHE) ||
-      (k === 'gta5-chunks' || k === 'gta5-meta') ||
+      (k === 'gta5-chunks' || k === 'gta5-meta' || k === 'gta5-chunks-v2' || k === 'gta5-meta-v2') ||
       /^gta5-v\d+$/.test(k))
     .map((k) => caches.delete(k)));
   await self.clients.claim();
@@ -184,12 +186,6 @@ function saveMeta(meta) {
 
 /* ───────────────────────── Descarga de trozos ───────────────────────── */
 
-function originsFor(path) {
-  return FALLBACK_FIRST.test(path)
-    ? [CDN_FALLBACK, CDN_PRIMARY]
-    : [CDN_PRIMARY, CDN_FALLBACK];
-}
-
 async function tryOrigin(origin, pq, path, start, end, knownSize) {
   const ctrl = new AbortController();
   let timer = setTimeout(() => ctrl.abort(), HEADER_TIMEOUT);
@@ -249,6 +245,7 @@ async function tryOrigin(origin, pq, path, start, end, knownSize) {
     return { state: 'ok', buf, total, ct };
   } catch (e) {
     clearTimeout(timer);
+    // Solo logueamos si NO es un abort provocado por nosotros (timeout real)
     console.warn('[SW] Fallo de red con', origin, e && e.name);
     return ERROR;
   }
@@ -289,19 +286,44 @@ async function putChunk(base, i, buf) {
   }
 }
 
-async function downloadChunk(ctx, i) {
-  const { base, path, pq } = ctx;
-  const known = metas.get(base);
-  const knownSize = known ? known.size : null;
-  const start = i * CHUNK_SIZE;
-  let end = start + CHUNK_SIZE - 1;
-  if (knownSize != null) end = Math.min(end, knownSize - 1);
+/* ───────────────────────── Cola de descargas ───────────────────────── */
 
-  let sawError = false;
-  for (const origin of originsFor(path)) {
-    const r = await tryOrigin(origin, pq, path, start, end, knownSize);
-    if (r.state === 'error') { sawError = true; continue; }
-    if (r.state !== 'ok') continue;
+const downloadQueue = [];
+
+function acquireSlot() {
+  if (activeDownloads < MAX_CONCURRENT) {
+    activeDownloads++;
+    return Promise.resolve();
+  }
+  return new Promise((resolve) => downloadQueue.push(resolve));
+}
+
+function releaseSlot() {
+  activeDownloads--;
+  const next = downloadQueue.shift();
+  if (next) {
+    activeDownloads++;
+    next();
+  }
+}
+
+async function downloadChunk(ctx, i) {
+  await acquireSlot();
+  try {
+    const { base, path, pq } = ctx;
+    const known = metas.get(base);
+    const knownSize = known ? known.size : null;
+    const start = i * CHUNK_SIZE;
+    let end = start + CHUNK_SIZE - 1;
+    if (knownSize != null) end = Math.min(end, knownSize - 1);
+
+    const r = await tryOrigin(CDN_PRIMARY, pq, path, start, end, knownSize);
+    if (r.state !== 'ok') {
+      throw Object.assign(
+        new Error(r.state === 'missing' ? 'missing' : 'network'),
+        { code: r.state === 'missing' ? 'missing' : 'network' }
+      );
+    }
 
     let meta = metas.get(base);
     if (!meta) {
@@ -325,8 +347,9 @@ async function downloadChunk(ctx, i) {
       saveMeta(meta);
     }
     return r.buf;
+  } finally {
+    releaseSlot();
   }
-  throw Object.assign(new Error(sawError ? 'network' : 'missing'), { code: sawError ? 'network' : 'missing' });
 }
 
 async function getChunkBuf(ctx, i) {
@@ -348,8 +371,6 @@ let lastTrim = 0;
 
 function trim(force) {
   if (trimPromise) {
-    // Si ya hay un trim en curso y se pide uno forzado, se encadena otro forzado
-    // al terminar; así el reintento tras QuotaExceededError sí libera espacio.
     return force ? trimPromise.then(() => trim(true)) : trimPromise;
   }
   if (!force && Date.now() - lastTrim < TRIM_INTERVAL) return Promise.resolve();
@@ -490,8 +511,6 @@ async function serveAsset(req, url) {
     let meta = await loadMeta(base);
     let probe = null;
     if (!meta) {
-      // Se conserva el buffer del trozo 0 para no volver a descargarlo
-      // (p. ej. si no se pudo guardar en caché por falta de espacio).
       probe = await getChunkBuf(ctx, 0);
       meta = await loadMeta(base);
       if (!meta) throw netError('sin metadatos');
