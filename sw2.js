@@ -2,36 +2,30 @@
 
 /* ───────────────────────── Configuración ───────────────────────── */
 
-const CDN_PRIMARY = 'https://gta.deloskiyt.pl';
+const CDN_PRIMARY = 'https://fiveplay.lol';
 const CDN_FALLBACK = 'https://cdn.apkprojects.xyz/mirror/playgta5.com';
 
-// Caché pequeña de código/frontend (versionada: se borra al subir de versión).
 const STATIC_PREFIX = 'gta5-static-';
 const STATIC_CACHE = STATIC_PREFIX + 'v43';
-// Cachés pesadas (SIN versión: sobreviven a las actualizaciones del SW).
 const CHUNK_CACHE = 'gta5-chunks';
 const META_CACHE = 'gta5-meta';
 
-// ¡No cambies CHUNK_SIZE sin vaciar antes CHUNK_CACHE y META_CACHE!
-const CHUNK_SIZE = 4 * 1024 * 1024; // 4 MiB por trozo
-const MAX_BYTES = 30 * 1024 * 1024 * 1024; // tope propio (el juego pesa ~20 GB)
-const QUOTA_FRACTION = 0.9; // nunca usar más de este % de la cuota del navegador
+const CHUNK_SIZE = 4 * 1024 * 1024;
+const MAX_BYTES = 30 * 1024 * 1024 * 1024;
+const QUOTA_FRACTION = 0.9;
 
-const HEADER_TIMEOUT = 20000; // esperar cabeceras del CDN
-const BODY_TIMEOUT = 90000; // descargar un trozo completo
-const TOUCH_INTERVAL = 60000; // cada cuánto actualizar "último uso"
-const TRIM_INTERVAL = 15000; // mínimo entre limpiezas automáticas
+const HEADER_TIMEOUT = 20000;
+const BODY_TIMEOUT = 90000;
+const TOUCH_INTERVAL = 60000;
+const TRIM_INTERVAL = 15000;
 
 const FRONTEND = new Set([
   '/', '/index.html', '/sw2.js', '/sw.js', '/favicon.ico',
   '/robots.txt', '/_headers', '/_redirects',
 ]);
 
-// Scripts propios del juego (el hash del build puede cambiar).
 const LOCAL_CODE = /^\/b\/[0-9a-f]+\/(loader|audio-worklet|game|io_worker|wgpu_worker)\.js$/;
 
-// .wasm y .rpf: se prueba primero el mirror (comportamiento original).
-// Si el primario también los sirve bien, puedes quitar esta regla.
 const FALLBACK_FIRST = /\.(wasm|rpf)$/;
 
 const MISSING = { state: 'missing' };
@@ -54,7 +48,6 @@ function setIso(h) {
 }
 
 function iso(r) {
-  // Las respuestas opacas / redirects manuales no se pueden reconstruir.
   if (!r || r.status === 0 || r.type === 'opaque' || r.type === 'opaqueredirect' || r.type === 'error') return r;
   const h = new Headers(r.headers);
   setIso(h);
@@ -76,8 +69,6 @@ function isQuota(e) {
   return !!e && (e.name === 'QuotaExceededError' || e.code === 22);
 }
 
-// Algunos hostings/CDN devuelven el index.html con 200 y un Content-Type engañoso.
-// Se detecta por el contenido: ningún asset de /b/ o /game/ debería empezar por <!doctype o <html.
 function expectsNonHtml(path) {
   return !/\.(html?|svg|xml)$/i.test(path);
 }
@@ -120,7 +111,7 @@ self.addEventListener('activate', (e) => e.waitUntil((async () => {
   await Promise.all(keys
     .filter((k) =>
       (k.startsWith(STATIC_PREFIX) && k !== STATIC_CACHE) ||
-      /^gta5-v\d+$/.test(k)) // caché antigua (formato anterior, sin trozos)
+      /^gta5-v\d+$/.test(k))
     .map((k) => caches.delete(k)));
   await self.clients.claim();
   try {
@@ -130,8 +121,8 @@ self.addEventListener('activate', (e) => e.waitUntil((async () => {
 
 /* ───────────────────────── Metadatos por archivo ───────────────────────── */
 
-const metas = new Map(); // base -> meta (en memoria)
-const inflight = new Map(); // clave de trozo -> Promise<ArrayBuffer>
+const metas = new Map();
+const inflight = new Map();
 
 function parseMeta(j) {
   if (!j || typeof j.base !== 'string' || !(j.size >= 0) || j.chunkSize !== CHUNK_SIZE) return null;
@@ -171,7 +162,6 @@ async function loadMeta(base) {
 }
 
 function saveMeta(meta) {
-  // Serializado por archivo: siempre se escribe el estado más reciente.
   meta.saving = meta.saving.then(async () => {
     if (!metas.has(meta.base)) metas.set(meta.base, meta);
     const mc = await caches.open(META_CACHE);
@@ -211,7 +201,7 @@ async function tryOrigin(origin, pq, path, start, end, knownSize) {
 
     if (res.status === 404 || res.status === 410) { discard(res); return MISSING; }
     if (res.status === 416 && start === 0) {
-      discard(res); // archivo vacío
+      discard(res);
       return { state: 'ok', buf: new ArrayBuffer(0), total: 0, ct: '' };
     }
     if (res.status !== 206 && res.status !== 200) { discard(res); return ERROR; }
@@ -229,7 +219,6 @@ async function tryOrigin(origin, pq, path, start, end, knownSize) {
         if (m[3] !== '*') total = parseInt(m[3], 10);
       }
     } else {
-      // 200: el servidor ignoró Range. Solo sirve si el archivo cabe en un trozo.
       const len = parseInt(res.headers.get('Content-Length') || '', 10);
       if (start !== 0 || !(len >= 0 && len <= CHUNK_SIZE)) { discard(res); return ERROR; }
       total = len;
@@ -249,7 +238,7 @@ async function tryOrigin(origin, pq, path, start, end, knownSize) {
         return ERROR;
       }
     }
-    if (knownSize != null && total !== knownSize) return ERROR; // el archivo cambió
+    if (knownSize != null && total !== knownSize) return ERROR;
     const expected = Math.min(end, total - 1) - start + 1;
     if (buf.byteLength !== expected) return ERROR;
 
@@ -272,7 +261,7 @@ async function readCachedChunk(base, i) {
     if (!poisoned && buf.byteLength === expectedLen(meta, i)) return buf;
     await cc.delete(chunkKey(base, i));
   }
-  meta.have[i] = 0; // el navegador lo expulsó o está corrupto
+  meta.have[i] = 0;
   return null;
 }
 
@@ -397,10 +386,10 @@ async function doTrim(force) {
   if (total <= budget) return;
 
   const target = budget * 0.9;
-  all.sort((a, b) => a.lastUsed - b.lastUsed); // el menos usado primero
+  all.sort((a, b) => a.lastUsed - b.lastUsed);
   for (const m of all) {
     if (total <= target) break;
-    if (m.active > 0) continue; // no tocar lo que se está sirviendo
+    if (m.active > 0) continue;
     total -= cachedBytes(m);
     await evict(m);
   }
@@ -408,14 +397,13 @@ async function doTrim(force) {
 
 /* ───────────────────────── Rangos y streaming ───────────────────────── */
 
-// null → sin rango válido (se responde 200 completo); {bad:true} → 416; {s,e} → 206
 function parseRange(header, size) {
   if (!header) return null;
   const m = /^\s*bytes\s*=\s*(\d*)\s*-\s*(\d*)\s*$/i.exec(header);
-  if (!m || (m[1] === '' && m[2] === '')) return null; // sintaxis inválida o multi-rango
+  if (!m || (m[1] === '' && m[2] === '')) return null;
   let s;
   let e;
-  if (m[1] === '') { // sufijo: los últimos N bytes
+  if (m[1] === '') {
     const n = parseInt(m[2], 10);
     if (n === 0) return { bad: true };
     s = Math.max(0, size - n);
@@ -426,7 +414,7 @@ function parseRange(header, size) {
       e = size - 1;
     } else {
       const req = parseInt(m[2], 10);
-      if (req < s) return null; // inválido → se ignora
+      if (req < s) return null;
       e = Math.min(req, size - 1);
     }
   }
@@ -466,10 +454,7 @@ function failure(err, path) {
   const h = new Headers({ 'Content-Type': 'text/plain; charset=utf-8', 'Cache-Control': 'no-store' });
   setIso(h);
   if (err && err.code === 'missing') {
-    // Solo para 404 reales (nunca por fallos de red): evita JSON.parse sobre HTML.
-    // Se devuelve {} también para .meta, .ymt, .dat y archivos SIN extensión
-    // (el io_worker los parsea como JSON y el motor tiene defaults internos).
-    if (/\.(json|meta|ymt|dat)$/i.test(path) || !path.includes('.')) {
+    if (path.endsWith('.json')) {
       h.set('Content-Type', 'application/json');
       return new Response('{}', { status: 200, headers: h });
     }
@@ -481,14 +466,14 @@ function failure(err, path) {
 
 async function serveAsset(req, url) {
   const path = url.pathname;
-  const pq = path + url.search; // la query forma parte de la clave
+  const pq = path + url.search;
   const base = url.origin + pq;
   const ctx = { base, path, pq };
 
   try {
     let meta = await loadMeta(base);
     if (!meta) {
-      await getChunkBuf(ctx, 0); // descubre tamaño y tipo
+      await getChunkBuf(ctx, 0);
       meta = await loadMeta(base);
       if (!meta) throw netError('sin metadatos');
     }
@@ -520,7 +505,6 @@ async function serveAsset(req, url) {
 
     if (req.method === 'HEAD') return new Response(null, { status, headers });
 
-    // Se pide el primer trozo antes de responder para poder devolver 503/404 limpios.
     const first = await getChunkBuf(ctx, Math.floor(s / CHUNK_SIZE));
     return new Response(chunkStream(ctx, meta, s, e, first), { status, headers });
   } catch (err) {
