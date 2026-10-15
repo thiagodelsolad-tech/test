@@ -2,27 +2,27 @@
 
 /* ───────────────────────── Configuración ───────────────────────── */
 
-// Solo fiveplay — R2 eliminado del flujo (evita el TypeError de CORS
-// en consola y no satura ni depende de dos CDNs).
-const CDN_PRIMARY = 'https://fiveplay.lol/playgta5.com';
+// R2 primario (CORS habilitado con la Transform Rule).
+// Fiveplay como fallback por si R2 no tiene algún archivo puntual.
+const CDN_PRIMARY  = 'https://cdn.apkprojects.xyz/mirror/playgta5.com';
+const CDN_FALLBACK = 'https://fiveplay.lol/playgta5.com';
 
 const STATIC_PREFIX = 'gta5-static-';
-const STATIC_CACHE = STATIC_PREFIX + 'v45';
-const CHUNK_CACHE = 'gta5-chunks-v3';
-const META_CACHE = 'gta5-meta-v3';
+const STATIC_CACHE = STATIC_PREFIX + 'v46';
+const CHUNK_CACHE = 'gta5-chunks-v4';
+const META_CACHE = 'gta5-meta-v4';
 
-const CHUNK_SIZE = 16 * 1024 * 1024; // 16 MiB por trozo
+const CHUNK_SIZE = 16 * 1024 * 1024;      // 16 MiB por trozo
 const MAX_BYTES = 30 * 1024 * 1024 * 1024;
 const QUOTA_FRACTION = 0.9;
 
-// ⚠️ Concurrencia limitada: fiveplay corta a las ~10-15 conexiones por IP.
-// Si subes esto por encima de 8, empezarás a ver AbortError / timeouts.
+// R2 aguanta bien 8 conexiones simultáneas. Si tuvieras problemas de timeout,
+// baja a 4.
 const MAX_CONCURRENT = 8;
 let activeDownloads = 0;
 
-// ⚠️ Timeouts amplios: fiveplay puede tardar 20-30 s en servir un rango de 16 MiB.
-const HEADER_TIMEOUT = 45000;   // 45 s para las cabeceras
-const BODY_TIMEOUT = 180000;    // 3 min para el cuerpo completo
+const HEADER_TIMEOUT = 45000;    // 45 s cabeceras
+const BODY_TIMEOUT = 180000;     // 3 min cuerpo completo
 const TOUCH_INTERVAL = 60000;
 const TRIM_INTERVAL = 15000;
 
@@ -116,7 +116,9 @@ self.addEventListener('activate', (e) => e.waitUntil((async () => {
   await Promise.all(keys
     .filter((k) =>
       (k.startsWith(STATIC_PREFIX) && k !== STATIC_CACHE) ||
-      (k === 'gta5-chunks' || k === 'gta5-meta' || k === 'gta5-chunks-v2' || k === 'gta5-meta-v2') ||
+      k === 'gta5-chunks' || k === 'gta5-meta' ||
+      k === 'gta5-chunks-v2' || k === 'gta5-meta-v2' ||
+      k === 'gta5-chunks-v3' || k === 'gta5-meta-v3' ||
       /^gta5-v\d+$/.test(k))
     .map((k) => caches.delete(k)));
   await self.clients.claim();
@@ -180,7 +182,7 @@ function saveMeta(meta) {
       lastUsed: meta.lastUsed,
       have: Array.from(meta.have).join(''),
     }), { headers: { 'Content-Type': 'application/json' } }));
-  }).catch((e) => console.warn('[SW] No se pudo guardar metadatos:', e));
+  }).catch((e) => console.warn('[SW] saveMeta:', e));
   return meta.saving;
 }
 
@@ -234,7 +236,7 @@ async function tryOrigin(origin, pq, path, start, end, knownSize) {
       if (start === 0 && buf.byteLength < CHUNK_SIZE) {
         total = buf.byteLength;
       } else {
-        console.error('[SW] El CDN no expone Content-Range (falta Access-Control-Expose-Headers):', origin);
+        console.error('[SW] CDN sin Content-Range expuesto:', origin);
         return ERROR;
       }
     }
@@ -245,8 +247,7 @@ async function tryOrigin(origin, pq, path, start, end, knownSize) {
     return { state: 'ok', buf, total, ct };
   } catch (e) {
     clearTimeout(timer);
-    // Solo logueamos si NO es un abort provocado por nosotros (timeout real)
-    console.warn('[SW] Fallo de red con', origin, e && e.name);
+    console.warn('[SW] Fallo con', origin, e && e.name);
     return ERROR;
   }
 }
@@ -280,7 +281,7 @@ async function putChunk(base, i, buf) {
       await cc.put(chunkKey(base, i), mk());
       return true;
     } catch (e2) {
-      console.warn('[SW] Sin espacio para cachear el trozo (se sirve sin guardar):', e2);
+      console.warn('[SW] Sin espacio para cachear el trozo:', e2);
       return false;
     }
   }
@@ -317,7 +318,14 @@ async function downloadChunk(ctx, i) {
     let end = start + CHUNK_SIZE - 1;
     if (knownSize != null) end = Math.min(end, knownSize - 1);
 
-    const r = await tryOrigin(CDN_PRIMARY, pq, path, start, end, knownSize);
+    // 1. R2 primero
+    let r = await tryOrigin(CDN_PRIMARY, pq, path, start, end, knownSize);
+
+    // 2. Si R2 no tiene el archivo (MISSING), probamos fiveplay
+    if (r.state !== 'ok' && CDN_FALLBACK) {
+      r = await tryOrigin(CDN_FALLBACK, pq, path, start, end, knownSize);
+    }
+
     if (r.state !== 'ok') {
       throw Object.assign(
         new Error(r.state === 'missing' ? 'missing' : 'network'),
