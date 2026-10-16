@@ -1,10 +1,11 @@
 // ═══════════════════════════════════════════════════════════════════════
-// GTA V Service Worker Proxy — Con 2 anuncios (300x250 + 468x60)
+// Service Worker Proxy — GTA V + The Simpsons: Hit & Run
 // ═══════════════════════════════════════════════════════════════════════
 
-const ORIGIN = 'https://fiveplay.lol';
+const ORIGIN_GTA = 'https://fiveplay.lol';
+const ORIGIN_SIMPSONS = 'https://shar-wasm.cjoseph.workers.dev';
 
-const GAME_PREFIXES = [
+const GTA_PREFIXES = [
   '/b/', '/game/', '/data/', '/audio/', '/x64/',
   '/log', '/loader.js', '/prejs.js', '/wgpu_worker.js',
   '/io_worker.js', '/audio-worklet.js', '/sw2.js',
@@ -14,29 +15,69 @@ self.addEventListener('install', () => self.skipWaiting());
 self.addEventListener('activate', (event) => event.waitUntil(self.clients.claim()));
 
 self.addEventListener('fetch', (event) => {
-  const url = new URL(event.request.url);
-  if (url.origin !== self.location.origin) return;
-
-  const isGamePage = url.pathname === '/gta5'
-                  || url.pathname === '/gta5/'
-                  || url.pathname === '/gta5/index.html';
-
-  const isGameAsset = GAME_PREFIXES.some(p => url.pathname.startsWith(p));
-
-  if (isGamePage) {
-    event.respondWith(serveGameHTML());
-  } else if (isGameAsset) {
-    event.respondWith(proxyAsset(event.request));
-  }
+  event.respondWith(handleFetch(event));
 });
+
+// ═══════════════════════════════════════════════════════════════════════
+// ROUTER
+// ═══════════════════════════════════════════════════════════════════════
+async function handleFetch(event) {
+  const url = new URL(event.request.url);
+
+  // Ignorar peticiones a otros orígenes (ads, fonts, etc.)
+  if (url.origin !== self.location.origin) return fetch(event.request);
+
+  const path = url.pathname;
+
+  // ── Launcher y estáticos propios: pasar directo ──
+  if (path === '/' || path === '/index.html' ||
+      path.startsWith('/img/') || path === '/favicon.ico') {
+    return fetch(event.request);
+  }
+
+  // ── Páginas de juego ──
+  if (path === '/simpsons' || path === '/simpsons/' || path === '/simpsons/index.html') {
+    return serveGameHTML(ORIGIN_SIMPSONS, 'simpsons');
+  }
+  if (path === '/gta5' || path === '/gta5/' || path === '/gta5/index.html') {
+    return serveGameHTML(ORIGIN_GTA, 'gta');
+  }
+
+  // ── Determinar a qué juego pertenecen los assets ──
+  // Como GTA y Simpsons comparten /data/ y /assets/, usamos el clientId
+  let mode = 'gta';
+  if (event.clientId) {
+    try {
+      const client = await self.clients.get(event.clientId);
+      if (client && client.url && client.url.indexOf('/simpsons') !== -1) {
+        mode = 'simpsons';
+      }
+    } catch (e) {}
+  }
+
+  // ── Simpsons: todo lo demás va a shar-wasm ──
+  if (mode === 'simpsons') {
+    return proxyAsset(event.request, ORIGIN_SIMPSONS);
+  }
+
+  // ── GTA: solo rutas conocidas ──
+  const isGtaAsset = GTA_PREFIXES.some(p => path.startsWith(p));
+  if (isGtaAsset) {
+    return proxyAsset(event.request, ORIGIN_GTA);
+  }
+
+  // ── Cualquier otra cosa: dejar pasar a GitHub Pages ──
+  return fetch(event.request);
+}
 
 // ═══════════════════════════════════════════════════════════════════════
 // PROXY DE ASSETS
 // ═══════════════════════════════════════════════════════════════════════
-async function proxyAsset(request) {
+async function proxyAsset(request, origin) {
   const url = new URL(request.url);
-  const target = ORIGIN + url.pathname + url.search;
+  const target = origin + url.pathname + url.search;
 
+  // El SW propio de fiveplay no existe → stub
   if (url.pathname === '/sw2.js') {
     return new Response('self.addEventListener("install",()=>self.skipWaiting());', {
       headers: { 'Content-Type': 'application/javascript' }
@@ -85,9 +126,12 @@ async function proxyAsset(request) {
 // ═══════════════════════════════════════════════════════════════════════
 // HTML DEL JUEGO
 // ═══════════════════════════════════════════════════════════════════════
-async function serveGameHTML() {
+async function serveGameHTML(origin, type) {
   try {
-    const upstream = await fetch(ORIGIN + '/', {
+    // Simpsons acepta ?skipmovie para saltar el vídeo de intro
+    const targetUrl = type === 'simpsons' ? origin + '/?skipmovie' : origin + '/';
+
+    const upstream = await fetch(targetUrl, {
       method: 'GET',
       mode: 'cors',
       credentials: 'omit',
@@ -96,22 +140,25 @@ async function serveGameHTML() {
 
     let html = await upstream.text();
 
-    html = html.replace(
-      /<script[^>]*src\s*=\s*["'][^"']*(quge5\.com|alwingulla\.com|monetag|tag\.min\.js|cloudflareinsights)[^"']*["'][^>]*>\s*<\/script>/gi,
-      ''
-    );
-    html = html.replace(/<meta\s+name=["']monetag["'][^>]*>/gi, '');
-    html = html.replace(
-      /<iframe[^>]*src=["'][^"']*(adsterra|monetag|highrevenue)[^"']*["'][^>]*>\s*<\/iframe>/gi,
-      ''
-    );
-    html = html.replace(
-      /navigator\.serviceWorker\.register\(\s*['"]\/sw2\.js['"][^)]*\)/g,
-      'Promise.resolve()'
-    );
+    // ── Limpieza de anuncios SOLO para GTA V ──
+    if (type === 'gta') {
+      html = html.replace(
+        /<script[^>]*src\s*=\s*["'][^"']*(quge5\.com|alwingulla\.com|monetag|tag\.min\.js|cloudflareinsights)[^"']*["'][^>]*>\s*<\/script>/gi,
+        ''
+      );
+      html = html.replace(/<meta\s+name=["']monetag["'][^>]*>/gi, '');
+      html = html.replace(
+        /<iframe[^>]*src=["'][^"']*(adsterra|monetag|highrevenue)[^"']*["'][^>]*>\s*<\/iframe>/gi,
+        ''
+      );
+      html = html.replace(
+        /navigator\.serviceWorker\.register\(\s*['"]\/sw2\.js['"][^)]*\)/g,
+        'Promise.resolve()'
+      );
+    }
 
-    const headPatch = buildHeadPatch();
-    const bodyPatch = buildBodyPatch();
+    const headPatch = buildHeadPatch(type);
+    const bodyPatch = buildBodyPatch(type);
 
     if (html.indexOf('<head>') !== -1) {
       html = html.replace('<head>', '<head>' + headPatch);
@@ -134,16 +181,18 @@ async function serveGameHTML() {
     });
   } catch (e) {
     return new Response(
-      '<!doctype html><meta charset="utf-8"><style>body{background:#0e1419;color:#8ba6bf;font:14px Arial;display:flex;align-items:center;justify-content:center;height:100vh;margin:0}</style><div>Error: ' + e.message + '</div>',
+      '<!doctype html><meta charset="utf-8"><style>body{background:#0e1419;color:#8ba6bf;font:14px Arial;display:flex;align-items:center;justify-content:center;height:100vh;margin:0}</style><div>Error cargando juego: ' + e.message + '</div>',
       { status: 502, headers: { 'Content-Type': 'text/html' } }
     );
   }
 }
 
 // ═══════════════════════════════════════════════════════════════════════
-// HEAD PATCH
+// HEAD PATCH (bloqueo de ads dinámicos) — solo GTA
 // ═══════════════════════════════════════════════════════════════════════
-function buildHeadPatch() {
+function buildHeadPatch(type) {
+  if (type === 'simpsons') return '';
+
   return `<script>
 (function(){
   var _create = document.createElement.bind(document);
@@ -167,11 +216,19 @@ function buildHeadPatch() {
 <\/script>`;
 }
 
-function buildBodyPatch() {
+// ═══════════════════════════════════════════════════════════════════════
+// BODY PATCH
+// ═══════════════════════════════════════════════════════════════════════
+function buildBodyPatch(type) {
+  if (type === 'simpsons') {
+    return buildAudioScript();
+  }
   return buildAdsScript() + buildAudioScript() + buildGamepadScript();
 }
 
-// ─── 2 ANUNCIOS DEL JUEGO (300x250 top + 468x60 bottom) ────────────
+// ═══════════════════════════════════════════════════════════════════════
+// ANUNCIOS DEL JUEGO (300x250 top + 468x60 bottom) — solo GTA
+// ═══════════════════════════════════════════════════════════════════════
 function buildAdsScript() {
   return `<script>
 (function(){
@@ -195,13 +252,8 @@ function buildAdsScript() {
   }
   function init(){
     if (!document.body) return setTimeout(init, 50);
-
-    // Anuncio superior: 300x250
     addAd('my-ad-300', 300, 250, 'f49c2e7ae12570d06b9c194497928af0', 'top');
-    // Anuncio inferior: 468x60
     addAd('my-ad-468', 468, 60, 'f18d77cc1e4b0ecc702e26baff74510e', 'bottom');
-
-    // Auto-eliminar cuando el juego arranque
     var obs = new MutationObserver(function(){
       var l = document.getElementById('loading');
       if (!l || l.classList.contains('done')) { rm(); obs.disconnect(); }
@@ -215,7 +267,9 @@ function buildAdsScript() {
 <\/script>`;
 }
 
-// ─── AUDIO UNLOCK ─────────────────────────────────────────────────
+// ═══════════════════════════════════════════════════════════════════════
+// AUDIO UNLOCK — común
+// ═══════════════════════════════════════════════════════════════════════
 function buildAudioScript() {
   return `<script>
 (function(){
@@ -239,7 +293,9 @@ function buildAudioScript() {
 <\/script>`;
 }
 
-// ─── GAMEPAD + HUD ────────────────────────────────────────────────
+// ═══════════════════════════════════════════════════════════════════════
+// GAMEPAD + HUD — solo GTA V
+// ═══════════════════════════════════════════════════════════════════════
 function buildGamepadScript() {
   return `<script>
 (function(){
