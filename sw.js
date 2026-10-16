@@ -1,7 +1,7 @@
 // ═══════════════════════════════════════════════════════════════════════
 // GTA V Service Worker Proxy
-// Intercepta /gta5 y los assets del juego → fiveplay.lol
-// Añade COOP/COEP · Bloquea ads · Inyecta gamepad + audio + tus 2 ads
+// Proxea /gta5 + assets a fiveplay.lol · Añade COOP/COEP · Bloquea ads
+// Inyecta gamepad + audio + tus 2 anuncios · Firefox compatible
 // ═══════════════════════════════════════════════════════════════════════
 
 const ORIGIN = 'https://fiveplay.lol';
@@ -17,10 +17,8 @@ self.addEventListener('activate', (event) => event.waitUntil(self.clients.claim(
 
 self.addEventListener('fetch', (event) => {
   const url = new URL(event.request.url);
-
   if (url.origin !== self.location.origin) return;
 
-  // ⚠️ FIX: soportar todas las formas de la ruta del juego
   const isGamePage = url.pathname === '/gta5'
                   || url.pathname === '/gta5/'
                   || url.pathname === '/gta5/index.html';
@@ -35,7 +33,7 @@ self.addEventListener('fetch', (event) => {
 });
 
 // ═══════════════════════════════════════════════════════════════════════
-// PROXY DE ASSETS
+// PROXY DE ASSETS — sin headers prohibidos para Firefox
 // ═══════════════════════════════════════════════════════════════════════
 async function proxyAsset(request) {
   const url = new URL(request.url);
@@ -50,9 +48,11 @@ async function proxyAsset(request) {
   try {
     const upstream = await fetch(target, {
       method: request.method,
-      headers: buildUpstreamHeaders(request),
-      body: (request.method === 'GET' || request.method === 'HEAD') ? undefined : request.body,
+      mode: 'cors',
+      credentials: 'omit',
+      cache: 'no-cache',
       redirect: 'follow',
+      body: (request.method === 'GET' || request.method === 'HEAD') ? undefined : request.body,
     });
 
     const headers = new Headers();
@@ -84,32 +84,21 @@ async function proxyAsset(request) {
   }
 }
 
-function buildUpstreamHeaders(request) {
-  const h = new Headers();
-  const acc = request.headers.get('accept');
-  const rng = request.headers.get('range');
-  if (acc) h.set('Accept', acc);
-  if (rng) h.set('Range', rng);
-  h.set('User-Agent', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36');
-  h.set('Referer', ORIGIN + '/');
-  h.set('Origin', ORIGIN);
-  return h;
-}
-
 // ═══════════════════════════════════════════════════════════════════════
-// HTML DEL JUEGO (fiveplay.lol parcheado)
+// HTML DEL JUEGO — sin headers custom (Firefox-safe)
 // ═══════════════════════════════════════════════════════════════════════
 async function serveGameHTML() {
   try {
     const upstream = await fetch(ORIGIN + '/', {
-      headers: {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-        'Accept': 'text/html,application/xhtml+xml',
-      },
+      method: 'GET',
+      mode: 'cors',
+      credentials: 'omit',
+      cache: 'no-cache',
     });
 
     let html = await upstream.text();
 
+    // Quitar scripts de anuncios estáticos de fiveplay
     html = html.replace(
       /<script[^>]*src\s*=\s*["'][^"']*(quge5\.com|alwingulla\.com|monetag|tag\.min\.js|cloudflareinsights)[^"']*["'][^>]*>\s*<\/script>/gi,
       ''
@@ -154,6 +143,9 @@ async function serveGameHTML() {
   }
 }
 
+// ═══════════════════════════════════════════════════════════════════════
+// HEAD PATCH — bloquea scripts dinámicos
+// ═══════════════════════════════════════════════════════════════════════
 function buildHeadPatch() {
   return `<script>
 (function(){
@@ -178,10 +170,14 @@ function buildHeadPatch() {
 <\/script>`;
 }
 
+// ═══════════════════════════════════════════════════════════════════════
+// BODY PATCH — tus 2 anuncios + audio + gamepad
+// ═══════════════════════════════════════════════════════════════════════
 function buildBodyPatch() {
   return buildAdsScript() + buildAudioScript() + buildGamepadScript();
 }
 
+// ─── TUS 2 ANUNCIOS ───────────────────────────────────────────────
 function buildAdsScript() {
   return `<script>
 (function(){
@@ -217,6 +213,7 @@ function buildAdsScript() {
 <\/script>`;
 }
 
+// ─── AUDIO UNLOCK ─────────────────────────────────────────────────
 function buildAudioScript() {
   return `<script>
 (function(){
@@ -240,6 +237,7 @@ function buildAudioScript() {
 <\/script>`;
 }
 
+// ─── GAMEPAD + HUD ────────────────────────────────────────────────
 function buildGamepadScript() {
   return `<script>
 (function(){
