@@ -7,332 +7,407 @@
 <style>
   *{margin:0;padding:0;box-sizing:border-box}
   html,body{
-    background:#171a21;color:#c6d4df;
-    font:14px/1.4 "Motiva Sans",Arial,sans-serif;
+    background:#0e1014;color:#c7d5e0;
+    font:14px/1.4 "Motiva Sans","Segoe UI",Arial,sans-serif;
     min-height:100vh;
   }
   a{color:inherit;text-decoration:none}
+  button{background:none;border:0;color:inherit;font:inherit;cursor:pointer}
 
-  /* ── Global top bar ── */
-  .global{
+  /* ═══ TOPBAR ═══ */
+  .topbar{
     background:#171a21;
-    padding:10px 0;
     border-bottom:1px solid #000;
-  }
-  .global-inner{
-    max-width:1280px;margin:0 auto;
-    padding:0 20px;
-    display:flex;align-items:center;gap:24px;
+    padding:10px 24px;
+    display:flex;align-items:center;gap:22px;
+    position:sticky;top:0;z-index:50;
   }
   .logo{
-    font-size:19px;font-weight:700;color:#fff;
-    letter-spacing:.5px;
+    display:flex;align-items:center;gap:8px;
+    font-size:14px;font-weight:700;color:#fff;
+    letter-spacing:.3px;
+    flex-shrink:0;
   }
-  .global-nav{display:flex;gap:2px;margin-left:12px}
-  .global-nav a{
-    color:#b8b6b4;font-size:12px;
-    text-transform:uppercase;letter-spacing:1px;
-    padding:6px 12px;border-radius:2px;
-  }
-  .global-nav a:hover{color:#fff}
-  .global-nav a.active{color:#fff;background:#1e242c}
-  .global-right{
-    margin-left:auto;display:flex;align-items:center;gap:14px;
-    color:#b8b6b4;font-size:12px;
-  }
+  .logo svg{width:20px;height:20px;fill:#fff}
 
-  /* ── Sub-nav ── */
-  .subnav{
-    background:#1b2838;
-    border-bottom:1px solid #000;
-    padding:12px 0;
+  .tabs{
+    display:flex;gap:4px;
+    flex:1;
+    margin-left:6px;
   }
-  .subnav-inner{
-    max-width:1280px;margin:0 auto;
-    padding:0 20px;
-    display:flex;align-items:center;gap:20px;
+  .tabs button{
+    padding:8px 14px;
+    border-radius:3px;
+    color:#b8b6b4;
+    font-size:13px;
+    transition:color .15s,background .15s;
+    white-space:nowrap;
   }
+  .tabs button:hover{color:#fff;background:#1e2530}
+  .tabs button.active{color:#fff;background:#1e2530}
+
   .search{
-    flex:1;max-width:400px;
     position:relative;
+    flex-shrink:0;
   }
   .search input{
-    width:100%;
     background:#316282;
     border:1px solid #000;
-    border-radius:2px;
-    padding:7px 30px 7px 12px;
+    border-radius:3px;
+    padding:7px 32px 7px 12px;
     color:#fff;font-size:13px;
     outline:none;
+    width:220px;
+    transition:background .15s,width .2s;
   }
-  .search input::placeholder{color:#8ba6bf}
-  .search::after{
-    content:'';
+  .search input:focus{background:#3d789f;width:260px}
+  .search input::placeholder{color:#a7c4db}
+  .search svg{
     position:absolute;right:10px;top:50%;
-    width:14px;height:14px;
     transform:translateY(-50%);
-    background:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%23377ba3'%3E%3Cpath d='M15.5 14h-.79l-.28-.27a6.5 6.5 0 1 0-.7.7l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0A4.5 4.5 0 1 1 14 9.5 4.5 4.5 0 0 1 9.5 14z'/%3E%3C/svg%3E") center/contain no-repeat;
-  }
-  .subnav-links{
-    display:flex;gap:18px;margin-left:auto;
-    font-size:12px;color:#8ba6bf;
-  }
-  .subnav-links a:hover{color:#fff}
-
-  /* ── Main layout ── */
-  .main{
-    max-width:1280px;margin:0 auto;
-    padding:24px 20px 60px;
-    display:flex;gap:28px;
+    width:14px;height:14px;fill:#a7c4db;
+    pointer-events:none;
   }
 
-  /* ── Sidebar ── */
-  .sidebar{
-    width:180px;flex-shrink:0;
+  .view-controls{
+    display:flex;gap:2px;
+    flex-shrink:0;
+    margin-left:6px;
   }
-  .sidebar-section{margin-bottom:20px}
-  .sidebar-title{
-    font-size:11px;
-    text-transform:uppercase;
-    letter-spacing:1.5px;
-    color:#556772;
-    margin-bottom:8px;
-  }
-  .sidebar-link{
-    display:block;
-    padding:6px 10px;
-    font-size:13px;
-    color:#c6d4df;
-    border-radius:2px;
-    margin-bottom:1px;
-  }
-  .sidebar-link:hover{background:#1e242c;color:#fff}
-  .sidebar-link.active{background:#1e242c;color:#fff}
-
-  /* ── Content ── */
-  .content{flex:1;min-width:0}
-
-  .toolbar{
-    display:flex;align-items:center;gap:8px;
-    margin-bottom:16px;
-  }
-  .toolbar-title{
-    font-size:16px;font-weight:600;color:#fff;
-    margin-right:auto;
-  }
-  .toolbar-chip{
-    font-size:11px;
-    padding:5px 10px;
-    background:#1e242c;
-    border-radius:2px;
-    color:#8ba6bf;
-    cursor:pointer;
-    user-select:none;
-  }
-  .toolbar-chip:hover{color:#fff}
-  .toolbar-chip.active{background:#2a475e;color:#fff}
-  .view-btn{
-    width:26px;height:26px;
+  .view-controls button{
+    width:30px;height:30px;
     display:flex;align-items:center;justify-content:center;
-    background:#1e242c;
-    border-radius:2px;
-    cursor:pointer;
+    border-radius:3px;
+    color:#8ba6bf;
+    transition:color .15s,background .15s;
   }
-  .view-btn svg{width:14px;height:14px;fill:#8ba6bf}
-  .view-btn.active svg{fill:#66c0f4}
+  .view-controls button:hover{color:#fff;background:#1e2530}
+  .view-controls button.active{color:#66c0f4;background:#1e2530}
+  .view-controls svg{width:16px;height:16px;fill:currentColor}
 
-  /* ── Game grid ── */
+  /* ═══ CONTENT ═══ */
+  main{
+    padding:24px 32px 60px;
+    max-width:1600px;
+    margin:0 auto;
+  }
+
+  .section-head{
+    display:flex;align-items:baseline;justify-content:space-between;
+    margin-bottom:18px;
+  }
+  .section-head h2{
+    font-size:20px;font-weight:600;color:#fff;
+    letter-spacing:.2px;
+  }
+  .section-head .count{
+    font-size:12px;color:#67707a;
+  }
+
+  /* ═══ GRID ═══ */
   .grid{
     display:grid;
     grid-template-columns:repeat(auto-fill,minmax(180px,1fr));
-    gap:12px;
+    gap:14px;
+  }
+  .grid.list{
+    grid-template-columns:1fr;
+    gap:6px;
   }
 
-  .game{
-    display:block;
+  .card{
     position:relative;
-    aspect-ratio:3/4;
+    display:block;
+    border-radius:3px;
     overflow:hidden;
+    background:#1b2838;
+    aspect-ratio:3/4;
+    transition:transform .18s cubic-bezier(.2,0,.2,1),box-shadow .18s;
     cursor:pointer;
-    border-radius:2px;
   }
-  .game img{
+  .card:hover{
+    transform:scale(1.03);
+    box-shadow:0 0 0 2px #66c0f4,0 8px 20px rgba(0,0,0,.5);
+    z-index:2;
+  }
+  .card img{
     position:absolute;inset:0;
     width:100%;height:100%;
     object-fit:cover;
     display:block;
-    transition:opacity .2s;
   }
-  .game .overlay{
+  .card .overlay{
     position:absolute;
     left:0;right:0;bottom:0;
     padding:8px 10px;
-    background:linear-gradient(to top,rgba(0,0,0,.85) 0%,rgba(0,0,0,.4) 70%,transparent 100%);
-    opacity:.85;
-    transition:opacity .2s;
+    background:linear-gradient(to top,rgba(0,0,0,.85),rgba(0,0,0,0) 100%);
+    pointer-events:none;
   }
-  .game:hover .overlay{opacity:1}
-  .game .name{
+  .card .name{
     color:#fff;
     font-size:13px;
     font-weight:600;
-    text-shadow:0 1px 2px rgba(0,0,0,.9);
+    text-shadow:0 1px 3px rgba(0,0,0,.9);
     white-space:nowrap;
     overflow:hidden;
     text-overflow:ellipsis;
   }
-  .game:hover{
-    box-shadow:0 0 0 2px #66c0f4;
+
+  /* List view */
+  .grid.list .card{
+    aspect-ratio:auto;
+    height:70px;
+    display:flex;align-items:center;
+    padding:0 14px;
+    background:#16212e;
+    border:1px solid #1e2a3a;
+  }
+  .grid.list .card:hover{transform:none;box-shadow:0 0 0 2px #66c0f4}
+  .grid.list .card img{
+    position:static;
+    width:44px;height:58px;
+    border-radius:2px;
+    flex-shrink:0;
+    object-fit:cover;
+    margin-right:14px;
+  }
+  .grid.list .card .overlay{
+    position:static;
+    background:none;
+    padding:0;
+    flex:1;
+  }
+  .grid.list .card .name{
+    color:#fff;
+    font-size:14px;
   }
 
-  .game.empty{
-    background:#1e242c;
-    border:1px dashed #2a3a48;
-    display:flex;
-    align-items:center;
-    justify-content:center;
+  /* Empty slots (only in grid view) */
+  .card.empty{
+    background:#141a22;
+    border:1px dashed #1f2a36;
+    display:flex;align-items:center;justify-content:center;
+    cursor:default;
   }
-  .game.empty::before{
-    content:'+';
-    font-size:28px;
-    color:#3a4a58;
-    font-weight:300;
+  .card.empty:hover{transform:none;box-shadow:none;border-color:#2a3849}
+  .card.empty::before{
+    content:'+';font-size:32px;color:#2a3849;font-weight:300;
   }
-  .game.empty:hover{box-shadow:none;border-color:#3a4a58;cursor:default}
+  .grid.list .card.empty{display:none}
 
-  /* ── Loading overlay ── */
-  #loading{
+  /* ═══ LOADER OVERLAY ═══ */
+  #loader{
     position:fixed;inset:0;
-    background:#0e1419;
+    background:#0b0e13;
     z-index:9999;
     display:none;
     align-items:center;justify-content:center;
-    flex-direction:column;gap:16px;
+    flex-direction:column;gap:18px;
   }
-  #loading.on{display:flex}
-  .spin{
-    width:28px;height:28px;
-    border:2px solid #1b2838;
+  #loader.on{display:flex}
+  #loader .spin{
+    width:32px;height:32px;
+    border:3px solid #1b2838;
     border-top-color:#66c0f4;
     border-radius:50%;
-    animation:sp .8s linear infinite;
+    animation:spin .8s linear infinite;
   }
-  @keyframes sp{to{transform:rotate(360deg)}}
-  #loading-txt{color:#8ba6bf;font-size:13px}
+  @keyframes spin{to{transform:rotate(360deg)}}
+  #loader .txt{color:#8ba6bf;font-size:13px}
 
+  /* ═══ RESPONSIVE ═══ */
   @media (max-width:800px){
-    .sidebar{display:none}
-    .main{padding:16px 12px 40px}
-    .grid{grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:8px}
-    .global-nav{display:none}
-    .subnav-links{display:none}
+    .topbar{padding:10px 14px;gap:10px}
+    .tabs{display:none}
+    .search input{width:150px}
+    .search input:focus{width:180px}
+    main{padding:16px 14px 40px}
+    .grid{grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:10px}
   }
 </style>
 </head>
 <body>
 
-<div class="global">
-  <div class="global-inner">
-    <div class="logo">LIBRARY</div>
-    <nav class="global-nav">
-      <a href="#" class="active">Library</a>
-      <a href="#">Store</a>
-      <a href="#">Community</a>
-    </nav>
-    <div class="global-right">
-      <span>@you</span>
-    </div>
+<!-- ═══ TOPBAR ═══ -->
+<header class="topbar">
+  <div class="logo">
+    <svg viewBox="0 0 24 24"><path d="M4 4h16v4H4V4zm0 6h16v4H4v-4zm0 6h16v4H4v-4z"/></svg>
+    Library
   </div>
-</div>
 
-<div class="subnav">
-  <div class="subnav-inner">
-    <div class="search">
-      <input type="text" placeholder="Search library...">
-    </div>
-    <div class="subnav-links">
-      <a href="#">Downloads</a>
-      <a href="#">Settings</a>
-    </div>
+  <nav class="tabs" id="tabs">
+    <button data-tab="games" class="active">Games</button>
+    <button data-tab="apps">Apps and Editors</button>
+    <button data-tab="favorites">Favorites</button>
+    <button data-tab="collections">Collections</button>
+  </nav>
+
+  <div class="search">
+    <input type="text" id="searchInput" placeholder="Search library">
+    <svg viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27a6.5 6.5 0 1 0-.7.7l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0A4.5 4.5 0 1 1 14 9.5 4.5 4.5 0 0 1 9.5 14z"/></svg>
   </div>
-</div>
 
-<div class="main">
+  <div class="view-controls">
+    <button data-view="grid" class="active" title="Grid view">
+      <svg viewBox="0 0 24 24"><path d="M4 4h7v7H4V4zm9 0h7v7h-7V4zM4 13h7v7H4v-7zm9 0h7v7h-7v-7z"/></svg>
+    </button>
+    <button data-view="list" title="List view">
+      <svg viewBox="0 0 24 24"><path d="M3 6h18v3H3V6zm0 5h18v3H3v-3zm0 5h18v3H3v-3z"/></svg>
+    </button>
+  </div>
+</header>
 
-  <aside class="sidebar">
-    <div class="sidebar-section">
-      <div class="sidebar-link active">Home</div>
-      <div class="sidebar-link">Collections</div>
-    </div>
-    <div class="sidebar-section">
-      <div class="sidebar-title">Filters</div>
-      <div class="sidebar-link">Installed</div>
-      <div class="sidebar-link">Favorites</div>
-      <div class="sidebar-link">Recently Played</div>
-    </div>
-  </aside>
+<!-- ═══ MAIN ═══ -->
+<main>
+  <div class="section-head">
+    <h2 id="sectionTitle">All Games</h2>
+    <span class="count" id="gameCount"></span>
+  </div>
 
-  <div class="content">
+  <div class="grid" id="gameGrid">
 
-    <div class="toolbar">
-      <div class="toolbar-title">All Games</div>
-      <div class="toolbar-chip active">All</div>
-      <div class="toolbar-chip">Installed</div>
-      <div class="toolbar-chip">Favorites</div>
-      <div class="view-btn active">
-        <svg viewBox="0 0 24 24"><path d="M4 4h7v7H4V4zm9 0h7v7h-7V4zM4 13h7v7H4v-7zm9 0h7v7h-7v-7z"/></svg>
-      </div>
-      <div class="view-btn">
-        <svg viewBox="0 0 24 24"><path d="M3 6h18v3H3V6zm0 5h18v3H3v-3zm0 5h18v3H3v-3z"/></svg>
-      </div>
-    </div>
+    <!-- GTA V -->
+    <a class="card" href="/gta5/" data-name="Grand Theft Auto V" data-tags="games,favorites">
+      <img src="/img/gta5.jpg" alt="Grand Theft Auto V">
+      <div class="overlay"><div class="name">Grand Theft Auto V</div></div>
+    </a>
 
-    <div class="grid">
+    <!-- Balatro -->
+    <a class="card" href="/balatro/" data-name="Balatro" data-tags="games">
+      <img src="/img/Balatro.png" alt="Balatro">
+      <div class="overlay"><div class="name">Balatro</div></div>
+    </a>
 
-      <a class="game" href="/gta5/index.html" data-game="gta5">
-        <img src="/img/gta5.jpg" alt="Grand Theft Auto V"
-             onerror="this.src='data:image/svg+xml;utf8,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 600 800%22%3E%3Crect fill=%22%232a3a2a%22 width=%22600%22 height=%22800%22/%3E%3Ctext x=%22300%22 y=%22400%22 font-size=%22180%22 font-weight=%22900%22 font-style=%22italic%22 fill=%22%23fff%22 text-anchor=%22middle%22 dominant-baseline=%22middle%22 font-family=%22Arial%22%3EV%3C/text%3E%3C/svg%3E'">
-        <div class="overlay"><div class="name">Grand Theft Auto V</div></div>
-      </a>
+    <!-- Geometry Dash -->
+    <a class="card" href="/geometry/" data-name="Geometry Dash" data-tags="games">
+      <img src="/img/Geometry.png" alt="Geometry Dash">
+      <div class="overlay"><div class="name">Geometry Dash</div></div>
+    </a>
 
-      <div class="game empty"></div>
-      <div class="game empty"></div>
-      <div class="game empty"></div>
-      <div class="game empty"></div>
-      <div class="game empty"></div>
+    <!-- Minecraft -->
+    <a class="card" href="/minecraft/" data-name="Minecraft" data-tags="games">
+      <img src="/img/Minecraft.png" alt="Minecraft">
+      <div class="overlay"><div class="name">Minecraft</div></div>
+    </a>
 
-    </div>
+    <!-- Empty slots (visibles solo en vista grid) -->
+    <div class="card empty"></div>
+    <div class="card empty"></div>
+    <div class="card empty"></div>
+    <div class="card empty"></div>
+    <div class="card empty"></div>
+    <div class="card empty"></div>
 
   </div>
-</div>
+</main>
 
-<div id="loading">
+<!-- ═══ LOADER ═══ -->
+<div id="loader">
   <div class="spin"></div>
-  <div id="loading-txt">Loading...</div>
+  <div class="txt" id="loaderText">Loading...</div>
 </div>
 
 <script>
+// ═══════════════════════════════════════════════════════════════
+// SERVICE WORKER
+// ═══════════════════════════════════════════════════════════════
 if ('serviceWorker' in navigator) {
-  navigator.serviceWorker.register('/sw.js', { scope: '/' }).then(function(reg){
-    if (!navigator.serviceWorker.controller) {
-      navigator.serviceWorker.ready.then(function(){
-        if (!sessionStorage.getItem('__sw_r')) {
-          sessionStorage.setItem('__sw_r','1');
-          location.reload();
-        }
-      });
-    }
-  }).catch(function(e){ console.error('[SW]', e); });
+  navigator.serviceWorker.register('/sw.js', { scope: '/' })
+    .then(function(reg) {
+      console.log('[SW] Registered', reg.scope);
+      if (!navigator.serviceWorker.controller) {
+        navigator.serviceWorker.ready.then(function() {
+          if (!sessionStorage.getItem('__sw_reload')) {
+            sessionStorage.setItem('__sw_reload', '1');
+            location.reload();
+          }
+        });
+      }
+    })
+    .catch(function(err) { console.error('[SW] Failed:', err); });
 }
 
-document.querySelectorAll('.game[data-game]').forEach(function(el){
-  el.addEventListener('click', function(){
-    var name = el.querySelector('.name');
-    document.getElementById('loading-txt').textContent =
-      'Launching ' + (name ? name.textContent : 'game') + '...';
-    document.getElementById('loading').classList.add('on');
+// ═══════════════════════════════════════════════════════════════
+// TABS — cambiar filtro activo
+// ═══════════════════════════════════════════════════════════════
+var currentTab = 'games';
+var tabsEl = document.getElementById('tabs');
+var sectionTitle = document.getElementById('sectionTitle');
+var grid = document.getElementById('gameGrid');
+var searchInput = document.getElementById('searchInput');
+
+tabsEl.addEventListener('click', function(e) {
+  var btn = e.target.closest('button[data-tab]');
+  if (!btn) return;
+  tabsEl.querySelectorAll('button').forEach(function(b) { b.classList.remove('active'); });
+  btn.classList.add('active');
+  currentTab = btn.dataset.tab;
+  sectionTitle.textContent = {
+    games: 'All Games',
+    apps: 'Apps and Editors',
+    favorites: 'Favorites',
+    collections: 'Collections'
+  }[currentTab];
+  applyFilters();
+});
+
+// ═══════════════════════════════════════════════════════════════
+// VIEW TOGGLE — grid / list
+// ═══════════════════════════════════════════════════════════════
+var viewBtns = document.querySelectorAll('.view-controls button');
+viewBtns.forEach(function(btn) {
+  btn.addEventListener('click', function() {
+    viewBtns.forEach(function(b) { b.classList.remove('active'); });
+    btn.classList.add('active');
+    if (btn.dataset.view === 'list') {
+      grid.classList.add('list');
+    } else {
+      grid.classList.remove('list');
+    }
   });
 });
+
+// ═══════════════════════════════════════════════════════════════
+// SEARCH — filtro en vivo
+// ═══════════════════════════════════════════════════════════════
+searchInput.addEventListener('input', applyFilters);
+
+function applyFilters() {
+  var q = searchInput.value.toLowerCase().trim();
+  var cards = grid.querySelectorAll('.card:not(.empty)');
+  var visible = 0;
+
+  cards.forEach(function(card) {
+    var name = (card.dataset.name || '').toLowerCase();
+    var tags = (card.dataset.tags || '').toLowerCase();
+    var matchesSearch = !q || name.indexOf(q) !== -1;
+    var matchesTab = currentTab === 'games' || tags.indexOf(currentTab) !== -1;
+
+    if (matchesSearch && matchesTab) {
+      card.style.display = '';
+      visible++;
+    } else {
+      card.style.display = 'none';
+    }
+  });
+
+  document.getElementById('gameCount').textContent = visible + ' game' + (visible === 1 ? '' : 's');
+}
+
+// ═══════════════════════════════════════════════════════════════
+// CLICK EN CARD — mostrar loader
+// ═══════════════════════════════════════════════════════════════
+grid.querySelectorAll('.card:not(.empty)').forEach(function(card) {
+  card.addEventListener('click', function() {
+    var name = card.querySelector('.name');
+    document.getElementById('loaderText').textContent =
+      'Launching ' + (name ? name.textContent : 'game') + '...';
+    document.getElementById('loader').classList.add('on');
+  });
+});
+
+// Inicializar contador
+applyFilters();
 </script>
 
 </body>
