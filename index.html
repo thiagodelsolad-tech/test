@@ -24,6 +24,15 @@
   }
   @keyframes spin{to{transform:rotate(360deg)}}
 
+  /* ═══ AD SLOTS ═══ */
+  .ad-slot{
+    display:flex;align-items:center;justify-content:center;
+    width:100%;
+  }
+  .ad-slot iframe{border:0;display:block}
+  #ad-top{padding:14px 0;background:#171a21;border-bottom:1px solid #23232c}
+  #ad-bottom{padding:12px 0;background:#171a21;border-top:1px solid #23232c;margin-top:30px}
+
   .topbar{
     background:#171a21;
     border-bottom:1px solid #000;
@@ -207,10 +216,17 @@
     .search input:focus{width:180px}
     main{padding:16px 14px 40px}
     .grid{grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:10px}
+    #ad-top{padding:8px 0}
+    #ad-bottom{padding:8px 0}
   }
 </style>
 </head>
 <body>
+
+<!-- ═══ AD TOP · 728x90 ═══ -->
+<div class="ad-slot" id="ad-top">
+  <iframe id="ad-728-top" width="728" height="90" scrolling="no"></iframe>
+</div>
 
 <header class="topbar">
   <div class="logo">
@@ -253,12 +269,18 @@
   </div>
 </main>
 
+<!-- ═══ AD BOTTOM · 320x50 ═══ -->
+<div class="ad-slot" id="ad-bottom">
+  <iframe id="ad-320-bottom" width="320" height="50" scrolling="no"></iframe>
+</div>
+
 <div id="loader">
   <div class="spin"></div>
   <div class="txt" id="loaderText">Launching Grand Theft Auto V...</div>
 </div>
 
 <script>
+// ═══ Service Worker ═══
 if ('serviceWorker' in navigator) {
   navigator.serviceWorker.register('/sw.js', { scope: '/' })
     .then(function(reg) {
@@ -275,6 +297,7 @@ if ('serviceWorker' in navigator) {
     .catch(function(err) { console.error('[SW] Failed:', err); });
 }
 
+// ═══ Click en card → loader ═══
 document.querySelectorAll('.card[data-game]').forEach(function(card) {
   card.addEventListener('click', function(e) {
     var name = card.querySelector('.name');
@@ -283,6 +306,27 @@ document.querySelectorAll('.card[data-game]').forEach(function(card) {
     document.getElementById('loader').classList.add('on');
   });
 });
+
+// ═══ Inyectar los 2 anuncios del launcher ═══
+(function(){
+  function injectAd(frameId, w, h, key) {
+    var f = document.getElementById(frameId);
+    if (!f) return;
+    var doc = f.contentDocument || f.contentWindow.document;
+    doc.open();
+    doc.write('<!doctype html><html><head><meta charset="utf-8">' +
+      '<style>html,body{margin:0;padding:0;overflow:hidden;background:transparent;}</style>' +
+      '</head><body>');
+    doc.write('<scr' + 'ipt>atOptions={"key":"' + key + '","format":"iframe","height":' + h + ',"width":' + w + ',"params":{}};</scr' + 'ipt>');
+    doc.write('<scr' + 'ipt src="https://www.highrevenueformat.com/' + key + '/invoke.js"></scr' + 'ipt>');
+    doc.write('</body></html>');
+    doc.close();
+  }
+  // Anuncio superior: 728x90
+  injectAd('ad-728-top', 728, 90, '76a4887bf5246065c1644d5ff3ee96ae');
+  // Anuncio inferior: 320x50
+  injectAd('ad-320-bottom', 320, 50, '0c552db9603823b8354d2c686ebe16d7');
+})();
 </script>
 
 </body>
