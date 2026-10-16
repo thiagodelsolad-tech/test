@@ -2,12 +2,10 @@
 // GTA V Service Worker Proxy
 // Intercepta /gta5 y los assets del juego → fiveplay.lol
 // Añade COOP/COEP · Bloquea ads · Inyecta gamepad + audio + tus 2 ads
-// Todo corre en el navegador del usuario. Cero servidor. Cero límites.
 // ═══════════════════════════════════════════════════════════════════════
 
 const ORIGIN = 'https://fiveplay.lol';
 
-// Rutas del juego que hay que proxear a fiveplay.lol
 const GAME_PREFIXES = [
   '/b/', '/game/', '/data/', '/audio/', '/x64/',
   '/log', '/loader.js', '/prejs.js', '/wgpu_worker.js',
@@ -20,10 +18,13 @@ self.addEventListener('activate', (event) => event.waitUntil(self.clients.claim(
 self.addEventListener('fetch', (event) => {
   const url = new URL(event.request.url);
 
-  // Solo nuestro dominio
   if (url.origin !== self.location.origin) return;
 
-  const isGamePage = url.pathname === '/gta5' || url.pathname === '/gta5/';
+  // ⚠️ FIX: soportar todas las formas de la ruta del juego
+  const isGamePage = url.pathname === '/gta5'
+                  || url.pathname === '/gta5/'
+                  || url.pathname === '/gta5/index.html';
+
   const isGameAsset = GAME_PREFIXES.some(p => url.pathname.startsWith(p));
 
   if (isGamePage) {
@@ -40,12 +41,10 @@ async function proxyAsset(request) {
   const url = new URL(request.url);
   const target = ORIGIN + url.pathname + url.search;
 
-  // sw2.js de fiveplay no existe — devolver stub
   if (url.pathname === '/sw2.js') {
-    return new Response(
-      'self.addEventListener("install",()=>self.skipWaiting());',
-      { headers: { 'Content-Type': 'application/javascript' } }
-    );
+    return new Response('self.addEventListener("install",()=>self.skipWaiting());', {
+      headers: { 'Content-Type': 'application/javascript' }
+    });
   }
 
   try {
@@ -57,20 +56,17 @@ async function proxyAsset(request) {
     });
 
     const headers = new Headers();
-    // Copiar solo cabeceras seguras
-    ['content-type', 'content-length', 'content-encoding', 'content-range',
-     'accept-ranges', 'last-modified', 'etag', 'cache-control'].forEach(k => {
+    ['content-type','content-length','content-encoding','content-range',
+     'accept-ranges','last-modified','etag','cache-control'].forEach(k => {
       const v = upstream.headers.get(k);
       if (v) headers.set(k, v);
     });
 
-    // Cabeceras necesarias para SharedArrayBuffer / WebWorkers
     headers.set('Cross-Origin-Opener-Policy', 'same-origin');
     headers.set('Cross-Origin-Embedder-Policy', 'require-corp');
     headers.set('Cross-Origin-Resource-Policy', 'cross-origin');
     headers.set('Access-Control-Allow-Origin', '*');
 
-    // Corregir Content-Type según extensión
     const p = url.pathname.toLowerCase();
     if (p.endsWith('.wasm')) headers.set('Content-Type', 'application/wasm');
     if (p.endsWith('.js') || p.endsWith('.mjs')) headers.set('Content-Type', 'application/javascript');
@@ -114,7 +110,6 @@ async function serveGameHTML() {
 
     let html = await upstream.text();
 
-    // 1) Quitar scripts de anuncios estáticos de fiveplay
     html = html.replace(
       /<script[^>]*src\s*=\s*["'][^"']*(quge5\.com|alwingulla\.com|monetag|tag\.min\.js|cloudflareinsights)[^"']*["'][^>]*>\s*<\/script>/gi,
       ''
@@ -124,14 +119,11 @@ async function serveGameHTML() {
       /<iframe[^>]*src=["'][^"']*(adsterra|monetag|highrevenue)[^"']*["'][^>]*>\s*<\/iframe>/gi,
       ''
     );
-
-    // 2) Bloquear el registro del SW de fiveplay (sw2.js)
     html = html.replace(
       /navigator\.serviceWorker\.register\(\s*['"]\/sw2\.js['"][^)]*\)/g,
       'Promise.resolve()'
     );
 
-    // 3) Inyectar parches
     const headPatch = buildHeadPatch();
     const bodyPatch = buildBodyPatch();
 
@@ -156,15 +148,12 @@ async function serveGameHTML() {
     });
   } catch (e) {
     return new Response(
-      '<!doctype html><meta charset="utf-8"><style>body{background:#0e1419;color:#8ba6bf;font:14px Arial;display:flex;align-items:center;justify-content:center;height:100vh;margin:0}</style><div>Error cargando el juego: ' + e.message + '</div>',
+      '<!doctype html><meta charset="utf-8"><style>body{background:#0e1419;color:#8ba6bf;font:14px Arial;display:flex;align-items:center;justify-content:center;height:100vh;margin:0}</style><div>Error: ' + e.message + '</div>',
       { status: 502, headers: { 'Content-Type': 'text/html' } }
     );
   }
 }
 
-// ═══════════════════════════════════════════════════════════════════════
-// HEAD PATCH — bloquea scripts de ads dinámicos
-// ═══════════════════════════════════════════════════════════════════════
 function buildHeadPatch() {
   return `<script>
 (function(){
@@ -189,14 +178,10 @@ function buildHeadPatch() {
 <\/script>`;
 }
 
-// ═══════════════════════════════════════════════════════════════════════
-// BODY PATCH — tus ads + audio unlock + gamepad
-// ═══════════════════════════════════════════════════════════════════════
 function buildBodyPatch() {
   return buildAdsScript() + buildAudioScript() + buildGamepadScript();
 }
 
-// ─── TUS 2 ANUNCIOS ───────────────────────────────────────────────
 function buildAdsScript() {
   return `<script>
 (function(){
@@ -232,7 +217,6 @@ function buildAdsScript() {
 <\/script>`;
 }
 
-// ─── AUDIO UNLOCK ─────────────────────────────────────────────────
 function buildAudioScript() {
   return `<script>
 (function(){
@@ -256,7 +240,6 @@ function buildAudioScript() {
 <\/script>`;
 }
 
-// ─── GAMEPAD + HUD (modo pie / vehículo / avión) ──────────────────
 function buildGamepadScript() {
   return `<script>
 (function(){
@@ -308,16 +291,12 @@ function buildGamepadScript() {
     }
   };
 
-  var MAP_FOOT   = {0:'ShiftLeft',1:'KeyR',2:'Space',3:'KeyF',4:'Tab',5:'KeyQ',9:'Escape',10:'CapsLock',11:'KeyC',12:'ArrowUp',13:'KeyZ',14:'KeyG',15:'KeyE'};
+  var MAP_FOOT    = {0:'ShiftLeft',1:'KeyR',2:'Space',3:'KeyF',4:'Tab',5:'KeyQ',9:'Escape',10:'CapsLock',11:'KeyC',12:'ArrowUp',13:'KeyZ',14:'KeyG',15:'KeyE'};
   var MAP_VEHICLE = {0:'KeyX',1:'KeyR',2:'Space',3:'KeyF',9:'Escape',10:'KeyE',11:'KeyC',12:'ArrowUp',13:'KeyZ',14:'ArrowLeft',15:'KeyH'};
   var MAP_AIR     = {0:'Tab',1:'KeyR',2:'Space',3:'KeyF',4:'KeyA',5:'KeyD',9:'Escape',10:'KeyG',11:'KeyC',12:'ArrowUp',13:'KeyZ',14:'KeyQ',15:'KeyE'};
   var MODE_MAP = {foot:MAP_FOOT, vehicle:MAP_VEHICLE, air:MAP_AIR};
 
-  var SENS = 29;
-  var DZ = 0.12;
-  var TT = 0.25;
-  var BT = 400;
-
+  var SENS = 29, DZ = 0.12, TT = 0.25, BT = 400;
   var held = new Set();
   var lm = false, rm = false;
 
@@ -462,7 +441,6 @@ function buildGamepadScript() {
         if (Math.abs(ly)>DZ) { if(ly>0){pk('KeyS');rk('KeyW');} else {pk('KeyW');rk('KeyS');} }
         else { rk('KeyW'); rk('KeyS'); }
       } else if (MODE==='air') {
-        // Invertido: arriba = descender (8), abajo = ascender (5)
         if (Math.abs(ly)>DZ) { if(ly>0){pk('Numpad5');rk('Numpad8');} else {pk('Numpad8');rk('Numpad5');} }
         else { rk('Numpad5'); rk('Numpad8'); }
       }
