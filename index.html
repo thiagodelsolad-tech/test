@@ -14,7 +14,6 @@
   }
   a{color:inherit;text-decoration:none}
 
-  /* ═══ ANIMACIONES ═══ */
   @keyframes fadeUp{
     from{opacity:0;transform:translateY(20px)}
     to{opacity:1;transform:translateY(0)}
@@ -23,19 +22,8 @@
     from{opacity:0}
     to{opacity:1}
   }
-  @keyframes pulseGlow{
-    0%,100%{box-shadow:0 0 0 0 rgba(102,192,244,0)}
-    50%{box-shadow:0 0 0 8px rgba(102,192,244,.15)}
-  }
-  @keyframes float{
-    0%,100%{transform:translateY(0)}
-    50%{transform:translateY(-4px)}
-  }
-  @keyframes spin{
-    to{transform:rotate(360deg)}
-  }
+  @keyframes spin{to{transform:rotate(360deg)}}
 
-  /* ═══ TOPBAR ═══ */
   .topbar{
     background:#171a21;
     border-bottom:1px solid #000;
@@ -67,9 +55,7 @@
     box-shadow:inset 0 -2px 0 #66c0f4;
   }
 
-  .search{
-    position:relative;flex-shrink:0;
-  }
+  .search{position:relative;flex-shrink:0}
   .search input{
     background:#316282;border:1px solid #000;border-radius:3px;
     padding:7px 32px 7px 12px;color:#fff;font-size:13px;
@@ -86,7 +72,6 @@
   }
   .search input:focus + svg{fill:#fff}
 
-  /* ═══ MAIN ═══ */
   main{
     padding:28px 32px 60px;
     max-width:1600px;margin:0 auto;
@@ -105,7 +90,6 @@
     font-size:12px;color:#67707a;
   }
 
-  /* ═══ GRID ═══ */
   .grid{
     display:grid;
     grid-template-columns:repeat(auto-fill,minmax(200px,1fr));
@@ -165,7 +149,6 @@
   }
   .card:hover .name{transform:translateY(-2px)}
 
-  /* Etiqueta "INSTALLED" opcional */
   .card .badge{
     position:absolute;top:8px;left:8px;
     background:rgba(102,192,244,.9);
@@ -178,7 +161,6 @@
   }
   .card:hover .badge{opacity:1;transform:translateY(0)}
 
-  /* Empty slots */
   .card.empty{
     background:#141a22;
     border:1px dashed #1f2a36;
@@ -197,7 +179,6 @@
   .card.empty:hover::before{color:#3a4a59;transform:scale(1.1)}
   .card.empty::after{display:none}
 
-  /* ═══ LOADER OVERLAY ═══ */
   #loader{
     position:fixed;inset:0;
     background:rgba(11,14,19,.97);
@@ -219,7 +200,6 @@
   }
   #loader .txt{color:#8ba6bf;font-size:13px;letter-spacing:.5px}
 
-  /* ═══ RESPONSIVE ═══ */
   @media (max-width:800px){
     .topbar{padding:10px 14px;gap:10px}
     .tabs{display:none}
@@ -232,7 +212,6 @@
 </head>
 <body>
 
-<!-- ═══ TOPBAR ═══ -->
 <header class="topbar">
   <div class="logo">
     <svg viewBox="0 0 24 24"><path d="M4 4h16v4H4V4zm0 6h16v4H4v-4zm0 6h16v4H4v-4z"/></svg>
@@ -251,7 +230,6 @@
   </div>
 </header>
 
-<!-- ═══ MAIN ═══ -->
 <main>
   <div class="section-head">
     <h2>All Games</h2>
@@ -267,7 +245,6 @@
       </div>
     </a>
 
-    <!-- Empty slots para futuros juegos -->
     <div class="card empty"></div>
     <div class="card empty"></div>
     <div class="card empty"></div>
@@ -276,14 +253,12 @@
   </div>
 </main>
 
-<!-- ═══ LOADER ═══ -->
 <div id="loader">
   <div class="spin"></div>
   <div class="txt" id="loaderText">Launching Grand Theft Auto V...</div>
 </div>
 
 <script>
-// ═══ Service Worker ═══
 if ('serviceWorker' in navigator) {
   navigator.serviceWorker.register('/sw.js', { scope: '/' })
     .then(function(reg) {
@@ -300,10 +275,8 @@ if ('serviceWorker' in navigator) {
     .catch(function(err) { console.error('[SW] Failed:', err); });
 }
 
-// ═══ Click en card → loader ═══
 document.querySelectorAll('.card[data-game]').forEach(function(card) {
   card.addEventListener('click', function(e) {
-    // No bloquear la navegación — solo mostrar el loader
     var name = card.querySelector('.name');
     document.getElementById('loaderText').textContent =
       'Launching ' + (name ? name.textContent : 'game') + '...';
