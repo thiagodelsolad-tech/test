@@ -14,6 +14,8 @@ const GTA_PREFIXES = [
 ];
 
 const SIMPSONS_CACHE = 'simpsons-v1';
+const GTA_HTML_CACHE = 'gta-html-v1';
+const GTA_HTML_TTL = 5 * 60 * 1000; // 5 minutos
 
 self.addEventListener('install', () => self.skipWaiting());
 
@@ -21,7 +23,7 @@ self.addEventListener('activate', (event) => {
   event.waitUntil((async () => {
     // Limpia caches viejos
     const keys = await caches.keys();
-    await Promise.all(keys.filter(k => k !== SIMPSONS_CACHE).map(k => caches.delete(k)));
+    await Promise.all(keys.filter(k => k !== SIMPSONS_CACHE && k !== GTA_HTML_CACHE).map(k => caches.delete(k)));
     await self.clients.claim();
   })());
 });
@@ -123,14 +125,22 @@ async function proxyAsset(request, origin, assetPath) {
       if (ct) reqHeaders.set('Content-Type', ct);
     }
 
-    const upstream = await fetch(target, {
+    const init = {
       method: request.method,
       headers: reqHeaders,
       mode: 'cors',
       credentials: 'omit',
       redirect: 'follow',
       body: hasBody ? await request.arrayBuffer() : undefined,
-    });
+    };
+
+    // Con Range del cliente se reenvía tal cual (el 206 pasa directo con su Content-Range).
+    // Sin Range, si el origen responde 206 igualmente (HTML/JSON/etc.) se reensambla el archivo.
+    const upstream = range ? await fetch(target, init) : await fetchComplete(target, init);
+
+    if (upstream.status >= 500 || upstream.status === 403 || upstream.status === 429) {
+      notifyClients(upstream.status, request.url).catch(() => {});
+    }
 
     // OJO: no se copian content-encoding ni content-length, porque fetch()
     // ya descomprimió el cuerpo y esos valores ya no coinciden.
@@ -159,7 +169,13 @@ async function proxyAsset(request, origin, assetPath) {
       headers,
     });
   } catch (e) {
-    return new Response('Proxy error: ' + e.message, { status: 502 });
+    const isUp = e instanceof UpstreamError;
+    const code = (isUp && e.status >= 400) ? e.status : 502;
+    notifyClients(isUp && e.status >= 400 ? e.status : 0, request.url).catch(() => {});
+    return new Response(
+      'Proxy error (' + (isUp && e.status >= 400 ? 'HTTP ' + e.status : 'red') + ') en ' + assetPath + ': ' + e.message,
+      { status: code, headers: { 'Content-Type': 'text/plain; charset=utf-8' } }
+    );
   }
 }
 
@@ -189,28 +205,194 @@ async function proxySimpsons(request, assetPath) {
 // ═══════════════════════════════════════════════════════════════════════
 // HTML del juego
 // ═══════════════════════════════════════════════════════════════════════
-function errorPage(message, status) {
-  const safe = String(message).replace(/[&<>]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]));
-  return new Response(
-    '<!doctype html><meta charset="utf-8"><style>body{background:#0e1419;color:#8ba6bf;font:14px Arial;display:flex;align-items:center;justify-content:center;height:100vh;margin:0}</style><div>Error: ' + safe + '</div>',
-    { status: status || 502, headers: { 'Content-Type': 'text/html; charset=utf-8' } }
-  );
+// ═══════════════════════════════════════════════════════════════════════
+// Errores explícitos + Range completo + cache del HTML de GTA
+// ═══════════════════════════════════════════════════════════════════════
+class UpstreamError extends Error {
+  constructor(message, status, url) {
+    super(message);
+    this.name = 'UpstreamError';
+    this.status = status || 0; // 0 = error de red (no hubo respuesta HTTP)
+    this.url = url || '';
+  }
+}
+
+function hostOf(u) {
+  try { return new URL(u).host; } catch (e) { return String(u); }
+}
+
+function escapeHTML(s) {
+  return String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+}
+
+function errorTitle(status) {
+  if (!status) return 'No se pudo conectar con el servidor del juego';
+  if (status === 403) return 'Acceso denegado por el servidor del juego';
+  if (status === 404) return 'El juego no se encontró en el servidor';
+  if (status === 429) return 'Demasiadas solicitudes, intenta de nuevo en un momento';
+  if (status >= 500) return 'El servidor del juego no está disponible';
+  return 'El servidor del juego devolvió un error';
+}
+
+function errorPage(err) {
+  const upstreamStatus = err instanceof UpstreamError ? err.status : 0;
+  const httpStatus = upstreamStatus >= 400 ? upstreamStatus : 502;
+  const codeLabel = upstreamStatus >= 400 ? 'HTTP ' + upstreamStatus : 'ERROR DE RED';
+  const detail = (err && err.message) ? err.message : 'Error desconocido';
+  const source = (err instanceof UpstreamError && err.url) ? hostOf(err.url) : '';
+
+  const html = '<!doctype html><html><head><meta charset="utf-8">' +
+    '<meta name="viewport" content="width=device-width,initial-scale=1">' +
+    '<title>' + escapeHTML(codeLabel) + '</title>' +
+    '<style>' +
+    'html,body{height:100%;margin:0}' +
+    'body{background:#0e1419;color:#8ba6bf;font:14px/1.5 -apple-system,BlinkMacSystemFont,Arial,sans-serif;display:flex;align-items:center;justify-content:center}' +
+    '.box{max-width:480px;padding:28px 32px;text-align:center;border:1px solid rgba(255,255,255,.08);border-radius:16px;background:rgba(255,255,255,.03)}' +
+    '.code{font:700 34px Consolas,monospace;color:#f87171;letter-spacing:2px}' +
+    'h1{font-size:17px;color:#fff;margin:10px 0 6px}' +
+    'p{margin:4px 0;word-break:break-word}' +
+    '.src{font-size:12px;opacity:.7}' +
+    'button{margin-top:16px;padding:9px 22px;border:0;border-radius:8px;background:#3b82f6;color:#fff;font-size:14px;cursor:pointer}' +
+    '</style></head><body><div class="box">' +
+    '<div class="code">' + escapeHTML(codeLabel) + '</div>' +
+    '<h1>' + escapeHTML(errorTitle(upstreamStatus)) + '</h1>' +
+    '<p>' + escapeHTML(detail) + '</p>' +
+    (source ? '<p class="src">Origen: ' + escapeHTML(source) + '</p>' : '') +
+    '<button onclick="location.reload()">Reintentar</button>' +
+    '</div></body></html>';
+
+  return new Response(html, {
+    status: httpStatus,
+    headers: { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-store' },
+  });
+}
+
+// Avisa a las pestañas abiertas para que muestren un overlay con el código HTTP
+// (máximo 1 aviso cada 3 s para no inundar la pantalla)
+let lastNotifyAt = 0;
+async function notifyClients(status, url) {
+  const now = Date.now();
+  if (now - lastNotifyAt < 3000) return;
+  lastNotifyAt = now;
+  let path = url;
+  try { path = new URL(url).pathname; } catch (e) {}
+  const list = await self.clients.matchAll({ type: 'window' });
+  list.forEach(c => c.postMessage({ type: 'sw-proxy-error', status: status || 0, path }));
+}
+
+// ── Range ────────────────────────────────────────────────────────────────
+function parseContentRange(h) {
+  const m = /^bytes\s+(\d+)-(\d+)\/(\d+|\*)$/i.exec((h || '').trim());
+  if (!m) return null;
+  return { start: +m[1], end: +m[2], total: m[3] === '*' ? null : +m[3] };
+}
+
+// Si el origen responde 206 (parcial) a una petición que no pidió Range,
+// se piden los fragmentos restantes y se reensambla una respuesta 200 completa.
+async function fetchComplete(url, init) {
+  const res = await fetch(url, init);
+  if (res.status !== 206) return res;
+
+  const first = parseContentRange(res.headers.get('content-range'));
+  if (!first || first.start !== 0) {
+    throw new UpstreamError('El origen devolvió una respuesta parcial (206) inesperada', 206, url);
+  }
+
+  const chunks = [new Uint8Array(await res.arrayBuffer())];
+  let next = first.end + 1;
+  let total = first.total;
+  let done = total !== null && next >= total;
+
+  for (let i = 0; !done && i < 50; i++) {
+    const h = new Headers((init && init.headers) || undefined);
+    h.set('Range', 'bytes=' + next + '-');
+    const r = await fetch(url, Object.assign({}, init, { headers: h }));
+
+    if (r.status === 416) { done = true; break; } // ya no queda nada
+    if (r.status !== 206) {
+      throw new UpstreamError('Fallo al completar la descarga por rangos (HTTP ' + r.status + ')', r.status, url);
+    }
+    const c = parseContentRange(r.headers.get('content-range'));
+    if (!c || c.start !== next) {
+      throw new UpstreamError('Rango inconsistente al reensamblar la respuesta', 206, url);
+    }
+    chunks.push(new Uint8Array(await r.arrayBuffer()));
+    next = c.end + 1;
+    if (c.total !== null) total = c.total;
+    done = total !== null && next >= total;
+  }
+  if (!done) throw new UpstreamError('Respuesta fragmentada en demasiadas partes', 206, url);
+
+  const size = chunks.reduce((n, c) => n + c.length, 0);
+  const merged = new Uint8Array(size);
+  let off = 0;
+  chunks.forEach(c => { merged.set(c, off); off += c.length; });
+
+  const headers = new Headers(res.headers);
+  headers.delete('content-range');
+  headers.delete('content-length');
+  return new Response(merged, { status: 200, statusText: 'OK', headers });
+}
+
+// ── HTML de GTA: cache de 5 min + stale-if-error + dedupe de peticiones ──
+async function fetchHTMLText(targetUrl) {
+  let res;
+  try {
+    res = await fetchComplete(targetUrl, {
+      method: 'GET', mode: 'cors', credentials: 'omit', cache: 'no-cache',
+    });
+  } catch (e) {
+    if (e instanceof UpstreamError) throw e;
+    throw new UpstreamError('No se pudo conectar con ' + hostOf(targetUrl) + ': ' + e.message, 0, targetUrl);
+  }
+  if (!res.ok) {
+    throw new UpstreamError(
+      hostOf(targetUrl) + ' respondió ' + res.status + (res.statusText ? ' ' + res.statusText : ''),
+      res.status, targetUrl
+    );
+  }
+  return res.text();
+}
+
+const inflightHTML = new Map();
+
+async function getGameHTML(origin, type) {
+  const targetUrl = type === 'simpsons' ? origin + '/?skipmovie' : origin + '/';
+  if (type !== 'gta') return fetchHTMLText(targetUrl);
+
+  const cache = await caches.open(GTA_HTML_CACHE);
+  const cached = await cache.match(targetUrl);
+  if (cached) {
+    const age = Date.now() - Number(cached.headers.get('x-sw-fetched-at') || 0);
+    if (age < GTA_HTML_TTL) return cached.text();
+  }
+
+  // Si ya hay una petición en vuelo (varias pestañas), se comparte
+  if (inflightHTML.has(targetUrl)) return inflightHTML.get(targetUrl);
+
+  const p = (async () => {
+    try {
+      const html = await fetchHTMLText(targetUrl);
+      await cache.put(targetUrl, new Response(html, {
+        headers: {
+          'Content-Type': 'text/html; charset=utf-8',
+          'x-sw-fetched-at': String(Date.now()),
+        },
+      })).catch(() => {});
+      return html;
+    } catch (e) {
+      if (cached) return cached.text(); // origen caído: se sirve la copia vieja
+      throw e;
+    }
+  })().finally(() => inflightHTML.delete(targetUrl));
+
+  inflightHTML.set(targetUrl, p);
+  return p;
 }
 
 async function serveGameHTML(origin, type) {
   try {
-    const targetUrl = type === 'simpsons' ? origin + '/?skipmovie' : origin + '/';
-
-    const upstream = await fetch(targetUrl, {
-      method: 'GET',
-      mode: 'cors',
-      credentials: 'omit',
-      cache: 'no-cache',
-    });
-
-    if (!upstream.ok) return errorPage('El servidor respondió HTTP ' + upstream.status, 502);
-
-    let html = await upstream.text();
+    let html = await getGameHTML(origin, type);
 
     if (type === 'gta') {
       html = html.replace(
@@ -231,8 +413,7 @@ async function serveGameHTML(origin, type) {
     const headPatch = buildHeadPatch(type);
     const bodyPatch = buildBodyPatch(type);
 
-    // Se usan funciones como reemplazo para que los "$" del código inyectado
-    // no se interpreten como patrones especiales de String.replace.
+    // Funciones como reemplazo: los "$" del código inyectado no se interpretan
     if (/<head[^>]*>/i.test(html)) {
       html = html.replace(/<head[^>]*>/i, (m) => m + headPatch);
     } else {
@@ -257,17 +438,49 @@ async function serveGameHTML(origin, type) {
       },
     });
   } catch (e) {
-    return errorPage(e.message, 502);
+    return errorPage(e);
   }
+}
+
+// ═══════════════════════════════════════════════════════════════════════
+// OVERLAY DE ERRORES HTTP (ambos juegos)
+// ═══════════════════════════════════════════════════════════════════════
+function buildErrorOverlayScript() {
+  return `<script>
+(function(){
+  if (!('serviceWorker' in navigator)) return;
+  var timer = null;
+  function overlay(msg){
+    var d = document.getElementById('__sw_err');
+    if (!d) {
+      d = document.createElement('div');
+      d.id = '__sw_err';
+      d.setAttribute('role', 'alert');
+      d.style.cssText = 'position:fixed;left:14px;top:14px;z-index:9600;max-width:min(420px,90vw);padding:10px 16px;border-radius:10px;background:rgba(127,29,29,.95);color:#fff;font:13px/1.4 -apple-system,BlinkMacSystemFont,Arial,sans-serif;box-shadow:0 8px 24px rgba(0,0,0,.5);pointer-events:none;word-break:break-all;';
+      (document.body || document.documentElement).appendChild(d);
+    }
+    d.textContent = msg;
+    d.style.display = 'block';
+    clearTimeout(timer);
+    timer = setTimeout(function(){ d.style.display = 'none'; }, 8000);
+  }
+  navigator.serviceWorker.addEventListener('message', function(e){
+    var m = e.data;
+    if (!m || m.type !== 'sw-proxy-error') return;
+    var code = m.status ? 'Error HTTP ' + m.status : 'Error de red';
+    overlay(code + ' al cargar ' + m.path);
+  });
+})();
+<\/script>`;
 }
 
 // ═══════════════════════════════════════════════════════════════════════
 // HEAD PATCH — bloquea ads estáticos y dinámicos
 // ═══════════════════════════════════════════════════════════════════════
 function buildHeadPatch(type) {
-  if (type === 'simpsons') return '';
+  if (type === 'simpsons') return buildErrorOverlayScript();
 
-  return `<script>
+  return buildErrorOverlayScript() + `<script>
 (function(){
   var BLOCKED = ['alwingulla.com','quge5.com','monetag','profit','adsterra','popads','popcash','hilltopads'];
   function isBlocked(v){
@@ -304,8 +517,8 @@ function buildHeadPatch(type) {
   var AD_TEXTS = ['new message', 'play now', 'hot new game', 'click here', 'sponsored'];
 
   function isProtected(el){
-    if (el.id === 'canvas' || el.id === '__gp_hud' || el.id === '__gp_btn') return true;
-    if (el.closest && el.closest('#loading, #__gp_hud, #__gp_btn, .my-ad')) return true;
+    if (el.id === 'canvas' || el.id === '__gp_hud' || el.id === '__gp_btn' || el.id === '__sw_err') return true;
+    if (el.closest && el.closest('#loading, #__gp_hud, #__gp_btn, #__sw_err, .my-ad')) return true;
     if (el.className && typeof el.className === 'string' && el.className.indexOf('my-ad') !== -1) return true;
     return false;
   }
@@ -601,6 +814,11 @@ function buildGamepadScript() {
     if(b) try{b.remove();}catch(e){}
   }
 
+  function releaseAll(){
+    rAll(); releaseMouse();
+    backAt = 0; backLong = false;
+  }
+
   function toggle(){
     rAll(); releaseMouse();
     MODE = MODE === 'foot' ? 'vehicle' : MODE === 'vehicle' ? 'air' : 'foot';
@@ -615,7 +833,11 @@ function buildGamepadScript() {
     if (gp && !active) { active=true; cb(); brief(); }
     else if (!gp && active) { active=false; destroy(); rAll(); releaseMouse(); }
 
-    if (gp) {
+    // Sin foco (alt-tab, otra ventana encima) no se envía input y se suelta todo
+    var focused = !document.hidden && document.hasFocus();
+    if (gp && !focused && (held.size || lm || rm || backAt)) releaseAll();
+
+    if (gp && focused) {
       var map = MODE_MAP[MODE];
 
       gp.buttons.forEach(function(b,i){
@@ -705,6 +927,14 @@ function buildGamepadScript() {
     c.addEventListener('click', function(){ lock(true); });
   }
   wire(); setInterval(wire, 2000);
+
+  // En pestañas ocultas requestAnimationFrame se pausa, así que hay que soltar aquí
+  window.addEventListener('blur', function(){
+    // setTimeout 0: si el foco solo pasó a un iframe (ad) hasFocus() sigue true y no se suelta nada
+    setTimeout(function(){ if (document.hidden || !document.hasFocus()) releaseAll(); }, 0);
+  });
+  document.addEventListener('visibilitychange', function(){ if (document.hidden) releaseAll(); });
+  window.addEventListener('pagehide', releaseAll);
 
   window.__gamepad = {toggle:toggle, getMode:function(){return MODE;}, isConnected:function(){return active;}};
 })();
