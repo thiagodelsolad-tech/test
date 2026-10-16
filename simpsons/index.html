@@ -1,0 +1,30 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Loading...</title>
+<style>
+  html,body{margin:0;height:100%;background:#0e1419;color:#8ba6bf;
+    font:13px Arial,sans-serif;display:flex;align-items:center;
+    justify-content:center;flex-direction:column;gap:14px}
+  .spin{width:28px;height:28px;border:2px solid #1b2838;
+    border-top-color:#66c0f4;border-radius:50%;animation:sp .8s linear infinite}
+  @keyframes sp{to{transform:rotate(360deg)}}
+</style>
+</head>
+<body>
+  <div class="spin"></div>
+  <div>Loading...</div>
+<script>
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('/sw.js', { scope: '/' }).then(function() {
+    return navigator.serviceWorker.ready;
+  }).then(function() {
+    if (!navigator.serviceWorker.controller) {
+      location.reload();
+    }
+  });
+}
+</script>
+</body>
+</html>
