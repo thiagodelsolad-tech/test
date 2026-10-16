@@ -1,7 +1,9 @@
 // ═══════════════════════════════════════════════════════════════════════
-// GTA V Service Worker Proxy
-// Proxea /gta5 + assets a fiveplay.lol · Añade COOP/COEP · Bloquea ads
-// Inyecta gamepad + audio + tus 2 anuncios · Firefox compatible
+// GTA V Service Worker Proxy — Versión Final
+//  · Proxea /gta5 + assets a fiveplay.lol
+//  · COEP: credentialless (permite anuncios + SharedArrayBuffer)
+//  · Firefox + Chrome + Edge compatible
+//  · Bloquea ads de fiveplay · Inyecta tus 2 ads + gamepad + audio
 // ═══════════════════════════════════════════════════════════════════════
 
 const ORIGIN = 'https://fiveplay.lol';
@@ -33,7 +35,7 @@ self.addEventListener('fetch', (event) => {
 });
 
 // ═══════════════════════════════════════════════════════════════════════
-// PROXY DE ASSETS — sin headers prohibidos para Firefox
+// PROXY DE ASSETS
 // ═══════════════════════════════════════════════════════════════════════
 async function proxyAsset(request) {
   const url = new URL(request.url);
@@ -62,8 +64,9 @@ async function proxyAsset(request) {
       if (v) headers.set(k, v);
     });
 
+    // ═══ credentialless (permite anuncios externos) ═══
     headers.set('Cross-Origin-Opener-Policy', 'same-origin');
-    headers.set('Cross-Origin-Embedder-Policy', 'require-corp');
+    headers.set('Cross-Origin-Embedder-Policy', 'credentialless');
     headers.set('Cross-Origin-Resource-Policy', 'cross-origin');
     headers.set('Access-Control-Allow-Origin', '*');
 
@@ -130,7 +133,7 @@ async function serveGameHTML() {
       headers: {
         'Content-Type': 'text/html; charset=utf-8',
         'Cross-Origin-Opener-Policy': 'same-origin',
-        'Cross-Origin-Embedder-Policy': 'require-corp',
+        'Cross-Origin-Embedder-Policy': 'credentialless',
         'Cross-Origin-Resource-Policy': 'cross-origin',
         'Access-Control-Allow-Origin': '*',
       },
@@ -144,7 +147,7 @@ async function serveGameHTML() {
 }
 
 // ═══════════════════════════════════════════════════════════════════════
-// HEAD PATCH — bloquea scripts dinámicos
+// HEAD PATCH — bloquea scripts dinámicos de fiveplay
 // ═══════════════════════════════════════════════════════════════════════
 function buildHeadPatch() {
   return `<script>
@@ -171,7 +174,7 @@ function buildHeadPatch() {
 }
 
 // ═══════════════════════════════════════════════════════════════════════
-// BODY PATCH — tus 2 anuncios + audio + gamepad
+// BODY PATCH
 // ═══════════════════════════════════════════════════════════════════════
 function buildBodyPatch() {
   return buildAdsScript() + buildAudioScript() + buildGamepadScript();
