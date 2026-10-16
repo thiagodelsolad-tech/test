@@ -3,12 +3,3 @@
   Cross-Origin-Embedder-Policy: require-corp
   Cross-Origin-Resource-Policy: cross-origin
   Access-Control-Allow-Origin: *
-
-/*.wasm
-  Content-Type: application/wasm
-
-/*.js
-  Content-Type: application/javascript
-
-/*.woff
-  Content-Type: font/woff
