@@ -1,9 +1,5 @@
 // ═══════════════════════════════════════════════════════════════════════
-// GTA V Service Worker Proxy — Versión Final
-//  · Proxea /gta5 + assets a fiveplay.lol
-//  · COEP: credentialless (permite anuncios + SharedArrayBuffer)
-//  · Firefox + Chrome + Edge compatible
-//  · Bloquea ads de fiveplay · Inyecta tus 2 ads + gamepad + audio
+// GTA V Service Worker Proxy — Con 2 anuncios (300x250 + 468x60)
 // ═══════════════════════════════════════════════════════════════════════
 
 const ORIGIN = 'https://fiveplay.lol';
@@ -64,7 +60,6 @@ async function proxyAsset(request) {
       if (v) headers.set(k, v);
     });
 
-    // ═══ credentialless (permite anuncios externos) ═══
     headers.set('Cross-Origin-Opener-Policy', 'same-origin');
     headers.set('Cross-Origin-Embedder-Policy', 'credentialless');
     headers.set('Cross-Origin-Resource-Policy', 'cross-origin');
@@ -88,7 +83,7 @@ async function proxyAsset(request) {
 }
 
 // ═══════════════════════════════════════════════════════════════════════
-// HTML DEL JUEGO — sin headers custom (Firefox-safe)
+// HTML DEL JUEGO
 // ═══════════════════════════════════════════════════════════════════════
 async function serveGameHTML() {
   try {
@@ -101,7 +96,6 @@ async function serveGameHTML() {
 
     let html = await upstream.text();
 
-    // Quitar scripts de anuncios estáticos de fiveplay
     html = html.replace(
       /<script[^>]*src\s*=\s*["'][^"']*(quge5\.com|alwingulla\.com|monetag|tag\.min\.js|cloudflareinsights)[^"']*["'][^>]*>\s*<\/script>/gi,
       ''
@@ -147,7 +141,7 @@ async function serveGameHTML() {
 }
 
 // ═══════════════════════════════════════════════════════════════════════
-// HEAD PATCH — bloquea scripts dinámicos de fiveplay
+// HEAD PATCH
 // ═══════════════════════════════════════════════════════════════════════
 function buildHeadPatch() {
   return `<script>
@@ -173,14 +167,11 @@ function buildHeadPatch() {
 <\/script>`;
 }
 
-// ═══════════════════════════════════════════════════════════════════════
-// BODY PATCH
-// ═══════════════════════════════════════════════════════════════════════
 function buildBodyPatch() {
   return buildAdsScript() + buildAudioScript() + buildGamepadScript();
 }
 
-// ─── TUS 2 ANUNCIOS ───────────────────────────────────────────────
+// ─── 2 ANUNCIOS DEL JUEGO (300x250 top + 468x60 bottom) ────────────
 function buildAdsScript() {
   return `<script>
 (function(){
@@ -188,7 +179,8 @@ function buildAdsScript() {
     var f = document.createElement('iframe');
     f.id = id; f.className = 'my-ad';
     f.width = w; f.height = h; f.scrolling = 'no';
-    f.style.cssText = 'position:fixed;left:50%;transform:translateX(-50%);z-index:9000;border:0;' + (pos==='top'?'top:8px;':'bottom:8px;');
+    f.style.cssText = 'position:fixed;left:50%;transform:translateX(-50%);z-index:9000;border:0;' +
+      (pos === 'top' ? 'top:8px;' : 'bottom:8px;');
     document.body.appendChild(f);
     var doc = f.contentDocument || f.contentWindow.document;
     doc.open();
@@ -198,17 +190,24 @@ function buildAdsScript() {
     doc.write('</body></html>');
     doc.close();
   }
-  function rm(){ document.querySelectorAll('.my-ad').forEach(function(e){ try{e.remove();}catch(x){} }); }
+  function rm(){
+    document.querySelectorAll('.my-ad').forEach(function(e){ try { e.remove(); } catch(x){} });
+  }
   function init(){
     if (!document.body) return setTimeout(init, 50);
-    addAd('my-ad-728', 728, 90, '76a4887bf5246065c1644d5ff3ee96ae', 'top');
-    addAd('my-ad-320', 320, 50, '0c552db9603823b8354d2c686ebe16d7', 'bottom');
+
+    // Anuncio superior: 300x250
+    addAd('my-ad-300', 300, 250, 'f49c2e7ae12570d06b9c194497928af0', 'top');
+    // Anuncio inferior: 468x60
+    addAd('my-ad-468', 468, 60, 'f18d77cc1e4b0ecc702e26baff74510e', 'bottom');
+
+    // Auto-eliminar cuando el juego arranque
     var obs = new MutationObserver(function(){
       var l = document.getElementById('loading');
       if (!l || l.classList.contains('done')) { rm(); obs.disconnect(); }
     });
-    obs.observe(document.documentElement, {childList:true,subtree:true,attributes:true,attributeFilter:['class']});
-    setTimeout(function(){ rm(); obs.disconnect(); }, 5*60*1000);
+    obs.observe(document.documentElement, { childList: true, subtree: true, attributes: true, attributeFilter: ['class'] });
+    setTimeout(function(){ rm(); obs.disconnect(); }, 5 * 60 * 1000);
   }
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init);
   else init();
