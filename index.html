@@ -10,9 +10,30 @@
     background:#0e1014;color:#c7d5e0;
     font:14px/1.4 "Motiva Sans","Segoe UI",Arial,sans-serif;
     min-height:100vh;
+    overflow-x:hidden;
   }
   a{color:inherit;text-decoration:none}
-  button{background:none;border:0;color:inherit;font:inherit;cursor:pointer}
+
+  /* ═══ ANIMACIONES ═══ */
+  @keyframes fadeUp{
+    from{opacity:0;transform:translateY(20px)}
+    to{opacity:1;transform:translateY(0)}
+  }
+  @keyframes fadeIn{
+    from{opacity:0}
+    to{opacity:1}
+  }
+  @keyframes pulseGlow{
+    0%,100%{box-shadow:0 0 0 0 rgba(102,192,244,0)}
+    50%{box-shadow:0 0 0 8px rgba(102,192,244,.15)}
+  }
+  @keyframes float{
+    0%,100%{transform:translateY(0)}
+    50%{transform:translateY(-4px)}
+  }
+  @keyframes spin{
+    to{transform:rotate(360deg)}
+  }
 
   /* ═══ TOPBAR ═══ */
   .topbar{
@@ -21,80 +42,60 @@
     padding:10px 24px;
     display:flex;align-items:center;gap:22px;
     position:sticky;top:0;z-index:50;
+    animation:fadeIn .4s ease-out;
   }
   .logo{
     display:flex;align-items:center;gap:8px;
     font-size:14px;font-weight:700;color:#fff;
-    letter-spacing:.3px;
-    flex-shrink:0;
+    letter-spacing:.3px;flex-shrink:0;
   }
   .logo svg{width:20px;height:20px;fill:#fff}
 
-  .tabs{
-    display:flex;gap:4px;
-    flex:1;
-    margin-left:6px;
-  }
+  .tabs{display:flex;gap:4px;flex:1;margin-left:6px}
   .tabs button{
-    padding:8px 14px;
-    border-radius:3px;
-    color:#b8b6b4;
-    font-size:13px;
-    transition:color .15s,background .15s;
+    padding:8px 14px;border-radius:3px;
+    color:#b8b6b4;font-size:13px;
+    background:none;border:0;cursor:pointer;
+    font:inherit;
+    transition:color .2s,background .2s,transform .15s;
     white-space:nowrap;
   }
   .tabs button:hover{color:#fff;background:#1e2530}
-  .tabs button.active{color:#fff;background:#1e2530}
+  .tabs button:active{transform:scale(.96)}
+  .tabs button.active{
+    color:#fff;background:#1e2530;
+    box-shadow:inset 0 -2px 0 #66c0f4;
+  }
 
   .search{
-    position:relative;
-    flex-shrink:0;
+    position:relative;flex-shrink:0;
   }
   .search input{
-    background:#316282;
-    border:1px solid #000;
-    border-radius:3px;
-    padding:7px 32px 7px 12px;
-    color:#fff;font-size:13px;
-    outline:none;
-    width:220px;
-    transition:background .15s,width .2s;
+    background:#316282;border:1px solid #000;border-radius:3px;
+    padding:7px 32px 7px 12px;color:#fff;font-size:13px;
+    outline:none;width:220px;
+    transition:background .2s,width .25s cubic-bezier(.2,0,.2,1);
   }
-  .search input:focus{background:#3d789f;width:260px}
+  .search input:focus{background:#3d789f;width:280px}
   .search input::placeholder{color:#a7c4db}
   .search svg{
     position:absolute;right:10px;top:50%;
     transform:translateY(-50%);
-    width:14px;height:14px;fill:#a7c4db;
-    pointer-events:none;
+    width:14px;height:14px;fill:#a7c4db;pointer-events:none;
+    transition:fill .2s;
   }
+  .search input:focus + svg{fill:#fff}
 
-  .view-controls{
-    display:flex;gap:2px;
-    flex-shrink:0;
-    margin-left:6px;
-  }
-  .view-controls button{
-    width:30px;height:30px;
-    display:flex;align-items:center;justify-content:center;
-    border-radius:3px;
-    color:#8ba6bf;
-    transition:color .15s,background .15s;
-  }
-  .view-controls button:hover{color:#fff;background:#1e2530}
-  .view-controls button.active{color:#66c0f4;background:#1e2530}
-  .view-controls svg{width:16px;height:16px;fill:currentColor}
-
-  /* ═══ CONTENT ═══ */
+  /* ═══ MAIN ═══ */
   main{
-    padding:24px 32px 60px;
-    max-width:1600px;
-    margin:0 auto;
+    padding:28px 32px 60px;
+    max-width:1600px;margin:0 auto;
   }
 
   .section-head{
     display:flex;align-items:baseline;justify-content:space-between;
-    margin-bottom:18px;
+    margin-bottom:20px;
+    animation:fadeUp .5s ease-out .05s both;
   }
   .section-head h2{
     font-size:20px;font-weight:600;color:#fff;
@@ -107,113 +108,116 @@
   /* ═══ GRID ═══ */
   .grid{
     display:grid;
-    grid-template-columns:repeat(auto-fill,minmax(180px,1fr));
-    gap:14px;
-  }
-  .grid.list{
-    grid-template-columns:1fr;
-    gap:6px;
+    grid-template-columns:repeat(auto-fill,minmax(200px,1fr));
+    gap:16px;
   }
 
   .card{
-    position:relative;
-    display:block;
-    border-radius:3px;
-    overflow:hidden;
+    position:relative;display:block;
+    border-radius:3px;overflow:hidden;
     background:#1b2838;
     aspect-ratio:3/4;
-    transition:transform .18s cubic-bezier(.2,0,.2,1),box-shadow .18s;
     cursor:pointer;
+    transition:transform .28s cubic-bezier(.2,0,.2,1),
+               box-shadow .28s cubic-bezier(.2,0,.2,1);
+    animation:fadeUp .55s cubic-bezier(.2,0,.2,1) both;
   }
+  .card:nth-child(1){animation-delay:.1s}
+
+  .card::after{
+    content:'';position:absolute;inset:0;
+    background:radial-gradient(circle at center,transparent 40%,rgba(0,0,0,.35));
+    opacity:0;transition:opacity .3s;pointer-events:none;
+  }
+  .card:hover::after{opacity:1}
+
   .card:hover{
-    transform:scale(1.03);
-    box-shadow:0 0 0 2px #66c0f4,0 8px 20px rgba(0,0,0,.5);
+    transform:translateY(-6px) scale(1.03);
+    box-shadow:
+      0 0 0 2px #66c0f4,
+      0 12px 32px rgba(0,0,0,.55),
+      0 0 40px rgba(102,192,244,.25);
     z-index:2;
   }
+
   .card img{
     position:absolute;inset:0;
     width:100%;height:100%;
-    object-fit:cover;
-    display:block;
+    object-fit:cover;display:block;
+    transition:transform .5s cubic-bezier(.2,0,.2,1);
   }
+  .card:hover img{transform:scale(1.06)}
+
   .card .overlay{
-    position:absolute;
-    left:0;right:0;bottom:0;
-    padding:8px 10px;
-    background:linear-gradient(to top,rgba(0,0,0,.85),rgba(0,0,0,0) 100%);
+    position:absolute;left:0;right:0;bottom:0;
+    padding:10px 12px;
+    background:linear-gradient(to top,rgba(0,0,0,.9),rgba(0,0,0,0) 100%);
+    pointer-events:none;
+    transition:padding .3s;
+  }
+  .card:hover .overlay{padding-bottom:14px}
+
+  .card .name{
+    color:#fff;font-size:13px;font-weight:600;
+    text-shadow:0 1px 3px rgba(0,0,0,.9);
+    white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+    transition:transform .3s;
+  }
+  .card:hover .name{transform:translateY(-2px)}
+
+  /* Etiqueta "INSTALLED" opcional */
+  .card .badge{
+    position:absolute;top:8px;left:8px;
+    background:rgba(102,192,244,.9);
+    color:#fff;font-size:10px;font-weight:700;
+    padding:2px 7px;border-radius:2px;
+    letter-spacing:.5px;
+    opacity:0;transform:translateY(-4px);
+    transition:opacity .3s,transform .3s;
     pointer-events:none;
   }
-  .card .name{
-    color:#fff;
-    font-size:13px;
-    font-weight:600;
-    text-shadow:0 1px 3px rgba(0,0,0,.9);
-    white-space:nowrap;
-    overflow:hidden;
-    text-overflow:ellipsis;
-  }
+  .card:hover .badge{opacity:1;transform:translateY(0)}
 
-  /* List view */
-  .grid.list .card{
-    aspect-ratio:auto;
-    height:70px;
-    display:flex;align-items:center;
-    padding:0 14px;
-    background:#16212e;
-    border:1px solid #1e2a3a;
-  }
-  .grid.list .card:hover{transform:none;box-shadow:0 0 0 2px #66c0f4}
-  .grid.list .card img{
-    position:static;
-    width:44px;height:58px;
-    border-radius:2px;
-    flex-shrink:0;
-    object-fit:cover;
-    margin-right:14px;
-  }
-  .grid.list .card .overlay{
-    position:static;
-    background:none;
-    padding:0;
-    flex:1;
-  }
-  .grid.list .card .name{
-    color:#fff;
-    font-size:14px;
-  }
-
-  /* Empty slots (only in grid view) */
+  /* Empty slots */
   .card.empty{
     background:#141a22;
     border:1px dashed #1f2a36;
     display:flex;align-items:center;justify-content:center;
     cursor:default;
+    animation:none;
   }
-  .card.empty:hover{transform:none;box-shadow:none;border-color:#2a3849}
   .card.empty::before{
     content:'+';font-size:32px;color:#2a3849;font-weight:300;
+    transition:color .2s,transform .2s;
   }
-  .grid.list .card.empty{display:none}
+  .card.empty:hover{
+    transform:none;box-shadow:none;
+    border-color:#2a3849;
+  }
+  .card.empty:hover::before{color:#3a4a59;transform:scale(1.1)}
+  .card.empty::after{display:none}
 
   /* ═══ LOADER OVERLAY ═══ */
   #loader{
     position:fixed;inset:0;
-    background:#0b0e13;
+    background:rgba(11,14,19,.97);
+    backdrop-filter:blur(10px);
+    -webkit-backdrop-filter:blur(10px);
     z-index:9999;
     display:none;
     align-items:center;justify-content:center;
-    flex-direction:column;gap:18px;
+    flex-direction:column;gap:20px;
+    animation:fadeIn .3s ease-out;
   }
   #loader.on{display:flex}
   #loader .spin{
-    width:32px;height:32px;
+    width:36px;height:36px;
     border:3px solid #1b2838;
     border-top-color:#66c0f4;
     border-radius:50%;
     animation:spin .8s linear infinite;
   }
-  @keyframes spin{to{transform:rotate(360deg)}}
-  #loader .txt{color:#8ba6bf;font-size:13px}
+  #loader .txt{color:#8ba6bf;font-size:13px;letter-spacing:.5px}
 
   /* ═══ RESPONSIVE ═══ */
   @media (max-width:800px){
@@ -235,82 +239,51 @@
     Library
   </div>
 
-  <nav class="tabs" id="tabs">
-    <button data-tab="games" class="active">Games</button>
-    <button data-tab="apps">Apps and Editors</button>
-    <button data-tab="favorites">Favorites</button>
-    <button data-tab="collections">Collections</button>
+  <nav class="tabs">
+    <button class="active">Library</button>
+    <button>Store</button>
+    <button>Community</button>
   </nav>
 
   <div class="search">
-    <input type="text" id="searchInput" placeholder="Search library">
+    <input type="text" placeholder="Search library">
     <svg viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27a6.5 6.5 0 1 0-.7.7l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0A4.5 4.5 0 1 1 14 9.5 4.5 4.5 0 0 1 9.5 14z"/></svg>
-  </div>
-
-  <div class="view-controls">
-    <button data-view="grid" class="active" title="Grid view">
-      <svg viewBox="0 0 24 24"><path d="M4 4h7v7H4V4zm9 0h7v7h-7V4zM4 13h7v7H4v-7zm9 0h7v7h-7v-7z"/></svg>
-    </button>
-    <button data-view="list" title="List view">
-      <svg viewBox="0 0 24 24"><path d="M3 6h18v3H3V6zm0 5h18v3H3v-3zm0 5h18v3H3v-3z"/></svg>
-    </button>
   </div>
 </header>
 
 <!-- ═══ MAIN ═══ -->
 <main>
   <div class="section-head">
-    <h2 id="sectionTitle">All Games</h2>
-    <span class="count" id="gameCount"></span>
+    <h2>All Games</h2>
+    <span class="count">1 game installed</span>
   </div>
 
-  <div class="grid" id="gameGrid">
-
-    <!-- GTA V -->
-    <a class="card" href="/gta5/" data-name="Grand Theft Auto V" data-tags="games,favorites">
+  <div class="grid">
+    <a class="card" href="/gta5/" data-game="gta5">
       <img src="/img/gta5.jpg" alt="Grand Theft Auto V">
-      <div class="overlay"><div class="name">Grand Theft Auto V</div></div>
+      <div class="badge">INSTALLED</div>
+      <div class="overlay">
+        <div class="name">Grand Theft Auto V</div>
+      </div>
     </a>
 
-    <!-- Balatro -->
-    <a class="card" href="/balatro/" data-name="Balatro" data-tags="games">
-      <img src="/img/Balatro.png" alt="Balatro">
-      <div class="overlay"><div class="name">Balatro</div></div>
-    </a>
-
-    <!-- Geometry Dash -->
-    <a class="card" href="/geometry/" data-name="Geometry Dash" data-tags="games">
-      <img src="/img/Geometry.png" alt="Geometry Dash">
-      <div class="overlay"><div class="name">Geometry Dash</div></div>
-    </a>
-
-    <!-- Minecraft -->
-    <a class="card" href="/minecraft/" data-name="Minecraft" data-tags="games">
-      <img src="/img/Minecraft.png" alt="Minecraft">
-      <div class="overlay"><div class="name">Minecraft</div></div>
-    </a>
-
-    <!-- Empty slots (visibles solo en vista grid) -->
+    <!-- Empty slots para futuros juegos -->
     <div class="card empty"></div>
     <div class="card empty"></div>
     <div class="card empty"></div>
     <div class="card empty"></div>
     <div class="card empty"></div>
-    <div class="card empty"></div>
-
   </div>
 </main>
 
 <!-- ═══ LOADER ═══ -->
 <div id="loader">
   <div class="spin"></div>
-  <div class="txt" id="loaderText">Loading...</div>
+  <div class="txt" id="loaderText">Launching Grand Theft Auto V...</div>
 </div>
 
 <script>
-// ═══════════════════════════════════════════════════════════════
-// SERVICE WORKER
-// ═══════════════════════════════════════════════════════════════
+// ═══ Service Worker ═══
 if ('serviceWorker' in navigator) {
   navigator.serviceWorker.register('/sw.js', { scope: '/' })
     .then(function(reg) {
@@ -327,87 +300,16 @@ if ('serviceWorker' in navigator) {
     .catch(function(err) { console.error('[SW] Failed:', err); });
 }
 
-// ═══════════════════════════════════════════════════════════════
-// TABS — cambiar filtro activo
-// ═══════════════════════════════════════════════════════════════
-var currentTab = 'games';
-var tabsEl = document.getElementById('tabs');
-var sectionTitle = document.getElementById('sectionTitle');
-var grid = document.getElementById('gameGrid');
-var searchInput = document.getElementById('searchInput');
-
-tabsEl.addEventListener('click', function(e) {
-  var btn = e.target.closest('button[data-tab]');
-  if (!btn) return;
-  tabsEl.querySelectorAll('button').forEach(function(b) { b.classList.remove('active'); });
-  btn.classList.add('active');
-  currentTab = btn.dataset.tab;
-  sectionTitle.textContent = {
-    games: 'All Games',
-    apps: 'Apps and Editors',
-    favorites: 'Favorites',
-    collections: 'Collections'
-  }[currentTab];
-  applyFilters();
-});
-
-// ═══════════════════════════════════════════════════════════════
-// VIEW TOGGLE — grid / list
-// ═══════════════════════════════════════════════════════════════
-var viewBtns = document.querySelectorAll('.view-controls button');
-viewBtns.forEach(function(btn) {
-  btn.addEventListener('click', function() {
-    viewBtns.forEach(function(b) { b.classList.remove('active'); });
-    btn.classList.add('active');
-    if (btn.dataset.view === 'list') {
-      grid.classList.add('list');
-    } else {
-      grid.classList.remove('list');
-    }
-  });
-});
-
-// ═══════════════════════════════════════════════════════════════
-// SEARCH — filtro en vivo
-// ═══════════════════════════════════════════════════════════════
-searchInput.addEventListener('input', applyFilters);
-
-function applyFilters() {
-  var q = searchInput.value.toLowerCase().trim();
-  var cards = grid.querySelectorAll('.card:not(.empty)');
-  var visible = 0;
-
-  cards.forEach(function(card) {
-    var name = (card.dataset.name || '').toLowerCase();
-    var tags = (card.dataset.tags || '').toLowerCase();
-    var matchesSearch = !q || name.indexOf(q) !== -1;
-    var matchesTab = currentTab === 'games' || tags.indexOf(currentTab) !== -1;
-
-    if (matchesSearch && matchesTab) {
-      card.style.display = '';
-      visible++;
-    } else {
-      card.style.display = 'none';
-    }
-  });
-
-  document.getElementById('gameCount').textContent = visible + ' game' + (visible === 1 ? '' : 's');
-}
-
-// ═══════════════════════════════════════════════════════════════
-// CLICK EN CARD — mostrar loader
-// ═══════════════════════════════════════════════════════════════
-grid.querySelectorAll('.card:not(.empty)').forEach(function(card) {
-  card.addEventListener('click', function() {
+// ═══ Click en card → loader ═══
+document.querySelectorAll('.card[data-game]').forEach(function(card) {
+  card.addEventListener('click', function(e) {
+    // No bloquear la navegación — solo mostrar el loader
     var name = card.querySelector('.name');
     document.getElementById('loaderText').textContent =
       'Launching ' + (name ? name.textContent : 'game') + '...';
     document.getElementById('loader').classList.add('on');
   });
 });
-
-// Inicializar contador
-applyFilters();
 </script>
 
 </body>
