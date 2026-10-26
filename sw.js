@@ -87,8 +87,8 @@ async function handleFetch(event, url) {
     assetPath = m[2];
   }
 
-  // ── Cyberpunk: capturar TODAS sus peticiones (usa /game, /assets, /wasm, etc.) ──
-  if (mode === 'cyberpunk') {
+  // ── Cyberpunk: interceptar todo ──
+  if (mode === 'cyberpunk' || path.startsWith('/api/runtime/')) {
     return proxyCyberpunk(event.request, path);
   }
 
@@ -186,10 +186,20 @@ async function proxySimpsons(request, assetPath) {
   }
 }
 
+// ⭐ Cyberpunk: intenta interceptar todo, incluyendo /api/runtime/
 async function proxyCyberpunk(request, path) {
   try {
     const url = new URL(request.url);
-    const target = ORIGIN_CYBERPUNK + path + url.search;
+    
+    // Si la petición ya es del CDN de Cyberpunk, intentar reenviarla
+    // Pero normalmente el navegador ya bloquea las peticiones externas
+    let target = ORIGIN_CYBERPUNK + path + url.search;
+    
+    // Forzar que las peticiones de runtime vayan al origen
+    if (path.startsWith('/api/runtime/')) {
+      target = ORIGIN_CYBERPUNK + path + url.search;
+    }
+
     const canCache = request.method === 'GET' && !request.headers.has('range');
     const cache = await caches.open(CYBERPUNK_CACHE);
 
@@ -202,6 +212,10 @@ async function proxyCyberpunk(request, path) {
     const reqHeaders = new Headers();
     const range = request.headers.get('range');
     if (range) reqHeaders.set('Range', range);
+    
+    // Engañar al servidor
+    reqHeaders.set('Origin', 'https://cyberpunk2077.lol');
+    reqHeaders.set('Referer', 'https://cyberpunk2077.lol/');
 
     const upstream = await fetch(target, {
       method: request.method,
@@ -642,163 +656,4 @@ function buildGamepadScript() {
       '@keyframes gp-fadeIn{from{opacity:0;transform:translateY(10px) scale(.97);}to{opacity:1;transform:translateY(0) scale(1);}}' +
       '@keyframes gp-fadeOut{from{opacity:1;transform:translateY(0) scale(1);}to{opacity:0;transform:translateY(10px) scale(.97);}}' +
       '#__gp_hud{position:fixed;left:14px;bottom:14px;z-index:9500;pointer-events:none;font-family:-apple-system,BlinkMacSystemFont,sans-serif;font-size:12px;line-height:1.4;color:#fff;max-width:420px;filter:drop-shadow(0 10px 24px rgba(0,0,0,.5));}' +
-      '#__gp_hud.gp-show{animation:gp-fadeIn .35s cubic-bezier(.16,1,.3,1) forwards;}' +
-      '#__gp_hud.gp-hide{animation:gp-fadeOut .35s cubic-bezier(.16,1,.3,1) forwards;}' +
-      '#__gp_btn{position:fixed;left:14px;bottom:14px;z-index:9501;width:52px;height:52px;border-radius:50%;background:linear-gradient(145deg,rgba(18,18,24,.94),rgba(28,28,38,.90));backdrop-filter:blur(16px) saturate(180%);-webkit-backdrop-filter:blur(16px) saturate(180%);border:1px solid rgba(255,255,255,.12);box-shadow:0 8px 24px rgba(0,0,0,.5),inset 0 1px 0 rgba(255,255,255,.10);display:flex;align-items:center;justify-content:center;font-size:24px;cursor:pointer;pointer-events:auto;user-select:none;}' +
-      '#__gp_btn.gp-hidden{display:none;}';
-    document.head.appendChild(s);
-  }
-
-  function ch(){ sty(); var h = document.getElementById('__gp_hud'); if(h) return h; h = document.createElement('div'); h.id='__gp_hud'; document.body.appendChild(h); return h; }
-  function cb(){ sty(); var b = document.getElementById('__gp_btn'); if(b) return b; b = document.createElement('div'); b.id='__gp_btn'; b.textContent='🎮'; b.addEventListener('click',function(e){e.stopPropagation();brief();}); document.body.appendChild(b); return b; }
-
-  function render(){
-    var hud = ch(), m = MODES[MODE], rows='';
-    m.buttons.forEach(function(btn,i){
-      var last = i === m.buttons.length - 1;
-      rows += '<div style="display:flex;align-items:center;gap:10px;padding:5px 0;'+(last?'':'border-bottom:1px solid rgba(255,255,255,.05);')+'"><span style="flex-shrink:0;min-width:86px;display:inline-flex;align-items:center;justify-content:center;background:'+m.accentSoft+';border:1px solid '+m.accent+'50;color:'+m.accent+';padding:3px 9px;border-radius:6px;font-size:10px;font-weight:700;font-family:Consolas,monospace;white-space:nowrap;">'+btn.key+'</span><span style="color:rgba(255,255,255,.88);font-size:11.5px;">'+btn.fn+'</span></div>';
-    });
-    hud.innerHTML = '<div style="position:relative;background:linear-gradient(145deg,rgba(18,18,24,.94) 0%,rgba(28,28,38,.90) 100%);backdrop-filter:blur(16px) saturate(180%);-webkit-backdrop-filter:blur(16px) saturate(180%);border:1px solid rgba(255,255,255,.10);border-radius:16px;padding:14px 16px;box-shadow:0 12px 40px rgba(0,0,0,.5);overflow:hidden;"><div style="position:absolute;left:0;top:16px;bottom:16px;width:3px;background:'+m.accent+';border-radius:0 4px 4px 0;box-shadow:0 0 16px '+m.accent+'80;"></div><div style="display:flex;align-items:center;gap:12px;margin-bottom:12px;padding-left:8px;padding-bottom:10px;border-bottom:1px solid rgba(255,255,255,.08);"><div style="width:42px;height:42px;border-radius:12px;background:'+m.accentSoft+';border:1px solid '+m.accent+'40;display:flex;align-items:center;justify-content:center;font-size:22px;">'+m.emoji+'</div><div style="flex:1;"><div style="font-size:9.5px;letter-spacing:2.5px;color:'+m.accent+';font-weight:700;opacity:.8;">CONTROLLER</div><div style="font-size:17px;font-weight:700;color:#fff;">'+m.name+'</div></div></div><div style="padding-left:8px;">'+rows+'</div><div style="padding:10px 8px 0;margin-top:6px;border-top:1px solid rgba(255,255,255,.08);font-size:10.5px;color:rgba(255,255,255,.55);"><span style="display:inline-flex;align-items:center;gap:5px;background:'+m.accentSoft+';border:1px solid '+m.accent+'60;color:'+m.accent+';padding:2px 9px;border-radius:6px;font-weight:700;font-size:9.5px;">⟵ BACK</span> <span>switch mode</span></div></div>';
-  }
-
-  function show(){
-    if(!active) return;
-    var h=ch(), b=document.getElementById('__gp_btn');
-    if (hideAnim) { clearTimeout(hideAnim); hideAnim = null; }
-    if(b) b.classList.add('gp-hidden');
-    h.classList.remove('gp-hide'); h.classList.add('gp-show'); h.style.display='block';
-  }
-  function hide(){
-    var h=document.getElementById('__gp_hud'), b=document.getElementById('__gp_btn');
-    if(b) b.classList.remove('gp-hidden');
-    if(h){
-      h.classList.remove('gp-show'); h.classList.add('gp-hide');
-      if (hideAnim) clearTimeout(hideAnim);
-      hideAnim = setTimeout(function(){
-        hideAnim = null;
-        var hh = document.getElementById('__gp_hud');
-        if(hh) hh.style.display='none';
-      },350);
-    }
-  }
-  function brief(){ if(!active) return; render(); show(); if(hideTimer) clearTimeout(hideTimer); hideTimer = setTimeout(hide, HUD_HIDE); }
-  function destroy(){
-    if (hideTimer) { clearTimeout(hideTimer); hideTimer = null; }
-    if (hideAnim) { clearTimeout(hideAnim); hideAnim = null; }
-    var h=document.getElementById('__gp_hud'), b=document.getElementById('__gp_btn');
-    if(h) try{h.remove();}catch(e){}
-    if(b) try{b.remove();}catch(e){}
-  }
-
-  function toggle(){
-    rAll(); releaseMouse();
-    MODE = MODE === 'foot' ? 'vehicle' : MODE === 'vehicle' ? 'air' : 'foot';
-    brief(); lock();
-  }
-
-  function poll(){
-    var pads = navigator.getGamepads ? navigator.getGamepads() : [];
-    var gp = null;
-    for (var i=0;i<pads.length;i++) if(pads[i] && pads[i].connected){gp=pads[i];break;}
-
-    if (gp && !active) { active=true; cb(); brief(); }
-    else if (!gp && active) { active=false; destroy(); rAll(); releaseMouse(); }
-
-    if (gp) {
-      var map = MODE_MAP[MODE];
-
-      gp.buttons.forEach(function(b,i){
-        if (i===8) {
-          if (b.pressed && backAt===0) { backAt=Date.now(); backLong=false; }
-          else if (b.pressed && backAt>0) { if (!backLong && Date.now()-backAt>BT) { backLong=true; pk('Backspace'); } }
-          else if (!b.pressed && backAt>0) {
-            var d = Date.now()-backAt;
-            if (!backLong && d<BT) toggle();
-            if (backLong) rk('Backspace');
-            backAt=0; backLong=false;
-          }
-          return;
-        }
-        var code = map[i];
-        if (!code) return;
-        if (b.pressed) pk(code); else rk(code);
-      });
-
-      var ltV = gp.buttons[6] ? (gp.buttons[6].value||0) : 0;
-      var rtV = gp.buttons[7] ? (gp.buttons[7].value||0) : 0;
-      var ltOn = ltV>TT, rtOn = rtV>TT;
-
-      if (MODE==='foot') {
-        if (ltOn) hm('right'); else rmv('right');
-        if (rtOn) hm('left'); else rmv('left');
-      } else {
-        if (rtOn) pk('KeyW'); else rk('KeyW');
-        if (ltOn) pk('KeyS'); else rk('KeyS');
-      }
-
-      if (MODE==='vehicle') {
-        var l1 = gp.buttons[4] && gp.buttons[4].pressed;
-        var r1 = gp.buttons[5] && gp.buttons[5].pressed;
-        if (l1) hm('right'); else rmv('right');
-        if (r1) hm('left'); else rmv('left');
-      }
-
-      var lx = gp.axes[0]||0, ly = gp.axes[1]||0;
-
-      if (MODE==='air') {
-        if (Math.abs(lx)>DZ) { if(lx>0){pk('Numpad6');rk('Numpad4');} else {pk('Numpad4');rk('Numpad6');} }
-        else { rk('Numpad4'); rk('Numpad6'); }
-      } else {
-        if (Math.abs(lx)>DZ) { if(lx>0){pk('KeyD');rk('KeyA');} else {pk('KeyA');rk('KeyD');} }
-        else { rk('KeyA'); rk('KeyD'); }
-      }
-
-      if (MODE==='foot') {
-        if (Math.abs(ly)>DZ) { if(ly>0){pk('KeyS');rk('KeyW');} else {pk('KeyW');rk('KeyS');} }
-        else { rk('KeyW'); rk('KeyS'); }
-      } else if (MODE==='air') {
-        if (Math.abs(ly)>DZ) { if(ly>0){pk('Numpad5');rk('Numpad8');} else {pk('Numpad8');rk('Numpad5');} }
-        else { rk('Numpad5'); rk('Numpad8'); }
-      }
-
-      var rx = gp.axes[2]||0, ry = gp.axes[3]||0;
-      var curve = function(v){ return Math.sign(v)*v*v; };
-      if (Math.abs(rx)>DZ) mv(curve(rx)*SENS, 0);
-      if (Math.abs(ry)>DZ) mv(0, curve(ry)*SENS);
-    }
-    requestAnimationFrame(poll);
-  }
-  requestAnimationFrame(poll);
-
-  window.addEventListener('gamepadconnected', function(){
-    active=true; cb(); brief();
-    var c = gc();
-    if (c) {
-      c.dispatchEvent(new MouseEvent('mousedown',{bubbles:true,button:0}));
-      setTimeout(function(){ c.dispatchEvent(new MouseEvent('mouseup',{bubbles:true,button:0})); }, 30);
-      setTimeout(function(){ lock(true); }, 200);
-      setTimeout(function(){ lock(true); }, 600);
-      setTimeout(function(){ lock(true); }, 1500);
-    }
-  });
-  window.addEventListener('gamepaddisconnected', function(){
-    active=false; destroy(); rAll(); releaseMouse();
-  });
-
-  window.addEventListener('blur', function(){
-    setTimeout(function(){ if (document.hidden || !document.hasFocus()) { rAll(); releaseMouse(); } }, 0);
-  });
-  document.addEventListener('visibilitychange', function(){ if (document.hidden) { rAll(); releaseMouse(); } });
-
-  function wire(){
-    var c=gc(); if(!c||c.__gpWired) return;
-    c.__gpWired=true;
-    c.addEventListener('mousedown', function(){ lock(true); });
-    c.addEventListener('click', function(){ lock(true); });
-  }
-  wire(); setInterval(wire, 2000);
-
-  window.__gamepad = {toggle:toggle, getMode:function(){return MODE;}, isConnected:function(){return active;}};
-})();
-<\/script>`;
-}
+      '#__gp_hud.gp-show{animation:gp-fadeIn .35s cubic-b
