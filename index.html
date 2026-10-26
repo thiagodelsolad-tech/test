@@ -274,8 +274,8 @@
       </div>
     </a>
 
-    <!-- ═══ CYBERPUNK 2077 ═══ -->
-    <a class="card" href="/cyberpunk/" data-game="cyberpunk">
+    <!-- ═══ CYBERPUNK 2077 (con verificación WebGPU) ═══ -->
+    <a class="card" href="#" onclick="checkWebGPU(event)" data-game="cyberpunk">
       <img src="/img/cyberpunk.jpg" alt="Cyberpunk 2077">
       <div class="badge">INSTALLED</div>
       <div class="overlay">
@@ -319,8 +319,9 @@ if ('serviceWorker' in navigator) {
     .catch(function(err) { console.error('[SW] Failed:', err); });
 }
 
-// ═══ Click en card → loader ═══
+// ═══ Click en card → loader (para GTA y Simpsons) ═══
 document.querySelectorAll('.card[data-game]').forEach(function(card) {
+  if (card.dataset.game === 'cyberpunk') return; // Cyberpunk tiene su propia lógica
   card.addEventListener('click', function(e) {
     var name = card.querySelector('.name');
     document.getElementById('loaderText').textContent =
@@ -328,6 +329,52 @@ document.querySelectorAll('.card[data-game]').forEach(function(card) {
     document.getElementById('loader').classList.add('on');
   });
 });
+
+// ═══ Verificación de WebGPU para Cyberpunk ═══
+async function checkWebGPU(e) {
+  e.preventDefault();
+  
+  // Comprobar soporte básico
+  if (!navigator.gpu) {
+    alert(
+      '⚠️ Tu navegador no soporta WebGPU\n\n' +
+      'Cyberpunk 2077 requiere WebGPU para funcionar.\n\n' +
+      'Por favor:\n' +
+      '• Usa Google Chrome, Microsoft Edge o Brave\n' +
+      '• Asegúrate de tener la última versión\n' +
+      '• Debe ser en un PC de escritorio (no móvil)'
+    );
+    return;
+  }
+  
+  // Comprobar si hay un adaptador GPU disponible
+  try {
+    var adapter = await navigator.gpu.requestAdapter();
+    if (!adapter) {
+      alert(
+        '⚠️ Tu tarjeta gráfica no soporta WebGPU\n\n' +
+        'Cyberpunk 2077 no puede ejecutarse en este dispositivo.\n\n' +
+        'Posibles causas:\n' +
+        '• Tarjeta gráfica antigua o no compatible\n' +
+        '• Drivers desactualizados\n' +
+        '• WebGPU desactivado en el navegador\n\n' +
+        'Prueba activando "Unsafe WebGPU" en chrome://flags'
+      );
+      return;
+    }
+  } catch (err) {
+    alert('⚠️ Error al comprobar WebGPU: ' + err.message);
+    return;
+  }
+  
+  // Todo OK → mostrar loader y navegar
+  document.getElementById('loaderText').textContent = 'Launching Cyberpunk 2077...';
+  document.getElementById('loader').classList.add('on');
+  
+  setTimeout(function() {
+    window.location.href = '/cyberpunk/';
+  }, 500);
+}
 
 // ═══ Anuncios del launcher ═══
 (function(){
