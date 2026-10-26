@@ -274,10 +274,10 @@
       </div>
     </a>
 
-    <!-- ═══ CYBERPUNK 2077 ═══ -->
-    <a class="card" href="/cyberpunk/" data-game="cyberpunk">
+    <!-- ═══ CYBERPUNK 2077 (Enlace directo) ═══ -->
+    <a class="card" href="https://cyberpunk2077.lol/game?ioShared=1&ioSharedMB=128&ioInflight=4&ioPersist=1&ioPersistMB=6144&binkRecycle=1&psoWarm=0&skipIntro=1&ioLookahead=16&behindLoad=0&floodKeep=1" target="_blank" rel="noopener">
       <img src="/img/cyberpunk.jpg" alt="Cyberpunk 2077">
-      <div class="badge">INSTALLED</div>
+      <div class="badge">PLAY</div>
       <div class="overlay">
         <div class="name">Cyberpunk 2077</div>
       </div>
@@ -319,7 +319,7 @@ if ('serviceWorker' in navigator) {
     .catch(function(err) { console.error('[SW] Failed:', err); });
 }
 
-// ═══ Click en card → loader ═══
+// ═══ Click en card → loader (Solo para GTA y Simpsons) ═══
 document.querySelectorAll('.card[data-game]').forEach(function(card) {
   card.addEventListener('click', function(e) {
     var name = card.querySelector('.name');
