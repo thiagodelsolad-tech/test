@@ -1,12 +1,11 @@
 // ═══════════════════════════════════════════════════════════════════════
-// Service Worker Proxy — GTA V + Simpsons Hit & Run (versión corregida)
+// Service Worker Proxy — GTA V + Simpsons + Cyberpunk 2077
 // ═══════════════════════════════════════════════════════════════════════
 
 const ORIGIN_GTA = 'https://fiveplay.lol';
 const ORIGIN_SIMPSONS = 'https://simpsons-proxy.kitofree1221.workers.dev';
+const ORIGIN_CYBERPUNK = 'https://cyberpunk2077.lol';
 
-// Los que terminan en "/" son prefijos; los demás son coincidencia exacta
-// (antes '/log' también capturaba '/login', '/logo.png', etc.)
 const GTA_PREFIXES = [
   '/b/', '/game/', '/data/', '/audio/', '/x64/',
   '/log', '/loader.js', '/prejs.js', '/wgpu_worker.js',
@@ -14,16 +13,17 @@ const GTA_PREFIXES = [
 ];
 
 const SIMPSONS_CACHE = 'simpsons-v1';
+const CYBERPUNK_CACHE = 'cyberpunk-v1';
 const GTA_HTML_CACHE = 'gta-html-v1';
-const GTA_HTML_TTL = 5 * 60 * 1000; // 5 minutos
+const GTA_HTML_TTL = 5 * 60 * 1000;
 
 self.addEventListener('install', () => self.skipWaiting());
 
 self.addEventListener('activate', (event) => {
   event.waitUntil((async () => {
-    // Limpia caches viejos
     const keys = await caches.keys();
-    await Promise.all(keys.filter(k => k !== SIMPSONS_CACHE && k !== GTA_HTML_CACHE).map(k => caches.delete(k)));
+    const keep = [SIMPSONS_CACHE, CYBERPUNK_CACHE, GTA_HTML_CACHE];
+    await Promise.all(keys.filter(k => keep.indexOf(k) === -1).map(k => caches.delete(k)));
     await self.clients.claim();
   })());
 });
@@ -44,11 +44,8 @@ function isGamePage(path, base) {
 
 self.addEventListener('fetch', (event) => {
   const url = new URL(event.request.url);
-
-  // Decisión síncrona: lo que no es nuestro lo maneja el navegador directamente
   if (url.origin !== self.location.origin) return;
   if (isOwnStatic(url.pathname)) return;
-
   event.respondWith(handleFetch(event, url));
 });
 
@@ -57,9 +54,9 @@ async function detectMode(event) {
     if (!u) return null;
     if (u.indexOf('/gta5') !== -1) return 'gta';
     if (u.indexOf('/simpsons') !== -1) return 'simpsons';
+    if (u.indexOf('/cyberpunk') !== -1) return 'cyberpunk';
     return null;
   };
-
   if (event.clientId) {
     try {
       const client = await self.clients.get(event.clientId);
@@ -67,41 +64,40 @@ async function detectMode(event) {
       if (m) return m;
     } catch (e) {}
   }
-  // Fallback: workers (su clientId es el del worker, no el de la página)
   return check(event.request.referrer);
 }
 
 async function handleFetch(event, url) {
   const path = url.pathname;
 
-  // ── Páginas de juego ──
   if (isGamePage(path, '/gta5')) return serveGameHTML(ORIGIN_GTA, 'gta');
   if (isGamePage(path, '/simpsons')) return serveGameHTML(ORIGIN_SIMPSONS, 'simpsons');
+  if (isGamePage(path, '/cyberpunk')) return serveGameHTML(ORIGIN_CYBERPUNK, 'cyberpunk');
 
-  // ── Detectar de qué juego viene la petición ──
   let mode = await detectMode(event);
 
-  // Si la ruta viene con prefijo (/gta5/game/x.js), se quita el prefijo
   let assetPath = path;
-  const m = path.match(/^\/(gta5|simpsons)(\/.*)$/);
+  const m = path.match(/^\/(gta5|simpsons|cyberpunk)(\/.*)$/);
   if (m) {
-    mode = mode || (m[1] === 'gta5' ? 'gta' : 'simpsons');
+    mode = mode || (m[1] === 'gta5' ? 'gta' : m[1] === 'simpsons' ? 'simpsons' : 'cyberpunk');
     assetPath = m[2];
   }
 
-  // ── Assets ──
   if ((mode === 'gta' || mode === null) && matchesGta(assetPath)) {
     return proxyAsset(event.request, ORIGIN_GTA, assetPath);
   }
   if (mode === 'simpsons') {
     return proxySimpsons(event.request, assetPath);
   }
+  if (mode === 'cyberpunk') {
+    return proxyCyberpunk(event.request, assetPath);
+  }
 
   return fetch(event.request);
 }
 
 // ═══════════════════════════════════════════════════════════════════════
-// Proxy de assets (con cache opcional para Simpsons)
+// Proxies
 // ═══════════════════════════════════════════════════════════════════════
 async function proxyAsset(request, origin, assetPath) {
   const url = new URL(request.url);
@@ -115,8 +111,6 @@ async function proxyAsset(request, origin, assetPath) {
 
   try {
     const hasBody = request.method !== 'GET' && request.method !== 'HEAD';
-
-    // Solo se reenvían los headers necesarios (Range es vital para wasm/data grandes)
     const reqHeaders = new Headers();
     const range = request.headers.get('range');
     if (range) reqHeaders.set('Range', range);
@@ -125,25 +119,15 @@ async function proxyAsset(request, origin, assetPath) {
       if (ct) reqHeaders.set('Content-Type', ct);
     }
 
-    const init = {
+    const upstream = await fetch(target, {
       method: request.method,
       headers: reqHeaders,
       mode: 'cors',
       credentials: 'omit',
       redirect: 'follow',
       body: hasBody ? await request.arrayBuffer() : undefined,
-    };
+    });
 
-    // Con Range del cliente se reenvía tal cual (el 206 pasa directo con su Content-Range).
-    // Sin Range, si el origen responde 206 igualmente (HTML/JSON/etc.) se reensambla el archivo.
-    const upstream = range ? await fetch(target, init) : await fetchComplete(target, init);
-
-    if (upstream.status >= 500 || upstream.status === 403 || upstream.status === 429) {
-      notifyClients(upstream.status, request.url).catch(() => {});
-    }
-
-    // OJO: no se copian content-encoding ni content-length, porque fetch()
-    // ya descomprimió el cuerpo y esos valores ya no coinciden.
     const headers = new Headers();
     ['content-type', 'content-range', 'accept-ranges',
      'last-modified', 'etag', 'cache-control'].forEach(k => {
@@ -169,13 +153,7 @@ async function proxyAsset(request, origin, assetPath) {
       headers,
     });
   } catch (e) {
-    const isUp = e instanceof UpstreamError;
-    const code = (isUp && e.status >= 400) ? e.status : 502;
-    notifyClients(isUp && e.status >= 400 ? e.status : 0, request.url).catch(() => {});
-    return new Response(
-      'Proxy error (' + (isUp && e.status >= 400 ? 'HTTP ' + e.status : 'red') + ') en ' + assetPath + ': ' + e.message,
-      { status: code, headers: { 'Content-Type': 'text/plain; charset=utf-8' } }
-    );
+    return new Response('Proxy error: ' + e.message, { status: 502 });
   }
 }
 
@@ -183,16 +161,34 @@ async function proxySimpsons(request, assetPath) {
   try {
     const url = new URL(request.url);
     const key = ORIGIN_SIMPSONS + assetPath + url.search;
-    // Las peticiones Range no se cachean (devolverían el archivo completo / 206 no es cacheable)
     const canCache = request.method === 'GET' && !request.headers.has('range');
-
     const cache = await caches.open(SIMPSONS_CACHE);
     if (canCache) {
       const cached = await cache.match(key);
       if (cached) return cached;
     }
-
     const response = await proxyAsset(request, ORIGIN_SIMPSONS, assetPath);
+    if (canCache && response.status === 200) {
+      cache.put(key, response.clone()).catch(() => {});
+    }
+    return response;
+  } catch (e) {
+    return new Response('SW cache error: ' + e.message, { status: 502 });
+  }
+}
+
+// ⭐ Cyberpunk: igual que GTA (proxy directo), pero con cache del SW
+async function proxyCyberpunk(request, assetPath) {
+  try {
+    const url = new URL(request.url);
+    const key = ORIGIN_CYBERPUNK + assetPath + url.search;
+    const canCache = request.method === 'GET' && !request.headers.has('range');
+    const cache = await caches.open(CYBERPUNK_CACHE);
+    if (canCache) {
+      const cached = await cache.match(key);
+      if (cached) return cached;
+    }
+    const response = await proxyAsset(request, ORIGIN_CYBERPUNK, assetPath);
     if (canCache && response.status === 200) {
       cache.put(key, response.clone()).catch(() => {});
     }
@@ -205,194 +201,47 @@ async function proxySimpsons(request, assetPath) {
 // ═══════════════════════════════════════════════════════════════════════
 // HTML del juego
 // ═══════════════════════════════════════════════════════════════════════
-// ═══════════════════════════════════════════════════════════════════════
-// Errores explícitos + Range completo + cache del HTML de GTA
-// ═══════════════════════════════════════════════════════════════════════
-class UpstreamError extends Error {
-  constructor(message, status, url) {
-    super(message);
-    this.name = 'UpstreamError';
-    this.status = status || 0; // 0 = error de red (no hubo respuesta HTTP)
-    this.url = url || '';
-  }
-}
-
-function hostOf(u) {
-  try { return new URL(u).host; } catch (e) { return String(u); }
-}
-
-function escapeHTML(s) {
-  return String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
-}
-
-function errorTitle(status) {
-  if (!status) return 'No se pudo conectar con el servidor del juego';
-  if (status === 403) return 'Acceso denegado por el servidor del juego';
-  if (status === 404) return 'El juego no se encontró en el servidor';
-  if (status === 429) return 'Demasiadas solicitudes, intenta de nuevo en un momento';
-  if (status >= 500) return 'El servidor del juego no está disponible';
-  return 'El servidor del juego devolvió un error';
-}
-
-function errorPage(err) {
-  const upstreamStatus = err instanceof UpstreamError ? err.status : 0;
-  const httpStatus = upstreamStatus >= 400 ? upstreamStatus : 502;
-  const codeLabel = upstreamStatus >= 400 ? 'HTTP ' + upstreamStatus : 'ERROR DE RED';
-  const detail = (err && err.message) ? err.message : 'Error desconocido';
-  const source = (err instanceof UpstreamError && err.url) ? hostOf(err.url) : '';
-
-  const html = '<!doctype html><html><head><meta charset="utf-8">' +
-    '<meta name="viewport" content="width=device-width,initial-scale=1">' +
-    '<title>' + escapeHTML(codeLabel) + '</title>' +
-    '<style>' +
-    'html,body{height:100%;margin:0}' +
-    'body{background:#0e1419;color:#8ba6bf;font:14px/1.5 -apple-system,BlinkMacSystemFont,Arial,sans-serif;display:flex;align-items:center;justify-content:center}' +
-    '.box{max-width:480px;padding:28px 32px;text-align:center;border:1px solid rgba(255,255,255,.08);border-radius:16px;background:rgba(255,255,255,.03)}' +
-    '.code{font:700 34px Consolas,monospace;color:#f87171;letter-spacing:2px}' +
-    'h1{font-size:17px;color:#fff;margin:10px 0 6px}' +
-    'p{margin:4px 0;word-break:break-word}' +
-    '.src{font-size:12px;opacity:.7}' +
-    'button{margin-top:16px;padding:9px 22px;border:0;border-radius:8px;background:#3b82f6;color:#fff;font-size:14px;cursor:pointer}' +
-    '</style></head><body><div class="box">' +
-    '<div class="code">' + escapeHTML(codeLabel) + '</div>' +
-    '<h1>' + escapeHTML(errorTitle(upstreamStatus)) + '</h1>' +
-    '<p>' + escapeHTML(detail) + '</p>' +
-    (source ? '<p class="src">Origen: ' + escapeHTML(source) + '</p>' : '') +
-    '<button onclick="location.reload()">Reintentar</button>' +
-    '</div></body></html>';
-
-  return new Response(html, {
-    status: httpStatus,
-    headers: { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-store' },
-  });
-}
-
-// Avisa a las pestañas abiertas para que muestren un overlay con el código HTTP
-// (máximo 1 aviso cada 3 s para no inundar la pantalla)
-let lastNotifyAt = 0;
-async function notifyClients(status, url) {
-  const now = Date.now();
-  if (now - lastNotifyAt < 3000) return;
-  lastNotifyAt = now;
-  let path = url;
-  try { path = new URL(url).pathname; } catch (e) {}
-  const list = await self.clients.matchAll({ type: 'window' });
-  list.forEach(c => c.postMessage({ type: 'sw-proxy-error', status: status || 0, path }));
-}
-
-// ── Range ────────────────────────────────────────────────────────────────
-function parseContentRange(h) {
-  const m = /^bytes\s+(\d+)-(\d+)\/(\d+|\*)$/i.exec((h || '').trim());
-  if (!m) return null;
-  return { start: +m[1], end: +m[2], total: m[3] === '*' ? null : +m[3] };
-}
-
-// Si el origen responde 206 (parcial) a una petición que no pidió Range,
-// se piden los fragmentos restantes y se reensambla una respuesta 200 completa.
-async function fetchComplete(url, init) {
-  const res = await fetch(url, init);
-  if (res.status !== 206) return res;
-
-  const first = parseContentRange(res.headers.get('content-range'));
-  if (!first || first.start !== 0) {
-    throw new UpstreamError('El origen devolvió una respuesta parcial (206) inesperada', 206, url);
-  }
-
-  const chunks = [new Uint8Array(await res.arrayBuffer())];
-  let next = first.end + 1;
-  let total = first.total;
-  let done = total !== null && next >= total;
-
-  for (let i = 0; !done && i < 50; i++) {
-    const h = new Headers((init && init.headers) || undefined);
-    h.set('Range', 'bytes=' + next + '-');
-    const r = await fetch(url, Object.assign({}, init, { headers: h }));
-
-    if (r.status === 416) { done = true; break; } // ya no queda nada
-    if (r.status !== 206) {
-      throw new UpstreamError('Fallo al completar la descarga por rangos (HTTP ' + r.status + ')', r.status, url);
-    }
-    const c = parseContentRange(r.headers.get('content-range'));
-    if (!c || c.start !== next) {
-      throw new UpstreamError('Rango inconsistente al reensamblar la respuesta', 206, url);
-    }
-    chunks.push(new Uint8Array(await r.arrayBuffer()));
-    next = c.end + 1;
-    if (c.total !== null) total = c.total;
-    done = total !== null && next >= total;
-  }
-  if (!done) throw new UpstreamError('Respuesta fragmentada en demasiadas partes', 206, url);
-
-  const size = chunks.reduce((n, c) => n + c.length, 0);
-  const merged = new Uint8Array(size);
-  let off = 0;
-  chunks.forEach(c => { merged.set(c, off); off += c.length; });
-
-  const headers = new Headers(res.headers);
-  headers.delete('content-range');
-  headers.delete('content-length');
-  return new Response(merged, { status: 200, statusText: 'OK', headers });
-}
-
-// ── HTML de GTA: cache de 5 min + stale-if-error + dedupe de peticiones ──
-async function fetchHTMLText(targetUrl) {
-  let res;
-  try {
-    res = await fetchComplete(targetUrl, {
-      method: 'GET', mode: 'cors', credentials: 'omit', cache: 'no-cache',
-    });
-  } catch (e) {
-    if (e instanceof UpstreamError) throw e;
-    throw new UpstreamError('No se pudo conectar con ' + hostOf(targetUrl) + ': ' + e.message, 0, targetUrl);
-  }
-  if (!res.ok) {
-    throw new UpstreamError(
-      hostOf(targetUrl) + ' respondió ' + res.status + (res.statusText ? ' ' + res.statusText : ''),
-      res.status, targetUrl
-    );
-  }
-  return res.text();
-}
-
-const inflightHTML = new Map();
-
-async function getGameHTML(origin, type) {
-  const targetUrl = type === 'simpsons' ? origin + '/?skipmovie' : origin + '/';
-  if (type !== 'gta') return fetchHTMLText(targetUrl);
-
-  const cache = await caches.open(GTA_HTML_CACHE);
-  const cached = await cache.match(targetUrl);
-  if (cached) {
-    const age = Date.now() - Number(cached.headers.get('x-sw-fetched-at') || 0);
-    if (age < GTA_HTML_TTL) return cached.text();
-  }
-
-  // Si ya hay una petición en vuelo (varias pestañas), se comparte
-  if (inflightHTML.has(targetUrl)) return inflightHTML.get(targetUrl);
-
-  const p = (async () => {
-    try {
-      const html = await fetchHTMLText(targetUrl);
-      await cache.put(targetUrl, new Response(html, {
-        headers: {
-          'Content-Type': 'text/html; charset=utf-8',
-          'x-sw-fetched-at': String(Date.now()),
-        },
-      })).catch(() => {});
-      return html;
-    } catch (e) {
-      if (cached) return cached.text(); // origen caído: se sirve la copia vieja
-      throw e;
-    }
-  })().finally(() => inflightHTML.delete(targetUrl));
-
-  inflightHTML.set(targetUrl, p);
-  return p;
-}
-
 async function serveGameHTML(origin, type) {
   try {
-    let html = await getGameHTML(origin, type);
+    // Cache corto de HTML para GTA
+    if (type === 'gta') {
+      try {
+        const cache = await caches.open(GTA_HTML_CACHE);
+        const hit = await cache.match('gta-html');
+        if (hit) {
+          const ts = parseInt(hit.headers.get('x-cached-at') || '0', 10);
+          if (ts && (Date.now() - ts) < GTA_HTML_TTL) {
+            return new Response(hit.body, {
+              status: 200,
+              headers: {
+                'Content-Type': 'text/html; charset=utf-8',
+                'Cross-Origin-Opener-Policy': 'same-origin',
+                'Cross-Origin-Embedder-Policy': 'credentialless',
+                'Cross-Origin-Resource-Policy': 'cross-origin',
+                'Access-Control-Allow-Origin': '*',
+              },
+            });
+          }
+        }
+      } catch (e) {}
+    }
+
+    const targetUrl = origin + '/';
+    const upstream = await fetch(targetUrl, {
+      method: 'GET',
+      mode: 'cors',
+      credentials: 'omit',
+      cache: 'no-cache',
+    });
+
+    if (!upstream.ok) {
+      return new Response('Error: el servidor respondió ' + upstream.status, {
+        status: 502,
+        headers: { 'Content-Type': 'text/plain' },
+      });
+    }
+
+    let html = await upstream.text();
 
     if (type === 'gta') {
       html = html.replace(
@@ -413,7 +262,6 @@ async function serveGameHTML(origin, type) {
     const headPatch = buildHeadPatch(type);
     const bodyPatch = buildBodyPatch(type);
 
-    // Funciones como reemplazo: los "$" del código inyectado no se interpretan
     if (/<head[^>]*>/i.test(html)) {
       html = html.replace(/<head[^>]*>/i, (m) => m + headPatch);
     } else {
@@ -427,6 +275,19 @@ async function serveGameHTML(origin, type) {
       html += bodyPatch;
     }
 
+    if (type === 'gta') {
+      try {
+        const cache = await caches.open(GTA_HTML_CACHE);
+        const cached = new Response(html, {
+          headers: {
+            'Content-Type': 'text/html; charset=utf-8',
+            'x-cached-at': String(Date.now()),
+          },
+        });
+        cache.put('gta-html', cached).catch(() => {});
+      } catch (e) {}
+    }
+
     return new Response(html, {
       status: 200,
       headers: {
@@ -438,49 +299,20 @@ async function serveGameHTML(origin, type) {
       },
     });
   } catch (e) {
-    return errorPage(e);
+    return new Response(
+      '<!doctype html><meta charset="utf-8"><style>body{background:#0e1419;color:#8ba6bf;font:14px Arial;display:flex;align-items:center;justify-content:center;height:100vh;margin:0}</style><div>Error: ' + e.message + '</div>',
+      { status: 502, headers: { 'Content-Type': 'text/html' } }
+    );
   }
 }
 
 // ═══════════════════════════════════════════════════════════════════════
-// OVERLAY DE ERRORES HTTP (ambos juegos)
-// ═══════════════════════════════════════════════════════════════════════
-function buildErrorOverlayScript() {
-  return `<script>
-(function(){
-  if (!('serviceWorker' in navigator)) return;
-  var timer = null;
-  function overlay(msg){
-    var d = document.getElementById('__sw_err');
-    if (!d) {
-      d = document.createElement('div');
-      d.id = '__sw_err';
-      d.setAttribute('role', 'alert');
-      d.style.cssText = 'position:fixed;left:14px;top:14px;z-index:9600;max-width:min(420px,90vw);padding:10px 16px;border-radius:10px;background:rgba(127,29,29,.95);color:#fff;font:13px/1.4 -apple-system,BlinkMacSystemFont,Arial,sans-serif;box-shadow:0 8px 24px rgba(0,0,0,.5);pointer-events:none;word-break:break-all;';
-      (document.body || document.documentElement).appendChild(d);
-    }
-    d.textContent = msg;
-    d.style.display = 'block';
-    clearTimeout(timer);
-    timer = setTimeout(function(){ d.style.display = 'none'; }, 8000);
-  }
-  navigator.serviceWorker.addEventListener('message', function(e){
-    var m = e.data;
-    if (!m || m.type !== 'sw-proxy-error') return;
-    var code = m.status ? 'Error HTTP ' + m.status : 'Error de red';
-    overlay(code + ' al cargar ' + m.path);
-  });
-})();
-<\/script>`;
-}
-
-// ═══════════════════════════════════════════════════════════════════════
-// HEAD PATCH — bloquea ads estáticos y dinámicos
+// HEAD PATCH — ads (solo GTA)
 // ═══════════════════════════════════════════════════════════════════════
 function buildHeadPatch(type) {
-  if (type === 'simpsons') return buildErrorOverlayScript();
+  if (type !== 'gta') return '';
 
-  return buildErrorOverlayScript() + `<script>
+  return `<script>
 (function(){
   var BLOCKED = ['alwingulla.com','quge5.com','monetag','profit','adsterra','popads','popcash','hilltopads'];
   function isBlocked(v){
@@ -488,8 +320,6 @@ function buildHeadPatch(type) {
     v = String(v);
     return BLOCKED.some(function(b){ return v.indexOf(b) !== -1; });
   }
-
-  // Bloquea script.src = "..." (setter del prototipo, cubre todos los scripts)
   var _srcDesc = Object.getOwnPropertyDescriptor(HTMLScriptElement.prototype, 'src');
   if (_srcDesc && _srcDesc.set) {
     Object.defineProperty(HTMLScriptElement.prototype, 'src', {
@@ -499,8 +329,6 @@ function buildHeadPatch(type) {
       enumerable: _srcDesc.enumerable
     });
   }
-
-  // Bloquea script.setAttribute('src', "...")
   var _setAttr = Element.prototype.setAttribute;
   Element.prototype.setAttribute = function(name, value){
     if (this.tagName === 'SCRIPT' && String(name).toLowerCase() === 'src' && isBlocked(value)) return;
@@ -517,8 +345,8 @@ function buildHeadPatch(type) {
   var AD_TEXTS = ['new message', 'play now', 'hot new game', 'click here', 'sponsored'];
 
   function isProtected(el){
-    if (el.id === 'canvas' || el.id === '__gp_hud' || el.id === '__gp_btn' || el.id === '__sw_err') return true;
-    if (el.closest && el.closest('#loading, #__gp_hud, #__gp_btn, #__sw_err, .my-ad')) return true;
+    if (el.id === 'canvas' || el.id === '__gp_hud' || el.id === '__gp_btn') return true;
+    if (el.closest && el.closest('#loading, #__gp_hud, #__gp_btn, .my-ad')) return true;
     if (el.className && typeof el.className === 'string' && el.className.indexOf('my-ad') !== -1) return true;
     return false;
   }
@@ -532,7 +360,6 @@ function buildHeadPatch(type) {
         });
       } catch(e){}
     });
-
     document.querySelectorAll('div, section, aside').forEach(function(el){
       if (isProtected(el)) return;
       var text = (el.textContent || '').toLowerCase().trim();
@@ -552,7 +379,6 @@ function buildHeadPatch(type) {
 
   function init() {
     if (!document.body) return setTimeout(init, 100);
-    // Solo childList: observar atributos disparaba el escaneo en cada frame del juego
     observer.observe(document.body, { childList: true, subtree: true });
     killAds();
     setTimeout(killAds, 3000);
@@ -563,12 +389,12 @@ function buildHeadPatch(type) {
 }
 
 function buildBodyPatch(type) {
-  if (type === 'simpsons') return buildAudioScript();
+  if (type === 'simpsons' || type === 'cyberpunk') return buildAudioScript();
   return buildAdsScript() + buildAudioScript() + buildGamepadScript();
 }
 
 // ═══════════════════════════════════════════════════════════════════════
-// ANUNCIOS DEL JUEGO (solo GTA)
+// ADS (solo GTA)
 // ═══════════════════════════════════════════════════════════════════════
 function buildAdsScript() {
   return `<script>
@@ -639,7 +465,7 @@ function buildAudioScript() {
 }
 
 // ═══════════════════════════════════════════════════════════════════════
-// GAMEPAD + HUD (solo GTA)
+// GAMEPAD (solo GTA — Cyberpunk y Simpsons usan teclado)
 // ═══════════════════════════════════════════════════════════════════════
 function buildGamepadScript() {
   return `<script>
@@ -720,7 +546,6 @@ function buildGamepadScript() {
 
   function gc(){ return document.getElementById('canvas'); }
 
-  // Throttle: sin gesto de usuario el navegador rechaza el lock; antes se intentaba en cada frame
   function lock(force){
     var c = gc(); if(!c || document.pointerLockElement === c) return;
     var now = Date.now();
@@ -787,7 +612,6 @@ function buildGamepadScript() {
   function show(){
     if(!active) return;
     var h=ch(), b=document.getElementById('__gp_btn');
-    // Si había un ocultado en curso, se cancela (antes podía esconder el HUD recién mostrado)
     if (hideAnim) { clearTimeout(hideAnim); hideAnim = null; }
     if(b) b.classList.add('gp-hidden');
     h.classList.remove('gp-hide'); h.classList.add('gp-show'); h.style.display='block';
@@ -814,11 +638,6 @@ function buildGamepadScript() {
     if(b) try{b.remove();}catch(e){}
   }
 
-  function releaseAll(){
-    rAll(); releaseMouse();
-    backAt = 0; backLong = false;
-  }
-
   function toggle(){
     rAll(); releaseMouse();
     MODE = MODE === 'foot' ? 'vehicle' : MODE === 'vehicle' ? 'air' : 'foot';
@@ -833,11 +652,7 @@ function buildGamepadScript() {
     if (gp && !active) { active=true; cb(); brief(); }
     else if (!gp && active) { active=false; destroy(); rAll(); releaseMouse(); }
 
-    // Sin foco (alt-tab, otra ventana encima) no se envía input y se suelta todo
-    var focused = !document.hidden && document.hasFocus();
-    if (gp && !focused && (held.size || lm || rm || backAt)) releaseAll();
-
-    if (gp && focused) {
+    if (gp) {
       var map = MODE_MAP[MODE];
 
       gp.buttons.forEach(function(b,i){
@@ -869,7 +684,6 @@ function buildGamepadScript() {
         if (ltOn) pk('KeyS'); else rk('KeyS');
       }
 
-      // Vehículo: L1 / R1 = apuntar / disparar (el HUD lo anunciaba pero no estaba implementado)
       if (MODE==='vehicle') {
         var l1 = gp.buttons[4] && gp.buttons[4].pressed;
         var r1 = gp.buttons[5] && gp.buttons[5].pressed;
@@ -919,22 +733,18 @@ function buildGamepadScript() {
     active=false; destroy(); rAll(); releaseMouse();
   });
 
+  window.addEventListener('blur', function(){
+    setTimeout(function(){ if (document.hidden || !document.hasFocus()) { rAll(); releaseMouse(); } }, 0);
+  });
+  document.addEventListener('visibilitychange', function(){ if (document.hidden) { rAll(); releaseMouse(); } });
+
   function wire(){
     var c=gc(); if(!c||c.__gpWired) return;
     c.__gpWired=true;
-    // Envuelto para no pasar el evento como argumento "force"
     c.addEventListener('mousedown', function(){ lock(true); });
     c.addEventListener('click', function(){ lock(true); });
   }
   wire(); setInterval(wire, 2000);
-
-  // En pestañas ocultas requestAnimationFrame se pausa, así que hay que soltar aquí
-  window.addEventListener('blur', function(){
-    // setTimeout 0: si el foco solo pasó a un iframe (ad) hasFocus() sigue true y no se suelta nada
-    setTimeout(function(){ if (document.hidden || !document.hasFocus()) releaseAll(); }, 0);
-  });
-  document.addEventListener('visibilitychange', function(){ if (document.hidden) releaseAll(); });
-  window.addEventListener('pagehide', releaseAll);
 
   window.__gamepad = {toggle:toggle, getMode:function(){return MODE;}, isConnected:function(){return active;}};
 })();
