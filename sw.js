@@ -1,36 +1,21 @@
 // ═══════════════════════════════════════════════════════════════════════
-// Service Worker Proxy — GTA V + Simpsons + Cyberpunk (Proxies Públicos)
+// Service Worker Proxy — GTA V + Simpsons + Cyberpunk (Cloudflare Worker)
 // ═══════════════════════════════════════════════════════════════════════
 
-const ORIGIN_GTA = 'https://fiveplay.lol';
-const ORIGIN_SIMPSONS = 'https://shar-wasm.cjoseph.workers.dev';
-const ORIGIN_CYBERPUNK = 'https://cyberpunk2077.lol';
+const WORKER_URL = 'https://games-proxy.thiagodelsolad.workers.dev'; // Tu Worker
 
+const ORIGIN_GTA = 'https://fiveplay.lol';
 const CYBERPUNK_URL = 'https://cyberpunk2077.lol/game?ioShared=1&ioSharedMB=128&ioInflight=4&ioPersist=1&ioPersistMB=6144&binkRecycle=1&psoWarm=0&skipIntro=1&ioLookahead=16&behindLoad=0&floodKeep=1';
 
-const GTA_PREFIXES = [
-  '/b/', '/game/', '/data/', '/audio/', '/x64/',
-  '/log', '/loader.js', '/prejs.js', '/wgpu_worker.js',
-  '/io_worker.js', '/audio-worklet.js', '/sw2.js',
-];
-
+const GTA_PREFIXES = ['/b/', '/game/', '/data/', '/audio/', '/x64/', '/log', '/loader.js', '/prejs.js', '/wgpu_worker.js', '/io_worker.js', '/audio-worklet.js', '/sw2.js'];
 const GTA_HTML_CACHE = 'gta-html-v1';
 const GTA_HTML_TTL = 5 * 60 * 1000;
-
-// Lista de proxies públicos gratuitos
-const CORS_PROXIES = [
-  'https://everyorigin.jwvbremen.nl/api/get?url=',
-  'https://api.cors.lol/?url=',
-  'https://api.allorigins.win/raw?url='
-];
 
 self.addEventListener('install', () => self.skipWaiting());
 self.addEventListener('activate', (event) => event.waitUntil(self.clients.claim()));
 
 function isOwnStatic(path) {
-  return path === '/' || path === '/index.html' ||
-         path.startsWith('/img/') ||
-         path === '/favicon.ico';
+  return path === '/' || path === '/index.html' || path.startsWith('/img/') || path === '/favicon.ico';
 }
 
 function matchesGta(path) {
@@ -43,8 +28,14 @@ function isGamePage(path, base) {
 
 self.addEventListener('fetch', (event) => {
   const url = new URL(event.request.url);
-  if (url.origin !== self.location.origin) return;
+  
+  // Ignorar peticiones a dominios externos que no sean el CDN de Cyberpunk
+  if (url.origin !== self.location.origin && !url.hostname.includes('part.fn-web-worker.workers.dev')) {
+    return;
+  }
+  
   if (isOwnStatic(url.pathname)) return;
+  
   event.respondWith(handleFetch(event, url));
 });
 
@@ -68,103 +59,71 @@ async function detectMode(event) {
 
 async function handleFetch(event, url) {
   const path = url.pathname;
+  
+  // ── 1. Interceptar el CDN de Cyberpunk (que bloquea CORS) ──
+  if (url.hostname.includes('part.fn-web-worker.workers.dev')) {
+    return proxyViaWorker(event.request, '/cyberpunk-cdn' + path + url.search);
+  }
 
+  // ── 2. Páginas de juego ──
   if (isGamePage(path, '/gta5')) return serveGameHTML(ORIGIN_GTA, 'gta');
-  if (isGamePage(path, '/simpsons')) return serveGameHTML(ORIGIN_SIMPSONS, 'simpsons');
-  if (isGamePage(path, '/cyberpunk')) return serveGameHTML(ORIGIN_CYBERPUNK, 'cyberpunk');
+  if (isGamePage(path, '/simpsons')) return serveGameHTML(WORKER_URL + '/simpsons/', 'simpsons');
+  if (isGamePage(path, '/cyberpunk')) return serveGameHTML(WORKER_URL + '/cyberpunk/game', 'cyberpunk');
 
   let mode = await detectMode(event);
-
   let assetPath = path;
+
   const m = path.match(/^\/(gta5|simpsons|cyberpunk)(\/.*)$/);
   if (m) {
     mode = mode || (m[1] === 'gta5' ? 'gta' : m[1] === 'simpsons' ? 'simpsons' : 'cyberpunk');
     assetPath = m[2];
   }
 
-  // GTA (funciona directo sin proxy)
+  // ── 3. Assets ──
   if ((mode === 'gta' || mode === null) && matchesGta(assetPath)) {
     return proxyAssetDirect(event.request, ORIGIN_GTA, assetPath);
   }
 
-  // Simpsons (vía proxy público)
   if (mode === 'simpsons') {
-    const target = ORIGIN_SIMPSONS + assetPath + url.search;
-    return fetchViaProxy(event.request, target);
+    return proxyViaWorker(event.request, '/simpsons' + assetPath + url.search);
   }
 
-  // Cyberpunk (vía proxy público)
-  if (mode === 'cyberpunk' || url.hostname.includes('part.fn-web-worker.workers.dev')) {
-    const target = url.hostname.includes('part.fn-web-worker.workers.dev') 
-        ? url.toString() 
-        : ORIGIN_CYBERPUNK + path + url.search;
-    return fetchViaProxy(event.request, target);
+  if (mode === 'cyberpunk' || path.startsWith('/api/')) {
+    return proxyViaWorker(event.request, '/cyberpunk' + path + url.search);
   }
 
   return fetch(event.request);
 }
 
 // ═══════════════════════════════════════════════════════════════════════
-// MOTOR DE PROXIES PÚBLICOS
+// PROXIES
 // ═══════════════════════════════════════════════════════════════════════
-async function fetchViaProxy(request, targetUrl) {
-  let lastError;
+async function proxyViaWorker(request, targetPath) {
+  try {
+    const reqHeaders = new Headers(request.headers);
+    const range = request.headers.get('range');
+    if (range) reqHeaders.set('Range', range);
 
-  // Intentar cada proxy de la lista
-  for (let i = 0; i < CORS_PROXIES.length; i++) {
-    try {
-      const proxyUrl = CORS_PROXIES[i] + encodeURIComponent(targetUrl);
-      
-      // Preparamos los headers (Range es vital para WASM)
-      const reqHeaders = new Headers();
-      const range = request.headers.get('range');
-      if (range) reqHeaders.set('Range', range);
+    const hasBody = request.method !== 'GET' && request.method !== 'HEAD';
 
-      const res = await fetch(proxyUrl, {
-        method: 'GET', // Los proxies públicos casi siempre solo soportan GET
-        headers: reqHeaders
-      });
+    const res = await fetch(WORKER_URL + targetPath, {
+      method: request.method,
+      headers: reqHeaders,
+      body: hasBody ? await request.arrayBuffer() : undefined,
+    });
 
-      if (!res.ok) throw new Error('HTTP ' + res.status);
-
-      const headers = new Headers();
-      ['content-type', 'content-range', 'accept-ranges'].forEach(k => {
-        const v = res.headers.get(k);
-        if (v) headers.set(k, v);
-      });
-
-      headers.set('Cross-Origin-Opener-Policy', 'same-origin');
-      headers.set('Cross-Origin-Embedder-Policy', 'credentialless');
-      headers.set('Cross-Origin-Resource-Policy', 'cross-origin');
-      headers.set('Access-Control-Allow-Origin', '*');
-
-      const p = targetUrl.toLowerCase();
-      if (p.endsWith('.wasm')) headers.set('Content-Type', 'application/wasm');
-      if (p.endsWith('.js') || p.endsWith('.mjs')) headers.set('Content-Type', 'application/javascript');
-      if (p.endsWith('.json')) headers.set('Content-Type', 'application/json');
-
-      return new Response(res.body, { status: 200, headers });
-    } catch (e) {
-      console.warn(`Proxy ${i} falló:`, e.message);
-      lastError = e;
-      // Si falla, el bucle pasa al siguiente proxy automáticamente
-    }
+    return res;
+  } catch (e) {
+    return new Response('Worker error: ' + e.message, { status: 502 });
   }
-
-  return new Response('Todos los proxies fallaron. Último error: ' + lastError.message, { status: 502 });
 }
 
-// ═══════════════════════════════════════════════════════════════════════
-// Proxy directo (solo para GTA)
-// ═══════════════════════════════════════════════════════════════════════
 async function proxyAssetDirect(request, origin, assetPath) {
   const url = new URL(request.url);
   const target = origin + assetPath + url.search;
 
   if (assetPath === '/sw2.js') {
-    return new Response('self.addEventListener("install",()=>self.skipWaiting());', {
-      headers: { 'Content-Type': 'application/javascript' }
-    });
+    return new Response('self.addEventListener("install",()=>self.skipWaiting());', { headers: { 'Content-Type': 'application/javascript' } });
   }
 
   try {
@@ -174,11 +133,7 @@ async function proxyAssetDirect(request, origin, assetPath) {
     if (range) reqHeaders.set('Range', range);
 
     const upstream = await fetch(target, {
-      method: request.method,
-      headers: reqHeaders,
-      mode: 'cors',
-      credentials: 'omit',
-      redirect: 'follow',
+      method: request.method, headers: reqHeaders, mode: 'cors', credentials: 'omit', redirect: 'follow',
       body: hasBody ? await request.arrayBuffer() : undefined,
     });
 
@@ -205,37 +160,35 @@ async function proxyAssetDirect(request, origin, assetPath) {
 }
 
 // ═══════════════════════════════════════════════════════════════════════
-// HTML del juego
+// HTML DEL JUEGO
 // ═══════════════════════════════════════════════════════════════════════
 async function serveGameHTML(origin, type) {
   try {
     let targetUrl = origin + '/';
-    if (type === 'simpsons') targetUrl = origin + '/?skipmovie';
+    if (type === 'simpsons') targetUrl = origin + '?skipmovie';
     if (type === 'cyberpunk') targetUrl = CYBERPUNK_URL;
 
-    const upstream = await fetch(targetUrl, {
-      method: 'GET', mode: 'cors', credentials: 'omit', cache: 'no-cache',
-    });
-
+    const upstream = await fetch(targetUrl, { method: 'GET', mode: 'cors', credentials: 'omit', cache: 'no-cache' });
     if (!upstream.ok) return new Response('Error ' + upstream.status, { status: 502 });
 
     let html = await upstream.text();
+    
+    // Reescribir rutas absolutas para que vayan directas al Worker y no colapsen el SW
+    if (type === 'simpsons' || type === 'cyberpunk') {
+       const workerBase = WORKER_URL + (type === 'simpsons' ? '/simpsons' : '/cyberpunk');
+       html = html.replace(/src="\/(?!\/)(.*?)"/g, 'src="' + workerBase + '/$1"');
+       html = html.replace(/href="\/(?!\/)(.*?)"/g, 'href="' + workerBase + '/$1"');
+    }
 
     const headPatch = buildHeadPatch(type);
     const bodyPatch = buildBodyPatch(type);
 
-    if (/<head[^>]*>/i.test(html)) {
-      html = html.replace(/<head[^>]*>/i, (m) => m + headPatch);
-    } else {
-      html = headPatch + html;
-    }
+    if (/<head[^>]*>/i.test(html)) html = html.replace(/<head[^>]*>/i, (m) => m + headPatch);
+    else html = headPatch + html;
 
     const idx = html.toLowerCase().lastIndexOf('</body>');
-    if (idx !== -1) {
-      html = html.slice(0, idx) + bodyPatch + html.slice(idx);
-    } else {
-      html += bodyPatch;
-    }
+    if (idx !== -1) html = html.slice(0, idx) + bodyPatch + html.slice(idx);
+    else html += bodyPatch;
 
     return new Response(html, {
       status: 200,
@@ -253,7 +206,7 @@ async function serveGameHTML(origin, type) {
 }
 
 // ═══════════════════════════════════════════════════════════════════════
-// PATCHES (Bloqueo de Ads, Audio, Gamepad)
+// PATCHES (Ads, Audio, Gamepad)
 // ═══════════════════════════════════════════════════════════════════════
 function buildHeadPatch(type) {
   if (type !== 'gta') return '';
@@ -347,7 +300,9 @@ function buildAudioScript() {
 }
 
 function buildGamepadScript() {
-  // ... Aquí va tu script de gamepad completo (idéntico al que ya tenías)
-  // Lo he omitido por brevedad, pero debes mantener el tuyo aquí.
-  return `<script>/* ... TU GAMEPAD AQUI ... */<\/script>`;
+  return `<script>
+  // ⬇️⬇️⬇️ PEGA AQUÍ TU CÓDIGO COMPLETO DEL GAMEPAD ⬇️⬇️⬇️
+  // (El bloque que empieza con (function(){ if (window.__gamepadInjected) ... )
+  // Si no lo pegas, el mando no funcionará en GTA V.
+  <\/script>`;
 }
