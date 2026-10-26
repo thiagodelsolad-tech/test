@@ -1,9 +1,8 @@
 // ═══════════════════════════════════════════════════════════════════════
-// Service Worker Proxy — GTA V + Simpsons + Cyberpunk
+// Service Worker Proxy — GTA V + Simpsons + Cyberpunk + porno
 // ═══════════════════════════════════════════════════════════════════════
 
 const WORKER_URL = 'https://games-proxy.thiagodelsolad.workers.dev'; 
-
 const ORIGIN_GTA = 'https://fiveplay.lol';
 const CYBERPUNK_URL = 'https://cyberpunk2077.lol/game?ioShared=1&ioSharedMB=128&ioInflight=4&ioPersist=1&ioPersistMB=6144&binkRecycle=1&psoWarm=0&skipIntro=1&ioLookahead=16&behindLoad=0&floodKeep=1';
 
@@ -26,10 +25,7 @@ function isGamePage(path, base) {
 
 self.addEventListener('fetch', (event) => {
   const url = new URL(event.request.url);
-  
-  // Si es un recurso estático propio, no hacer nada
   if (url.origin === self.location.origin && isOwnStatic(url.pathname)) return;
-  
   event.respondWith(handleFetch(event, url));
 });
 
@@ -54,12 +50,12 @@ async function detectMode(event) {
 async function handleFetch(event, url) {
   const path = url.pathname;
   
-  // ── 1. INTERCEPTAR PETICIONES EXTERNAS DE CYBERPUNK ──
+  // Peticiones externas del CDN de Cyberpunk
   if (url.hostname.includes('part.fn-web-worker.workers.dev')) {
     return proxyViaWorker(event.request, '/cyberpunk-cdn' + path + url.search);
   }
 
-  // ── 2. PÁGINAS DE JUEGO LOCALES (Bootstrap) ──
+  // Páginas HTML
   if (isGamePage(path, '/gta5')) return serveGameHTML(ORIGIN_GTA, 'gta');
   if (isGamePage(path, '/simpsons')) return serveGameHTML(WORKER_URL + '/simpsons/', 'simpsons');
   if (isGamePage(path, '/cyberpunk')) return serveGameHTML(WORKER_URL + '/cyberpunk/game', 'cyberpunk');
@@ -73,16 +69,13 @@ async function handleFetch(event, url) {
     assetPath = m[2];
   }
 
-  // ── 3. ASSETS ──
+  // Assets
   if ((mode === 'gta' || mode === null) && matchesGta(assetPath)) {
     return proxyAssetDirect(event.request, ORIGIN_GTA, assetPath);
   }
-
   if (mode === 'simpsons') {
     return proxyViaWorker(event.request, '/simpsons' + assetPath + url.search);
   }
-
-  // Cualquier otra petición de Cyberpunk (build, api, cdn, etc.)
   if (mode === 'cyberpunk' || path.startsWith('/api/') || path.startsWith('/build/')) {
     return proxyViaWorker(event.request, '/cyberpunk' + path + url.search);
   }
@@ -100,7 +93,6 @@ async function proxyViaWorker(request, targetPath) {
     if (range) reqHeaders.set('Range', range);
 
     const hasBody = request.method !== 'GET' && request.method !== 'HEAD';
-
     return await fetch(WORKER_URL + targetPath, {
       method: request.method,
       headers: reqHeaders,
@@ -114,11 +106,9 @@ async function proxyViaWorker(request, targetPath) {
 async function proxyAssetDirect(request, origin, assetPath) {
   const url = new URL(request.url);
   const target = origin + assetPath + url.search;
-
   if (assetPath === '/sw2.js') {
     return new Response('self.addEventListener("install",()=>self.skipWaiting());', { headers: { 'Content-Type': 'application/javascript' } });
   }
-
   try {
     const hasBody = request.method !== 'GET' && request.method !== 'HEAD';
     const reqHeaders = new Headers();
@@ -153,7 +143,7 @@ async function proxyAssetDirect(request, origin, assetPath) {
 }
 
 // ═══════════════════════════════════════════════════════════════════════
-// HTML DEL JUEGO (SIN REESCRITURA DE RUTAS para no romper relativos)
+// HTML DEL JUEGO
 // ═══════════════════════════════════════════════════════════════════════
 async function serveGameHTML(origin, type) {
   try {
@@ -165,6 +155,9 @@ async function serveGameHTML(origin, type) {
     if (!upstream.ok) return new Response('Error ' + upstream.status, { status: 502 });
 
     let html = await upstream.text();
+    
+    // ⚠️ ELIMINADA LA REESCRITURA DE RUTAS. 
+    // Ahora el HTML pide los assets de forma relativa, y nuestro SW los intercepta.
     
     const headPatch = buildHeadPatch(type);
     const bodyPatch = buildBodyPatch(type);
@@ -192,7 +185,7 @@ async function serveGameHTML(origin, type) {
 }
 
 // ═══════════════════════════════════════════════════════════════════════
-// PATCHES (Ads, Audio, Gamepad)
+// PATCHES
 // ═══════════════════════════════════════════════════════════════════════
 function buildHeadPatch(type) {
   if (type !== 'gta') return '';
@@ -287,6 +280,6 @@ function buildAudioScript() {
 
 function buildGamepadScript() {
   return `<script>
-  // ⬇️⬇️⬇️ PEGA AQUÍ TU CÓDIGO COMPLETO DEL GAMEPAD ⬇️⬇️⬇️
+  // ⬇️ PEGA TU CÓDIGO DEL GAMEPAD AQUÍ ⬇️
   <\/script>`;
 }
