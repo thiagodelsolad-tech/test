@@ -54,7 +54,20 @@ async function detectMode(event) {
     if (!u) return null;
     if (u.indexOf('/gta5') !== -1) return 'gta';
     if (u.indexOf('/simpsons') !== -1) return 'simpsons';
-    if (u.indexOf('/cyberpunk') !== -1) return 'cyberpunk';
+    // Si el usuario entra a /cyberpunk/, redirigir al juego real pero manteniéndolo en tu dominio
+if (path === '/cyberpunk' || path === '/cyberpunk/' || path === '/cyberpunk/index.html') {
+  const targetUrl = 'https://cyberpunk2077.lol/game?ioShared=1&ioSharedMB=128&ioInflight=4&ioPersist=1&ioPersistMB=6144&binkRecycle=1&psoWarm=0&skipIntro=1&ioLookahead=16&behindLoad=0&floodKeep=1';
+  
+  // Hacemos fetch de la URL completa
+  return fetch(targetUrl, { mode: 'cors', credentials: 'omit' })
+    .then(res => {
+      // Le devolvemos el HTML tal cual, pero el SW se encargará de que los assets se carguen bien
+      return res;
+    })
+    .catch(() => {
+      return new Response('Error cargando Cyberpunk 2077', { status: 502 });
+    });
+}
     return null;
   };
   if (event.clientId) {
