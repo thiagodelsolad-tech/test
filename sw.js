@@ -1,5 +1,5 @@
 // ═══════════════════════════════════════════════════════════════════════
-// Service Worker Proxy — GTA V + Simpsons + Cyberpunk + porno
+// Service Worker Proxy — GTA V + Simpsons + Cyberpunk
 // ═══════════════════════════════════════════════════════════════════════
 
 const WORKER_URL = 'https://games-proxy.thiagodelsolad.workers.dev'; 
@@ -25,6 +25,7 @@ function isGamePage(path, base) {
 
 self.addEventListener('fetch', (event) => {
   const url = new URL(event.request.url);
+  // Si es un recurso estático propio, no hacer nada
   if (url.origin === self.location.origin && isOwnStatic(url.pathname)) return;
   event.respondWith(handleFetch(event, url));
 });
@@ -50,12 +51,12 @@ async function detectMode(event) {
 async function handleFetch(event, url) {
   const path = url.pathname;
   
-  // Peticiones externas del CDN de Cyberpunk
+  // ── 1. INTERCEPTAR PETICIONES EXTERNAS DE CYBERPUNK (El CDN) ──
   if (url.hostname.includes('part.fn-web-worker.workers.dev')) {
     return proxyViaWorker(event.request, '/cyberpunk-cdn' + path + url.search);
   }
 
-  // Páginas HTML
+  // ── 2. PÁGINAS DE JUEGO LOCALES (Bootstrap) ──
   if (isGamePage(path, '/gta5')) return serveGameHTML(ORIGIN_GTA, 'gta');
   if (isGamePage(path, '/simpsons')) return serveGameHTML(WORKER_URL + '/simpsons/', 'simpsons');
   if (isGamePage(path, '/cyberpunk')) return serveGameHTML(WORKER_URL + '/cyberpunk/game', 'cyberpunk');
@@ -69,13 +70,16 @@ async function handleFetch(event, url) {
     assetPath = m[2];
   }
 
-  // Assets
+  // ── 3. ASSETS ──
   if ((mode === 'gta' || mode === null) && matchesGta(assetPath)) {
     return proxyAssetDirect(event.request, ORIGIN_GTA, assetPath);
   }
+
   if (mode === 'simpsons') {
     return proxyViaWorker(event.request, '/simpsons' + assetPath + url.search);
   }
+
+  // Cualquier otra petición de Cyberpunk (build, api, cdn, etc.)
   if (mode === 'cyberpunk' || path.startsWith('/api/') || path.startsWith('/build/')) {
     return proxyViaWorker(event.request, '/cyberpunk' + path + url.search);
   }
@@ -143,7 +147,7 @@ async function proxyAssetDirect(request, origin, assetPath) {
 }
 
 // ═══════════════════════════════════════════════════════════════════════
-// HTML DEL JUEGO
+// HTML DEL JUEGO (SIN REESCRITURA DE RUTAS)
 // ═══════════════════════════════════════════════════════════════════════
 async function serveGameHTML(origin, type) {
   try {
@@ -156,8 +160,8 @@ async function serveGameHTML(origin, type) {
 
     let html = await upstream.text();
     
-    // ⚠️ ELIMINADA LA REESCRITURA DE RUTAS. 
-    // Ahora el HTML pide los assets de forma relativa, y nuestro SW los intercepta.
+    // ⚠️ ELIMINADA LA REESCRITURA DE RUTAS.
+    // Ahora el HTML pide los assets de forma relativa y el SW los intercepta.
     
     const headPatch = buildHeadPatch(type);
     const bodyPatch = buildBodyPatch(type);
@@ -185,7 +189,7 @@ async function serveGameHTML(origin, type) {
 }
 
 // ═══════════════════════════════════════════════════════════════════════
-// PATCHES
+// PATCHES (Ads, Audio, Gamepad)
 // ═══════════════════════════════════════════════════════════════════════
 function buildHeadPatch(type) {
   if (type !== 'gta') return '';
@@ -280,6 +284,6 @@ function buildAudioScript() {
 
 function buildGamepadScript() {
   return `<script>
-  // ⬇️ PEGA TU CÓDIGO DEL GAMEPAD AQUÍ ⬇️
+  // ⬇️ PEGA AQUÍ TU CÓDIGO DEL GAMEPAD ⬇️
   <\/script>`;
 }
