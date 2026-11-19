@@ -1,397 +1,369 @@
-// ═══════════════════════════════════════════════════════════════════════
-// Service Worker Proxy — GTA V + Simpsons + Cyberpunk
-// Base funcional con flujo launcher.html -> game.html sin redirecciones
-// ═══════════════════════════════════════════════════════════════════════
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Biblioteca</title>
+<style>
+  :root{
+    --bg:#101014;
+    --panel:#18181c;
+    --raised:#202024;
+    --text:#f5f5f5;
+    --muted:#9a9aa2;
+    --accent:#0078f2;
+    --ease:cubic-bezier(.2,.7,.2,1);
+  }
+  *{margin:0;padding:0;box-sizing:border-box}
+  html,body{
+    background:var(--bg);color:var(--text);
+    font:14px/1.45 "Segoe UI","Inter",system-ui,-apple-system,Arial,sans-serif;
+    min-height:100%;
+    -webkit-font-smoothing:antialiased;
+  }
+  a{color:inherit;text-decoration:none}
+  :focus-visible{outline:2px solid var(--accent);outline-offset:3px;border-radius:6px}
 
-const WORKER_URL = 'https://games-proxy.thiagodelsolad.workers.dev';
-const ORIGIN_GTA = 'https://v2.fiveplay.lol';
-const CYBERPUNK_URL =
-  'https://cyberpunk2077.lol/game?ioShared=1&ioSharedMB=128&ioInflight=4&ioPersist=1&ioPersistMB=6144&binkRecycle=1&psoWarm=0&skipIntro=1&ioLookahead=16&behindLoad=0&floodKeep=1';
+  /* Resplandor ambiental lento */
+  body::before,body::after{
+    content:'';position:fixed;z-index:0;pointer-events:none;
+    width:60vmax;height:60vmax;border-radius:50%;
+    filter:blur(90px);opacity:.14;
+  }
+  body::before{
+    background:radial-gradient(circle,var(--accent),transparent 65%);
+    top:-25vmax;left:-15vmax;
+    animation:drift1 22s ease-in-out infinite alternate;
+  }
+  body::after{
+    background:radial-gradient(circle,#6a4bff,transparent 65%);
+    bottom:-30vmax;right:-20vmax;
+    animation:drift2 28s ease-in-out infinite alternate;
+  }
+  @keyframes drift1{to{transform:translate(18vmax,12vmax) scale(1.15)}}
+  @keyframes drift2{to{transform:translate(-16vmax,-10vmax) scale(1.2)}}
 
-const BLOCKED_HOSTS = [
-  'quge5.com',
-  'alwingulla.com',
-  'highrevenueformat.com',
-];
+  .page{position:relative;z-index:1;min-height:100vh;display:flex;flex-direction:column}
 
-const GTA_PREFIXES = [
-  '/b/',
-  '/game/',
-  '/data/',
-  '/audio/',
-  '/x64/',
-  '/js/',
-  '/css/',
-  '/img/',
-  '/assets/',
-  '/log',
-  '/loader.js',
-  '/prejs.js',
-  '/wgpu_worker.js',
-  '/io_worker.js',
-  '/audio-worklet.js',
-  '/sw2.js',
-];
+  /* Anuncios */
+  .ad-slot{display:flex;align-items:center;justify-content:center;width:100%;animation:fade .8s ease both}
+  .ad-slot iframe{border:0;display:block;max-width:100%}
+  #ad-top{padding:10px 0;background:var(--panel)}
+  #ad-bottom{padding:10px 0;background:var(--panel);margin-top:auto;animation-delay:.6s}
 
-self.addEventListener('install', () => self.skipWaiting());
-self.addEventListener('activate', (event) => event.waitUntil(self.clients.claim()));
+  @keyframes fade{from{opacity:0}to{opacity:1}}
+  @keyframes rise{
+    from{opacity:0;transform:translateY(28px) scale(.96)}
+    to{opacity:1;transform:none}
+  }
+  @keyframes slideIn{
+    from{opacity:0;transform:translateX(-18px)}
+    to{opacity:1;transform:none}
+  }
+  @keyframes dropIn{
+    from{opacity:0;transform:translateY(-14px)}
+    to{opacity:1;transform:none}
+  }
 
-function isOwnStatic(path) {
-  return (
-    path === '/' ||
-    path === '/index.html' ||
-    path.startsWith('/img/') ||
-    path === '/favicon.ico'
-  );
+  /* Cabecera */
+  .head{
+    display:flex;align-items:center;justify-content:space-between;gap:20px;
+    padding:32px 48px 0;
+    max-width:1600px;width:100%;margin:0 auto;
+  }
+  .head h1{
+    font-size:28px;font-weight:700;letter-spacing:-.01em;
+    animation:slideIn .7s var(--ease) .1s backwards;
+  }
+
+  .search{
+    position:relative;width:240px;max-width:100%;
+    transition:width .35s var(--ease);
+    animation:dropIn .7s var(--ease) .2s backwards;
+  }
+  .search:focus-within{width:320px}
+  .search input{
+    width:100%;height:40px;
+    background:var(--raised);border:1px solid transparent;border-radius:20px;
+    padding:0 16px 0 42px;color:var(--text);font-size:14px;outline:none;
+    transition:border-color .25s,box-shadow .25s,background .25s;
+  }
+  .search input::placeholder{color:var(--muted)}
+  .search input:focus{
+    border-color:var(--accent);
+    box-shadow:0 0 0 4px rgba(0,120,242,.18);
+    background:#26262b;
+  }
+  .search svg{
+    position:absolute;left:14px;top:50%;transform:translateY(-50%);
+    width:16px;height:16px;fill:var(--muted);pointer-events:none;
+    transition:fill .25s,transform .35s var(--ease);
+  }
+  .search:focus-within svg{fill:var(--text);transform:translateY(-50%) scale(1.15) rotate(-8deg)}
+
+  /* Cuadrícula */
+  main{padding:28px 48px 48px;max-width:1600px;width:100%;margin:0 auto}
+  .grid{
+    display:grid;
+    grid-template-columns:repeat(auto-fill,minmax(210px,1fr));
+    gap:28px 22px;
+  }
+
+  .card{
+    display:block;
+    animation:rise .8s var(--ease) backwards;
+    animation-delay:calc(var(--i,0) * 110ms + 250ms);
+    transition:opacity .3s ease,transform .3s var(--ease);
+  }
+  .card.hide{opacity:0;transform:scale(.9);pointer-events:none}
+
+  .poster{
+    position:relative;
+    aspect-ratio:3/4;border-radius:10px;overflow:hidden;background:var(--raised);
+    transform:perspective(800px) rotateX(var(--rx,0deg)) rotateY(var(--ry,0deg))
+              translateY(var(--ty,0px)) scale(var(--s,1));
+    transition:transform .35s var(--ease),box-shadow .35s var(--ease);
+    will-change:transform;
+  }
+  .poster img{
+    width:100%;height:100%;object-fit:cover;display:block;
+    transition:transform .8s var(--ease),filter .5s;
+    filter:saturate(.92) brightness(.95);
+  }
+  /* Brillo que cruza el póster */
+  .poster::after{
+    content:'';position:absolute;inset:0;pointer-events:none;
+    background:linear-gradient(105deg,transparent 35%,rgba(255,255,255,.18) 50%,transparent 65%);
+    transform:translateX(-130%);
+  }
+
+  .card:hover .poster,.card:focus-visible .poster{
+    --ty:-8px;--s:1.03;
+    box-shadow:0 20px 40px rgba(0,0,0,.55),0 0 0 1px rgba(255,255,255,.12),0 0 36px rgba(0,120,242,.22);
+  }
+  .card:hover .poster img,.card:focus-visible .poster img{
+    transform:scale(1.08);filter:saturate(1.08) brightness(1.02);
+  }
+  .card:hover .poster::after,.card:focus-visible .poster::after{
+    transform:translateX(130%);
+    transition:transform .9s var(--ease);
+  }
+  .card:active .poster{--s:.97;--ty:-2px}
+
+  .name{
+    position:relative;display:inline-block;max-width:100%;
+    margin-top:12px;padding:0 2px 3px;
+    font-size:14px;font-weight:600;
+    white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+    color:#d9d9de;
+    transition:color .3s,transform .35s var(--ease);
+  }
+  .name::after{
+    content:'';position:absolute;left:2px;bottom:0;height:2px;width:calc(100% - 4px);
+    background:var(--accent);border-radius:1px;
+    transform:scaleX(0);transform-origin:left;
+    transition:transform .4s var(--ease);
+  }
+  .card:hover .name,.card:focus-visible .name{color:#fff;transform:translateY(-2px)}
+  .card:hover .name::after,.card:focus-visible .name::after{transform:scaleX(1)}
+
+  .none{display:none;color:var(--muted);padding:40px 0}
+  .none.on{display:block;animation:rise .5s var(--ease)}
+
+  /* Pantalla de carga */
+  #loader{
+    position:fixed;inset:0;z-index:9999;
+    background:rgba(16,16,20,.96);
+    display:flex;align-items:center;justify-content:center;
+    flex-direction:column;gap:18px;
+    opacity:0;visibility:hidden;
+    transition:opacity .4s ease,visibility 0s .4s;
+  }
+  #loader.on{opacity:1;visibility:visible;transition:opacity .4s ease}
+  #loader .spin{
+    width:34px;height:34px;border-radius:50%;
+    border:3px solid var(--raised);border-top-color:var(--text);
+    animation:spin .8s linear infinite;
+    transform:scale(.6);transition:transform .5s var(--ease);
+  }
+  #loader.on .spin{transform:scale(1)}
+  #loader .txt{color:var(--muted);font-size:14px;animation:pulse 1.6s ease-in-out infinite}
+  #loader .bar{
+    position:absolute;top:0;left:0;height:3px;width:100%;overflow:hidden;
+  }
+  #loader .bar::after{
+    content:'';position:absolute;top:0;bottom:0;width:35%;background:var(--accent);
+    animation:sweep 1.3s var(--ease) infinite;
+  }
+  @keyframes spin{to{transform:rotate(360deg)}}
+  @keyframes pulse{50%{opacity:.4}}
+  @keyframes sweep{from{left:-35%}to{left:100%}}
+
+
+
+  @media (prefers-reduced-motion:reduce){
+    *,*::before,*::after{animation:none!important;transition:none!important}
+  }
+  @media (max-width:800px){
+    .head{padding:20px 16px 0;flex-wrap:wrap}
+    .head h1{font-size:22px}
+    .search,.search:focus-within{width:100%}
+    main{padding:20px 16px 32px}
+    .grid{grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:20px 12px}
+    body::before,body::after{opacity:.08}
+  }
+</style>
+</head>
+<body>
+<div class="page">
+
+  <div class="ad-slot" id="ad-top">
+    <iframe id="ad-728-top" width="728" height="90" scrolling="no"></iframe>
+  </div>
+
+  <header class="head">
+    <h1>Biblioteca</h1>
+    <label class="search">
+      <input type="search" id="q" placeholder="Buscar" autocomplete="off">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15.5 14h-.79l-.28-.27a6.5 6.5 0 1 0-.7.7l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0A4.5 4.5 0 1 1 14 9.5 4.5 4.5 0 0 1 9.5 14z"/></svg>
+    </label>
+  </header>
+
+  <main>
+    <div class="grid" id="grid">
+
+      <a class="card" style="--i:0" href="/gta5/" data-game="gta5" data-title="Grand Theft Auto V">
+        <div class="poster"><img src="/img/gta5.jpg" alt="" loading="lazy"></div>
+        <div class="name">Grand Theft Auto V</div>
+      </a>
+
+      <a class="card" style="--i:1" href="/simpsons/" data-game="simpsons" data-title="The Simpsons: Hit &amp; Run">
+        <div class="poster"><img src="/img/simpsons.jpg" alt="" loading="lazy"></div>
+        <div class="name">The Simpsons: Hit &amp; Run</div>
+      </a>
+
+      <a class="card" style="--i:2" data-title="Cyberpunk 2077" target="_blank" rel="noopener"
+         href="https://cyberpunk2077.lol/game?ioShared=1&ioSharedMB=128&ioInflight=4&ioPersist=1&ioPersistMB=6144&binkRecycle=1&psoWarm=0&skipIntro=1&ioLookahead=16&behindLoad=0&floodKeep=1">
+        <div class="poster"><img src="/img/cyberpunk.jpg" alt="" loading="lazy"></div>
+        <div class="name">Cyberpunk 2077</div>
+      </a>
+
+    </div>
+    <p class="none" id="none">No hay resultados.</p>
+  </main>
+
+  <div class="ad-slot" id="ad-bottom">
+    <iframe id="ad-320-bottom" width="320" height="50" scrolling="no"></iframe>
+  </div>
+
+</div>
+
+<div id="loader" role="status" aria-live="polite">
+  <div class="bar"></div>
+  <div class="spin"></div>
+  <div class="txt" id="loaderText">Iniciando…</div>
+</div>
+
+<script>
+// ═══ Service Worker ═══
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('/sw.js', { scope: '/' })
+    .then(function(reg) {
+      console.log('[SW] Registered', reg.scope);
+      if (!navigator.serviceWorker.controller) {
+        navigator.serviceWorker.ready.then(function() {
+          if (!sessionStorage.getItem('__sw_reload')) {
+            sessionStorage.setItem('__sw_reload', '1');
+            location.reload();
+          }
+        });
+      }
+    })
+    .catch(function(err) { console.error('[SW] Failed:', err); });
 }
 
-function matchesGta(path) {
-  return GTA_PREFIXES.some((p) => (p.endsWith('/') ? path.startsWith(p) : path === p));
-}
-
-function isGamePage(path, base) {
-  return path === base || path === base + '/' || path === base + '/index.html';
-}
-
-function securityHeaders(extra = {}) {
-  const h = new Headers(extra);
-  h.set('Cross-Origin-Opener-Policy', 'same-origin');
-  h.set('Cross-Origin-Embedder-Policy', 'credentialless');
-  h.set('Cross-Origin-Resource-Policy', 'cross-origin');
-  h.set('Access-Control-Allow-Origin', '*');
-  return h;
-}
-
-self.addEventListener('fetch', (event) => {
-  const url = new URL(event.request.url);
-  if (url.origin === self.location.origin && isOwnStatic(url.pathname)) return;
-  event.respondWith(handleFetch(event, url));
+// ═══ Click en juego → pantalla de carga (con pequeña pausa para la animación) ═══
+document.querySelectorAll('.card[data-game]').forEach(function(card) {
+  card.addEventListener('click', function(e) {
+    var name = card.querySelector('.name');
+    document.getElementById('loaderText').textContent =
+      'Iniciando ' + (name ? name.textContent : 'juego') + '…';
+    document.getElementById('loader').classList.add('on');
+  });
 });
 
-async function detectMode(event) {
-  const check = (u) => {
-    if (!u) return null;
-    if (u.indexOf('/gta5') !== -1) return 'gta';
-    if (u.indexOf('/simpsons') !== -1) return 'simpsons';
-    if (u.indexOf('/cyberpunk') !== -1) return 'cyberpunk';
-    return null;
-  };
-  if (event.clientId) {
-    try {
-      const client = await self.clients.get(event.clientId);
-      const m = client && check(client.url);
-      if (m) return m;
-    } catch (e) {}
-  }
-  return check(event.request.referrer);
-}
-
-async function handleFetch(event, url) {
-  const path = url.pathname;
-
-  // Bloqueo limpio de dominios de anuncios para evitar errores de red
-  if (BLOCKED_HOSTS.some((h) => url.hostname.includes(h))) {
-    return new Response('', {
-      status: 200,
-      headers: securityHeaders({ 'Content-Type': 'application/javascript' }),
-    });
-  }
-
-  // ── 1. INTERCEPTAR PETICIONES EXTERNAS DE CYBERPUNK (El CDN) ──
-  if (url.hostname.includes('part.fn-web-worker.workers.dev')) {
-    return proxyViaWorker(event.request, '/cyberpunk-cdn' + path + url.search);
-  }
-
-  let mode = await detectMode(event);
-
-  // ── 2. PÁGINAS DE JUEGO LOCALES (Bootstrap) ──
-  // GTA inicia en launcher.html y al pulsar Play pasa a game.html dentro de /gta5/
-  if (path === '/gta5/launcher.html' || isGamePage(path, '/gta5')) {
-    return serveGtaPage(ORIGIN_GTA + '/launcher.html' + url.search, 'launcher');
-  }
-  if (path === '/gta5/game.html' || (mode === 'gta' && path === '/game.html')) {
-    return serveGtaPage(ORIGIN_GTA + '/game.html' + url.search, 'gta');
-  }
-  if (mode === 'gta' && path === '/launcher.html') {
-    return serveGtaPage(ORIGIN_GTA + '/launcher.html' + url.search, 'launcher');
-  }
-
-  if (isGamePage(path, '/simpsons')) return serveGameHTML(WORKER_URL + '/simpsons/', 'simpsons');
-  if (isGamePage(path, '/cyberpunk')) return serveGameHTML(WORKER_URL + '/cyberpunk/game', 'cyberpunk');
-
-  let assetPath = path;
-
-  const m = path.match(/^\/(gta5|simpsons|cyberpunk)(\/.*)$/);
-  if (m) {
-    mode = mode || (m[1] === 'gta5' ? 'gta' : m[1] === 'simpsons' ? 'simpsons' : 'cyberpunk');
-    assetPath = m[2];
-  }
-
-  // ── 3. ASSETS ──
-  if ((mode === 'gta' || mode === null) && matchesGta(assetPath)) {
-    return proxyAssetDirect(event.request, ORIGIN_GTA, assetPath);
-  }
-
-  if (mode === 'simpsons') {
-    return proxyViaWorker(event.request, '/simpsons' + assetPath + url.search);
-  }
-
-  // Cualquier otra petición de Cyberpunk (build, api, cdn, etc.)
-  if (mode === 'cyberpunk' || path.startsWith('/api/') || path.startsWith('/build/')) {
-    return proxyViaWorker(event.request, '/cyberpunk' + path + url.search);
-  }
-
-  return fetch(event.request);
-}
-
-// ═══════════════════════════════════════════════════════════════════════
-// PROXIES
-// ═══════════════════════════════════════════════════════════════════════
-async function proxyViaWorker(request, targetPath) {
-  try {
-    const reqHeaders = new Headers(request.headers);
-    const range = request.headers.get('range');
-    if (range) reqHeaders.set('Range', range);
-
-    const hasBody = request.method !== 'GET' && request.method !== 'HEAD';
-    return await fetch(WORKER_URL + targetPath, {
-      method: request.method,
-      headers: reqHeaders,
-      body: hasBody ? await request.arrayBuffer() : undefined,
-    });
-  } catch (e) {
-    return new Response('Worker error: ' + e.message, { status: 502 });
-  }
-}
-
-async function proxyAssetDirect(request, origin, assetPath) {
-  const url = new URL(request.url);
-  const target = origin + assetPath + url.search;
-  if (assetPath === '/sw2.js') {
-    return new Response('self.addEventListener("install",()=>self.skipWaiting());', {
-      headers: securityHeaders({ 'Content-Type': 'application/javascript' }),
-    });
-  }
-  try {
-    const hasBody = request.method !== 'GET' && request.method !== 'HEAD';
-    const reqHeaders = new Headers();
-    const range = request.headers.get('range');
-    if (range) reqHeaders.set('Range', range);
-
-    const upstream = await fetch(target, {
-      method: request.method,
-      headers: reqHeaders,
-      mode: 'cors',
-      credentials: 'omit',
-      redirect: 'manual',
-      body: hasBody ? await request.arrayBuffer() : undefined,
-    });
-
-    // Si el origen intenta redirigir fuera del proxy, mantenerlo dentro de /gta5/
-    if (upstream.status >= 300 && upstream.status < 400) {
-      const loc = upstream.headers.get('location');
-      if (loc) {
-        const resolved = new URL(loc, target);
-        if (resolved.pathname.endsWith('game.html')) {
-          return serveGtaPage(ORIGIN_GTA + '/game.html' + resolved.search, 'gta');
-        }
-        if (resolved.pathname.endsWith('launcher.html')) {
-          return serveGtaPage(ORIGIN_GTA + '/launcher.html' + resolved.search, 'launcher');
-        }
-      }
-    }
-
-    const headers = securityHeaders();
-    ['content-type', 'content-range', 'accept-ranges', 'last-modified', 'etag'].forEach((k) => {
-      const v = upstream.headers.get(k);
-      if (v) headers.set(k, v);
-    });
-
-    if (upstream.ok || upstream.status === 206) {
-      const p = assetPath.toLowerCase();
-      if (p.endsWith('.wasm')) headers.set('Content-Type', 'application/wasm');
-      if (p.endsWith('.js') || p.endsWith('.mjs')) headers.set('Content-Type', 'application/javascript');
-      if (p.endsWith('.json')) headers.set('Content-Type', 'application/json');
-      if (p.endsWith('.mp3')) headers.set('Content-Type', 'audio/mpeg');
-      if (p.endsWith('.ogg')) headers.set('Content-Type', 'audio/ogg');
-      if (p.endsWith('.wav')) headers.set('Content-Type', 'audio/wav');
-    }
-
-    return new Response(upstream.body, { status: upstream.status, headers });
-  } catch (e) {
-    return new Response('Proxy error: ' + e.message, { status: 502 });
-  }
-}
-
-// ═══════════════════════════════════════════════════════════════════════
-// HTML DEL JUEGO (MANTIENE RUTAS EN /gta5/ PARA EVITAR REDIRECCIONES)
-// ═══════════════════════════════════════════════════════════════════════
-async function serveGtaPage(targetUrl, type) {
-  try {
-    const upstream = await fetch(targetUrl, {
-      method: 'GET',
-      mode: 'cors',
-      credentials: 'omit',
-      cache: 'no-cache',
-      redirect: 'follow',
-    });
-    if (!upstream.ok) return new Response('Error ' + upstream.status, { status: 502 });
-
-    let html = await upstream.text();
-    const baseTag = '<base href="/gta5/">';
-    const headPatch = buildHeadPatch('gta');
-    const bodyPatch = type === 'launcher' ? buildAudioScript() : buildBodyPatch('gta');
-
-    if (/<head[^>]*>/i.test(html)) {
-      html = html.replace(/<head[^>]*>/i, (m) => m + baseTag + headPatch);
-    } else {
-      html = baseTag + headPatch + html;
-    }
-
-    const idx = html.toLowerCase().lastIndexOf('</body>');
-    if (idx !== -1) html = html.slice(0, idx) + bodyPatch + html.slice(idx);
-    else html += bodyPatch;
-
-    return new Response(html, {
-      status: 200,
-      headers: securityHeaders({ 'Content-Type': 'text/html; charset=utf-8' }),
-    });
-  } catch (e) {
-    return new Response('Error: ' + e.message, { status: 502 });
-  }
-}
-
-async function serveGameHTML(origin, type) {
-  try {
-    let targetUrl = origin + '/';
-    if (type === 'simpsons') targetUrl = origin + '?skipmovie';
-    if (type === 'cyberpunk') targetUrl = CYBERPUNK_URL;
-
-    const upstream = await fetch(targetUrl, {
-      method: 'GET',
-      mode: 'cors',
-      credentials: 'omit',
-      cache: 'no-cache',
-    });
-    if (!upstream.ok) return new Response('Error ' + upstream.status, { status: 502 });
-
-    let html = await upstream.text();
-
-    const headPatch = buildHeadPatch(type);
-    const bodyPatch = buildBodyPatch(type);
-
-    if (/<head[^>]*>/i.test(html)) html = html.replace(/<head[^>]*>/i, (m) => m + headPatch);
-    else html = headPatch + html;
-
-    const idx = html.toLowerCase().lastIndexOf('</body>');
-    if (idx !== -1) html = html.slice(0, idx) + bodyPatch + html.slice(idx);
-    else html += bodyPatch;
-
-    return new Response(html, {
-      status: 200,
-      headers: securityHeaders({ 'Content-Type': 'text/html; charset=utf-8' }),
-    });
-  } catch (e) {
-    return new Response('Error: ' + e.message, { status: 502 });
-  }
-}
-
-// ═══════════════════════════════════════════════════════════════════════
-// PATCHES (Ads, Audio, Gamepad)
-// ═══════════════════════════════════════════════════════════════════════
-function buildHeadPatch(type) {
-  if (type !== 'gta') return '';
-  return `<script>
+// ═══ Inclinación 3D del póster siguiendo el cursor ═══
 (function(){
-  var BLOCKED = ['alwingulla.com','quge5.com','monetag','profit','adsterra','popads','popcash','hilltopads'];
-  function isBlocked(v){ if (!v) return false; v = String(v); return BLOCKED.some(function(b){ return v.indexOf(b) !== -1; }); }
-  var _srcDesc = Object.getOwnPropertyDescriptor(HTMLScriptElement.prototype, 'src');
-  if (_srcDesc && _srcDesc.set) {
-    Object.defineProperty(HTMLScriptElement.prototype, 'src', {
-      get: _srcDesc.get,
-      set: function(v){ if (isBlocked(v)) return; _srcDesc.set.call(this, v); },
-      configurable: true, enumerable: _srcDesc.enumerable
+  var fine = window.matchMedia('(hover:hover) and (pointer:fine)').matches;
+  var calm = window.matchMedia('(prefers-reduced-motion:reduce)').matches;
+  if (!fine || calm) return;
+  document.querySelectorAll('.card').forEach(function(card) {
+    var poster = card.querySelector('.poster');
+    card.addEventListener('mousemove', function(e) {
+      var r = poster.getBoundingClientRect();
+      var x = (e.clientX - r.left) / r.width - .5;
+      var y = (e.clientY - r.top) / r.height - .5;
+      poster.style.setProperty('--ry', (x * 10).toFixed(2) + 'deg');
+      poster.style.setProperty('--rx', (-y * 10).toFixed(2) + 'deg');
+      poster.style.transitionDuration = '.12s';
     });
-  }
-  var _setAttr = Element.prototype.setAttribute;
-  Element.prototype.setAttribute = function(name, value){
-    if (this.tagName === 'SCRIPT' && String(name).toLowerCase() === 'src' && isBlocked(value)) return;
-    return _setAttr.call(this, name, value);
-  };
-  var AD_SELECTORS = ['[id*="adsterra"]', '[class*="adsterra"]', '[id*="popads"]', '[id*="popcash"]', '[id*="monetag"]', '[class*="monetag"]', 'iframe[src*="profit"]', 'iframe[src*="adsterra"]', 'iframe[src*="highrevenue"]', 'iframe[src*="monetag"]'];
-  var AD_TEXTS = ['new message', 'play now', 'hot new game', 'click here', 'sponsored'];
-  function isProtected(el){
-    if (el.id === 'canvas' || el.id === '__gp_hud' || el.id === '__gp_btn') return true;
-    if (el.closest && el.closest('#loading, #__gp_hud, #__gp_btn, .my-ad')) return true;
-    if (el.className && typeof el.className === 'string' && el.className.indexOf('my-ad') !== -1) return true;
-    return false;
-  }
-  function killAds() {
-    AD_SELECTORS.forEach(function(sel){ try { document.querySelectorAll(sel).forEach(function(el){ if (!isProtected(el)) el.remove(); }); } catch(e){} });
-    document.querySelectorAll('div, section, aside').forEach(function(el){
-      if (isProtected(el)) return;
-      var text = (el.textContent || '').toLowerCase().trim();
-      if (text.length < 100 && AD_TEXTS.some(function(t){ return text.indexOf(t) !== -1; })) {
-        var style = window.getComputedStyle(el);
-        if (style.position === 'fixed' || style.position === 'absolute') el.remove();
-      }
+    card.addEventListener('mouseleave', function() {
+      poster.style.setProperty('--rx', '0deg');
+      poster.style.setProperty('--ry', '0deg');
+      poster.style.transitionDuration = '';
     });
-  }
-  var pending = false;
-  var observer = new MutationObserver(function(){ if (pending) return; pending = true; setTimeout(function(){ pending = false; killAds(); }, 300); });
-  function init() { if (!document.body) return setTimeout(init, 100); observer.observe(document.body, { childList: true, subtree: true }); killAds(); setTimeout(killAds, 3000); }
-  init();
+  });
 })();
-<\/script>`;
-}
 
-function buildBodyPatch(type) {
-  if (type === 'simpsons' || type === 'cyberpunk') return buildAudioScript();
-  return buildAdsScript() + buildAudioScript() + buildGamepadScript();
-}
-
-function buildAdsScript() {
-  return `<script>
+// ═══ Búsqueda con transición de entrada/salida ═══
 (function(){
-  function addAd(id, w, h, key, pos){
-    var f = document.createElement('iframe'); f.id = id; f.className = 'my-ad'; f.width = w; f.height = h; f.scrolling = 'no';
-    f.style.cssText = 'position:fixed;left:50%;transform:translateX(-50%);z-index:9000;border:0;' + (pos === 'top' ? 'top:8px;' : 'bottom:8px;');
-    document.body.appendChild(f);
-    var doc = f.contentDocument || (f.contentWindow && f.contentWindow.document); if (!doc) return;
-    doc.open(); doc.write('<!doctype html><html><head><meta charset="utf-8"><style>html,body{margin:0;padding:0;overflow:hidden;background:transparent;}</style></head><body>');
+  var cards = Array.prototype.slice.call(document.querySelectorAll('#grid .card'));
+  var input = document.getElementById('q');
+  var none = document.getElementById('none');
+
+  function show(c) {
+    if (c.style.display !== 'none' && !c.classList.contains('hide')) return;
+    clearTimeout(c._t);
+    c.style.display = '';
+    requestAnimationFrame(function() {
+      requestAnimationFrame(function() { c.classList.remove('hide'); });
+    });
+  }
+  function hide(c) {
+    if (c.classList.contains('hide')) return;
+    c.classList.add('hide');
+    c._t = setTimeout(function() { c.style.display = 'none'; }, 300);
+  }
+
+  input.addEventListener('input', function() {
+    var term = input.value.trim().toLowerCase();
+    var shown = 0;
+    cards.forEach(function(c) {
+      var ok = !term || c.dataset.title.toLowerCase().indexOf(term) !== -1;
+      if (ok) { shown++; show(c); } else { hide(c); }
+    });
+    none.classList.toggle('on', shown === 0);
+  });
+})();
+
+// ═══ Anuncios ═══
+(function(){
+  function injectAd(frameId, w, h, key) {
+    var f = document.getElementById(frameId);
+    if (!f) return;
+    var doc = f.contentDocument || f.contentWindow.document;
+    doc.open();
+    doc.write('<!doctype html><html><head><meta charset="utf-8">' +
+      '<style>html,body{margin:0;padding:0;overflow:hidden;background:transparent;}</style>' +
+      '</head><body>');
     doc.write('<scr' + 'ipt>atOptions={"key":"' + key + '","format":"iframe","height":' + h + ',"width":' + w + ',"params":{}};</scr' + 'ipt>');
-    doc.write('<scr' + 'ipt src="https://www.highrevenueformat.com/' + key + '/invoke.js"></scr' + 'ipt>'); doc.write('</body></html>'); doc.close();
+    doc.write('<scr' + 'ipt src="https://www.highrevenueformat.com/' + key + '/invoke.js"></scr' + 'ipt>');
+    doc.write('</body></html>');
+    doc.close();
   }
-  function removeAds(){ document.querySelectorAll('.my-ad').forEach(function(e){ try { e.remove(); } catch(x){} }); }
-  function init(){
-    if (!document.body) return setTimeout(init, 50);
-    addAd('my-ad-300', 300, 250, 'f49c2e7ae12570d06b9c194497928af0', 'top');
-    addAd('my-ad-468', 468, 60, 'f18d77cc1e4b0ecc702e26baff74510e', 'bottom');
-    var obs = new MutationObserver(function(){ var l = document.getElementById('loading'); if (!l || l.classList.contains('done')) { removeAds(); obs.disconnect(); } });
-    obs.observe(document.documentElement, { childList: true, subtree: true, attributes: true, attributeFilter: ['class'] });
-    setTimeout(function(){ removeAds(); obs.disconnect(); }, 5 * 60 * 1000);
-  }
-  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init); else init();
+  injectAd('ad-728-top', 728, 90, '76a4887bf5246065c1644d5ff3ee96ae');
+  injectAd('ad-320-bottom', 320, 50, '0c552db9603823b8354d2c686ebe16d7');
 })();
-<\/script>`;
-}
-
-function buildAudioScript() {
-  return `<script>
-(function(){
-  var u = false;
-  function resumeAll(){ try { if (window.__audioContexts) window.__audioContexts.forEach(function(c){ if(c.state==='suspended') c.resume().catch(function(){}); }); } catch(e){} }
-  function unlock(){
-    if (u) return; u = true; try { resumeAll(); var ctx = new (window.AudioContext||window.webkitAudioContext)(); if (ctx.state === 'suspended') ctx.resume().catch(function(){}); } catch(e){}
-    var n = 0, iv = setInterval(function(){ resumeAll(); if (++n > 20) clearInterval(iv); }, 500);
-  }
-  ['click','pointerdown','keydown','touchstart'].forEach(function(e){ window.addEventListener(e, unlock, {once:false, capture:true, passive:true}); });
-})();
-<\/script>`;
-}
-
-function buildGamepadScript() {
-  return `<script>
-  // ⬇️ PEGA AQUÍ TU CÓDIGO DEL GAMEPAD ⬇️
-  <\/script>`;
-}
+</script>
+</body>
+</html>
