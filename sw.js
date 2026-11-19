@@ -2,7 +2,7 @@
 // Service Worker Proxy — GTA V + Simpsons + Cyberpunk
 // ═══════════════════════════════════════════════════════════════════════
 
-const WORKER_URL = 'https://games-proxy.thiagodelsolad.workers.dev'; 
+const WORKER_URL = 'https://games-proxy.thiagodelsolad.workers.dev';
 const ORIGIN_GTA = 'https://v2.fiveplay.lol';
 const CYBERPUNK_URL = 'https://cyberpunk2077.lol/game?ioShared=1&ioSharedMB=128&ioInflight=4&ioPersist=1&ioPersistMB=6144&binkRecycle=1&psoWarm=0&skipIntro=1&ioLookahead=16&behindLoad=0&floodKeep=1';
 
@@ -50,14 +50,15 @@ async function detectMode(event) {
 
 async function handleFetch(event, url) {
   const path = url.pathname;
-  
+
   // ── 1. INTERCEPTAR PETICIONES EXTERNAS DE CYBERPUNK (El CDN) ──
   if (url.hostname.includes('part.fn-web-worker.workers.dev')) {
     return proxyViaWorker(event.request, '/cyberpunk-cdn' + path + url.search);
   }
 
   // ── 2. PÁGINAS DE JUEGO LOCALES (Bootstrap) ──
-  if (isGamePage(path, '/gta5')) return serveGameHTML(ORIGIN_GTA, 'gta');
+  // GTA recibe ?mode=story|sandbox&cfg=1 desde el selector del index
+  if (isGamePage(path, '/gta5')) return serveGameHTML(ORIGIN_GTA, 'gta', url.search);
   if (isGamePage(path, '/simpsons')) return serveGameHTML(WORKER_URL + '/simpsons/', 'simpsons');
   if (isGamePage(path, '/cyberpunk')) return serveGameHTML(WORKER_URL + '/cyberpunk/game', 'cyberpunk');
 
@@ -149,9 +150,16 @@ async function proxyAssetDirect(request, origin, assetPath) {
 // ═══════════════════════════════════════════════════════════════════════
 // HTML DEL JUEGO (SIN REESCRITURA DE RUTAS)
 // ═══════════════════════════════════════════════════════════════════════
-async function serveGameHTML(origin, type) {
+async function serveGameHTML(origin, type, search = '') {
   try {
     let targetUrl = origin + '/';
+
+    if (type === 'gta') {
+      // Modo elegido en el index: story (por defecto) o sandbox
+      const q = new URLSearchParams(search);
+      const mode = q.get('mode') === 'sandbox' ? 'sandbox' : 'story';
+      targetUrl = origin + '/game.html?mode=' + mode + '&cfg=1';
+    }
     if (type === 'simpsons') targetUrl = origin + '?skipmovie';
     if (type === 'cyberpunk') targetUrl = CYBERPUNK_URL;
 
@@ -159,10 +167,10 @@ async function serveGameHTML(origin, type) {
     if (!upstream.ok) return new Response('Error ' + upstream.status, { status: 502 });
 
     let html = await upstream.text();
-    
-    // ⚠️ ELIMINADA LA REESCRITURA DE RUTAS.
-    // Ahora el HTML pide los assets de forma relativa y el SW los intercepta.
-    
+
+    // Sin reescritura de rutas: el HTML pide los assets de forma relativa
+    // y el SW los intercepta.
+
     const headPatch = buildHeadPatch(type);
     const bodyPatch = buildBodyPatch(type);
 
