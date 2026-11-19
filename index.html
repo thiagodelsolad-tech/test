@@ -1,304 +1,324 @@
 <!doctype html>
-<html lang="en">
+<html lang="es">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Library</title>
+<title>Biblioteca</title>
 <style>
+  :root{
+    --bg:#101014;
+    --panel:#18181c;
+    --raised:#202024;
+    --text:#f5f5f5;
+    --muted:#9a9aa2;
+    --accent:#0078f2;
+    --ease:cubic-bezier(.2,.7,.2,1);
+  }
   *{margin:0;padding:0;box-sizing:border-box}
   html,body{
-    background:#0e1014;color:#c7d5e0;
-    font:14px/1.4 "Motiva Sans","Segoe UI",Arial,sans-serif;
-    min-height:100vh;
-    overflow-x:hidden;
+    background:var(--bg);color:var(--text);
+    font:14px/1.45 "Segoe UI","Inter",system-ui,-apple-system,Arial,sans-serif;
+    min-height:100%;
+    -webkit-font-smoothing:antialiased;
   }
   a{color:inherit;text-decoration:none}
+  :focus-visible{outline:2px solid var(--accent);outline-offset:3px;border-radius:6px}
 
-  @keyframes fadeUp{
-    from{opacity:0;transform:translateY(20px)}
-    to{opacity:1;transform:translateY(0)}
+  /* Resplandor ambiental lento */
+  body::before,body::after{
+    content:'';position:fixed;z-index:0;pointer-events:none;
+    width:60vmax;height:60vmax;border-radius:50%;
+    filter:blur(90px);opacity:.14;
   }
-  @keyframes fadeIn{
-    from{opacity:0}
-    to{opacity:1}
+  body::before{
+    background:radial-gradient(circle,var(--accent),transparent 65%);
+    top:-25vmax;left:-15vmax;
+    animation:drift1 22s ease-in-out infinite alternate;
   }
-  @keyframes spin{to{transform:rotate(360deg)}}
+  body::after{
+    background:radial-gradient(circle,#6a4bff,transparent 65%);
+    bottom:-30vmax;right:-20vmax;
+    animation:drift2 28s ease-in-out infinite alternate;
+  }
+  @keyframes drift1{to{transform:translate(18vmax,12vmax) scale(1.15)}}
+  @keyframes drift2{to{transform:translate(-16vmax,-10vmax) scale(1.2)}}
 
-  /* ═══ AD SLOTS ═══ */
-  .ad-slot{
-    display:flex;align-items:center;justify-content:center;
-    width:100%;
-  }
-  .ad-slot iframe{border:0;display:block}
-  #ad-top{padding:14px 0;background:#171a21;border-bottom:1px solid #23232c}
-  #ad-bottom{padding:12px 0;background:#171a21;border-top:1px solid #23232c;margin-top:30px}
+  .page{position:relative;z-index:1;min-height:100vh;display:flex;flex-direction:column}
 
-  .topbar{
-    background:#171a21;
-    border-bottom:1px solid #000;
-    padding:10px 24px;
-    display:flex;align-items:center;gap:22px;
-    position:sticky;top:0;z-index:50;
-    animation:fadeIn .4s ease-out;
-  }
-  .logo{
-    display:flex;align-items:center;gap:8px;
-    font-size:14px;font-weight:700;color:#fff;
-    letter-spacing:.3px;flex-shrink:0;
-  }
-  .logo svg{width:20px;height:20px;fill:#fff}
+  /* Anuncios */
+  .ad-slot{display:flex;align-items:center;justify-content:center;width:100%;animation:fade .8s ease both}
+  .ad-slot iframe{border:0;display:block;max-width:100%}
+  #ad-top{padding:10px 0;background:var(--panel)}
+  #ad-bottom{padding:10px 0;background:var(--panel);margin-top:auto;animation-delay:.6s}
 
-  .tabs{display:flex;gap:4px;flex:1;margin-left:6px}
-  .tabs button{
-    padding:8px 14px;border-radius:3px;
-    color:#b8b6b4;font-size:13px;
-    background:none;border:0;cursor:pointer;
-    font:inherit;
-    transition:color .2s,background .2s,transform .15s;
-    white-space:nowrap;
+  @keyframes fade{from{opacity:0}to{opacity:1}}
+  @keyframes rise{
+    from{opacity:0;transform:translateY(28px) scale(.96)}
+    to{opacity:1;transform:none}
   }
-  .tabs button:hover{color:#fff;background:#1e2530}
-  .tabs button:active{transform:scale(.96)}
-  .tabs button.active{
-    color:#fff;background:#1e2530;
-    box-shadow:inset 0 -2px 0 #66c0f4;
+  @keyframes slideIn{
+    from{opacity:0;transform:translateX(-18px)}
+    to{opacity:1;transform:none}
+  }
+  @keyframes dropIn{
+    from{opacity:0;transform:translateY(-14px)}
+    to{opacity:1;transform:none}
   }
 
-  .search{position:relative;flex-shrink:0}
+  /* Cabecera */
+  .head{
+    display:flex;align-items:center;justify-content:space-between;gap:20px;
+    padding:32px 48px 0;
+    max-width:1600px;width:100%;margin:0 auto;
+  }
+  .head h1{
+    font-size:28px;font-weight:700;letter-spacing:-.01em;
+    animation:slideIn .7s var(--ease) .1s backwards;
+  }
+
+  .search{
+    position:relative;width:240px;max-width:100%;
+    transition:width .35s var(--ease);
+    animation:dropIn .7s var(--ease) .2s backwards;
+  }
+  .search:focus-within{width:320px}
   .search input{
-    background:#316282;border:1px solid #000;border-radius:3px;
-    padding:7px 32px 7px 12px;color:#fff;font-size:13px;
-    outline:none;width:220px;
-    transition:background .2s,width .25s cubic-bezier(.2,0,.2,1);
+    width:100%;height:40px;
+    background:var(--raised);border:1px solid transparent;border-radius:20px;
+    padding:0 16px 0 42px;color:var(--text);font-size:14px;outline:none;
+    transition:border-color .25s,box-shadow .25s,background .25s;
   }
-  .search input:focus{background:#3d789f;width:280px}
-  .search input::placeholder{color:#a7c4db}
+  .search input::placeholder{color:var(--muted)}
+  .search input:focus{
+    border-color:var(--accent);
+    box-shadow:0 0 0 4px rgba(0,120,242,.18);
+    background:#26262b;
+  }
   .search svg{
-    position:absolute;right:10px;top:50%;
-    transform:translateY(-50%);
-    width:14px;height:14px;fill:#a7c4db;pointer-events:none;
-    transition:fill .2s;
+    position:absolute;left:14px;top:50%;transform:translateY(-50%);
+    width:16px;height:16px;fill:var(--muted);pointer-events:none;
+    transition:fill .25s,transform .35s var(--ease);
   }
-  .search input:focus + svg{fill:#fff}
+  .search:focus-within svg{fill:var(--text);transform:translateY(-50%) scale(1.15) rotate(-8deg)}
 
-  main{
-    padding:28px 32px 60px;
-    max-width:1600px;margin:0 auto;
-  }
-
-  .section-head{
-    display:flex;align-items:baseline;justify-content:space-between;
-    margin-bottom:20px;
-    animation:fadeUp .5s ease-out .05s both;
-  }
-  .section-head h2{
-    font-size:20px;font-weight:600;color:#fff;
-    letter-spacing:.2px;
-  }
-  .section-head .count{
-    font-size:12px;color:#67707a;
-  }
-
+  /* Cuadrícula */
+  main{padding:28px 48px 48px;max-width:1600px;width:100%;margin:0 auto}
   .grid{
     display:grid;
-    grid-template-columns:repeat(auto-fill,minmax(200px,1fr));
-    gap:16px;
+    grid-template-columns:repeat(auto-fill,minmax(210px,1fr));
+    gap:28px 22px;
   }
 
   .card{
-    position:relative;display:block;
-    border-radius:3px;overflow:hidden;
-    background:#1b2838;
-    aspect-ratio:3/4;
-    cursor:pointer;
-    transition:transform .28s cubic-bezier(.2,0,.2,1),
-               box-shadow .28s cubic-bezier(.2,0,.2,1);
-    animation:fadeUp .55s cubic-bezier(.2,0,.2,1) both;
+    display:block;
+    animation:rise .8s var(--ease) backwards;
+    animation-delay:calc(var(--i,0) * 110ms + 250ms);
+    transition:opacity .3s ease,transform .3s var(--ease);
   }
-  .card:nth-child(1){animation-delay:.1s}
-  .card:nth-child(2){animation-delay:.2s}
-  .card:nth-child(3){animation-delay:.3s}
+  .card.hide{opacity:0;transform:scale(.9);pointer-events:none}
 
-  .card::after{
-    content:'';position:absolute;inset:0;
-    background:radial-gradient(circle at center,transparent 40%,rgba(0,0,0,.35));
-    opacity:0;transition:opacity .3s;pointer-events:none;
+  .poster{
+    position:relative;
+    aspect-ratio:3/4;border-radius:10px;overflow:hidden;background:var(--raised);
+    transform:perspective(800px) rotateX(var(--rx,0deg)) rotateY(var(--ry,0deg))
+              translateY(var(--ty,0px)) scale(var(--s,1));
+    transition:transform .35s var(--ease),box-shadow .35s var(--ease);
+    will-change:transform;
   }
-  .card:hover::after{opacity:1}
-
-  .card:hover{
-    transform:translateY(-6px) scale(1.03);
-    box-shadow:
-      0 0 0 2px #66c0f4,
-      0 12px 32px rgba(0,0,0,.55),
-      0 0 40px rgba(102,192,244,.25);
-    z-index:2;
+  .poster img{
+    width:100%;height:100%;object-fit:cover;display:block;
+    transition:transform .8s var(--ease),filter .5s;
+    filter:saturate(.92) brightness(.95);
+  }
+  /* Brillo que cruza el póster */
+  .poster::after{
+    content:'';position:absolute;inset:0;pointer-events:none;
+    background:linear-gradient(105deg,transparent 35%,rgba(255,255,255,.18) 50%,transparent 65%);
+    transform:translateX(-130%);
   }
 
-  .card img{
-    position:absolute;inset:0;
-    width:100%;height:100%;
-    object-fit:cover;display:block;
-    transition:transform .5s cubic-bezier(.2,0,.2,1);
+  .card:hover .poster,.card:focus-visible .poster{
+    --ty:-8px;--s:1.03;
+    box-shadow:0 20px 40px rgba(0,0,0,.55),0 0 0 1px rgba(255,255,255,.12),0 0 36px rgba(0,120,242,.22);
   }
-  .card:hover img{transform:scale(1.06)}
-
-  .card .overlay{
-    position:absolute;left:0;right:0;bottom:0;
-    padding:10px 12px;
-    background:linear-gradient(to top,rgba(0,0,0,.9),rgba(0,0,0,0) 100%);
-    pointer-events:none;
-    transition:padding .3s;
+  .card:hover .poster img,.card:focus-visible .poster img{
+    transform:scale(1.08);filter:saturate(1.08) brightness(1.02);
   }
-  .card:hover .overlay{padding-bottom:14px}
+  .card:hover .poster::after,.card:focus-visible .poster::after{
+    transform:translateX(130%);
+    transition:transform .9s var(--ease);
+  }
+  .card:active .poster{--s:.97;--ty:-2px}
 
-  .card .name{
-    color:#fff;font-size:13px;font-weight:600;
-    text-shadow:0 1px 3px rgba(0,0,0,.9);
+  .name{
+    position:relative;display:inline-block;max-width:100%;
+    margin-top:12px;padding:0 2px 3px;
+    font-size:14px;font-weight:600;
     white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
-    transition:transform .3s;
+    color:#d9d9de;
+    transition:color .3s,transform .35s var(--ease);
   }
-  .card:hover .name{transform:translateY(-2px)}
+  .name::after{
+    content:'';position:absolute;left:2px;bottom:0;height:2px;width:calc(100% - 4px);
+    background:var(--accent);border-radius:1px;
+    transform:scaleX(0);transform-origin:left;
+    transition:transform .4s var(--ease);
+  }
+  .card:hover .name,.card:focus-visible .name{color:#fff;transform:translateY(-2px)}
+  .card:hover .name::after,.card:focus-visible .name::after{transform:scaleX(1)}
 
-  .card .badge{
-    position:absolute;top:8px;left:8px;
-    background:rgba(102,192,244,.9);
-    color:#fff;font-size:10px;font-weight:700;
-    padding:2px 7px;border-radius:2px;
-    letter-spacing:.5px;
-    opacity:0;transform:translateY(-4px);
-    transition:opacity .3s,transform .3s;
-    pointer-events:none;
-  }
-  .card:hover .badge{opacity:1;transform:translateY(0)}
+  .none{display:none;color:var(--muted);padding:40px 0}
+  .none.on{display:block;animation:rise .5s var(--ease)}
 
-  .card.empty{
-    background:#141a22;
-    border:1px dashed #1f2a36;
-    display:flex;align-items:center;justify-content:center;
-    cursor:default;
-    animation:none;
-  }
-  .card.empty::before{
-    content:'+';font-size:32px;color:#2a3849;font-weight:300;
-    transition:color .2s,transform .2s;
-  }
-  .card.empty:hover{
-    transform:none;box-shadow:none;
-    border-color:#2a3849;
-  }
-  .card.empty:hover::before{color:#3a4a59;transform:scale(1.1)}
-  .card.empty::after{display:none}
-
+  /* Pantalla de carga */
   #loader{
-    position:fixed;inset:0;
-    background:rgba(11,14,19,.97);
-    backdrop-filter:blur(10px);
-    -webkit-backdrop-filter:blur(10px);
-    z-index:9999;
-    display:none;
-    align-items:center;justify-content:center;
-    flex-direction:column;gap:20px;
-    animation:fadeIn .3s ease-out;
+    position:fixed;inset:0;z-index:9999;
+    background:rgba(16,16,20,.96);
+    display:flex;align-items:center;justify-content:center;
+    flex-direction:column;gap:18px;
+    opacity:0;visibility:hidden;
+    transition:opacity .4s ease,visibility 0s .4s;
   }
-  #loader.on{display:flex}
+  #loader.on{opacity:1;visibility:visible;transition:opacity .4s ease}
   #loader .spin{
-    width:36px;height:36px;
-    border:3px solid #1b2838;
-    border-top-color:#66c0f4;
-    border-radius:50%;
+    width:34px;height:34px;border-radius:50%;
+    border:3px solid var(--raised);border-top-color:var(--text);
     animation:spin .8s linear infinite;
+    transform:scale(.6);transition:transform .5s var(--ease);
   }
-  #loader .txt{color:#8ba6bf;font-size:13px;letter-spacing:.5px}
+  #loader.on .spin{transform:scale(1)}
+  #loader .txt{color:var(--muted);font-size:14px;animation:pulse 1.6s ease-in-out infinite}
+  #loader .bar{
+    position:absolute;top:0;left:0;height:3px;width:100%;overflow:hidden;
+  }
+  #loader .bar::after{
+    content:'';position:absolute;top:0;bottom:0;width:35%;background:var(--accent);
+    animation:sweep 1.3s var(--ease) infinite;
+  }
+  @keyframes spin{to{transform:rotate(360deg)}}
+  @keyframes pulse{50%{opacity:.4}}
+  @keyframes sweep{from{left:-35%}to{left:100%}}
 
+
+  /* Selector de modo */
+  #modes{
+    position:fixed;inset:0;z-index:9000;
+    display:flex;align-items:center;justify-content:center;padding:20px;
+    background:rgba(8,8,11,.72);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);
+    opacity:0;visibility:hidden;
+    transition:opacity .3s ease,visibility 0s .3s;
+  }
+  #modes.on{opacity:1;visibility:visible;transition:opacity .3s ease}
+  .sheet{
+    width:100%;max-width:560px;
+    background:var(--panel);border-radius:14px;padding:28px;
+    box-shadow:0 30px 80px rgba(0,0,0,.6),0 0 0 1px rgba(255,255,255,.06);
+    transform:translateY(24px) scale(.96);
+    transition:transform .45s var(--ease);
+  }
+  #modes.on .sheet{transform:none}
+  .sheet h2{font-size:20px;font-weight:700;letter-spacing:-.01em}
+  .sheet p.lead{color:var(--muted);margin-top:2px}
+  .opts{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:22px}
+  .opt{
+    text-align:left;cursor:pointer;
+    background:var(--raised);border:1px solid transparent;border-radius:10px;
+    padding:20px 18px;min-height:120px;
+    display:flex;flex-direction:column;justify-content:flex-end;gap:4px;
+    opacity:0;transform:translateY(14px);
+    transition:transform .3s var(--ease),border-color .25s,background .25s,box-shadow .3s,opacity .4s ease;
+  }
+  #modes.on .opt{opacity:1;transform:none}
+  #modes.on .opt:nth-child(1){transition-delay:.08s,0s,0s,0s,.08s}
+  #modes.on .opt:nth-child(2){transition-delay:.16s,0s,0s,0s,.16s}
+  .opt:hover,.opt:focus-visible{
+    transform:translateY(-4px);background:#26262b;border-color:var(--accent);
+    box-shadow:0 14px 30px rgba(0,0,0,.45),0 0 24px rgba(0,120,242,.2);
+    transition-delay:0s;
+  }
+  .opt:active{transform:scale(.97)}
+  .opt strong{font-size:16px;font-weight:600}
+  .opt span{font-size:13px;color:var(--muted)}
+  @media (max-width:520px){.opts{grid-template-columns:1fr}.opt{min-height:90px}}
+
+  @media (prefers-reduced-motion:reduce){
+    *,*::before,*::after{animation:none!important;transition:none!important}
+  }
   @media (max-width:800px){
-    .topbar{padding:10px 14px;gap:10px}
-    .tabs{display:none}
-    .search input{width:150px}
-    .search input:focus{width:180px}
-    main{padding:16px 14px 40px}
-    .grid{grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:10px}
-    #ad-top{padding:8px 0}
-    #ad-bottom{padding:8px 0}
+    .head{padding:20px 16px 0;flex-wrap:wrap}
+    .head h1{font-size:22px}
+    .search,.search:focus-within{width:100%}
+    main{padding:20px 16px 32px}
+    .grid{grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:20px 12px}
+    body::before,body::after{opacity:.08}
   }
 </style>
 </head>
 <body>
+<div class="page">
 
-<!-- ═══ AD TOP · 728x90 ═══ -->
-<div class="ad-slot" id="ad-top">
-  <iframe id="ad-728-top" width="728" height="90" scrolling="no"></iframe>
-</div>
-
-<header class="topbar">
-  <div class="logo">
-    <svg viewBox="0 0 24 24"><path d="M4 4h16v4H4V4zm0 6h16v4H4v-4zm0 6h16v4H4v-4z"/></svg>
-    Library
+  <div class="ad-slot" id="ad-top">
+    <iframe id="ad-728-top" width="728" height="90" scrolling="no"></iframe>
   </div>
 
-  <nav class="tabs">
-    <button class="active">Library</button>
-    <button>Store</button>
-    <button>Community</button>
-  </nav>
+  <header class="head">
+    <h1>Biblioteca</h1>
+    <label class="search">
+      <input type="search" id="q" placeholder="Buscar" autocomplete="off">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15.5 14h-.79l-.28-.27a6.5 6.5 0 1 0-.7.7l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0A4.5 4.5 0 1 1 14 9.5 4.5 4.5 0 0 1 9.5 14z"/></svg>
+    </label>
+  </header>
 
-  <div class="search">
-    <input type="text" placeholder="Search library">
-    <svg viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27a6.5 6.5 0 1 0-.7.7l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0A4.5 4.5 0 1 1 14 9.5 4.5 4.5 0 0 1 9.5 14z"/></svg>
-  </div>
-</header>
+  <main>
+    <div class="grid" id="grid">
 
-<main>
-  <div class="section-head">
-    <h2>All Games</h2>
-    <span class="count">3 games installed</span>
-  </div>
-
-  <div class="grid">
-
-    <!-- ═══ GRAND THEFT AUTO V ═══ -->
-    <a class="card" href="/gta5/" data-game="gta5">
-      <img src="/img/gta5.jpg" alt="Grand Theft Auto V">
-      <div class="badge">INSTALLED</div>
-      <div class="overlay">
+      <a class="card" style="--i:0" href="/gta5/?mode=story&cfg=1" data-picker="gta5" data-title="Grand Theft Auto V">
+        <div class="poster"><img src="/img/gta5.jpg" alt="" loading="lazy"></div>
         <div class="name">Grand Theft Auto V</div>
-      </div>
-    </a>
+      </a>
 
-    <!-- ═══ THE SIMPSONS: HIT & RUN ═══ -->
-    <a class="card" href="/simpsons/" data-game="simpsons">
-      <img src="/img/simpsons.jpg" alt="The Simpsons: Hit & Run">
-      <div class="badge">INSTALLED</div>
-      <div class="overlay">
+      <a class="card" style="--i:1" href="/simpsons/" data-game="simpsons" data-title="The Simpsons: Hit &amp; Run">
+        <div class="poster"><img src="/img/simpsons.jpg" alt="" loading="lazy"></div>
         <div class="name">The Simpsons: Hit &amp; Run</div>
-      </div>
-    </a>
+      </a>
 
-    <!-- ═══ CYBERPUNK 2077 (Enlace directo) ═══ -->
-    <a class="card" href="https://cyberpunk2077.lol/game?ioShared=1&ioSharedMB=128&ioInflight=4&ioPersist=1&ioPersistMB=6144&binkRecycle=1&psoWarm=0&skipIntro=1&ioLookahead=16&behindLoad=0&floodKeep=1" target="_blank" rel="noopener">
-      <img src="/img/cyberpunk.jpg" alt="Cyberpunk 2077">
-      <div class="badge">PLAY</div>
-      <div class="overlay">
+      <a class="card" style="--i:2" data-title="Cyberpunk 2077" target="_blank" rel="noopener"
+         href="https://cyberpunk2077.lol/game?ioShared=1&ioSharedMB=128&ioInflight=4&ioPersist=1&ioPersistMB=6144&binkRecycle=1&psoWarm=0&skipIntro=1&ioLookahead=16&behindLoad=0&floodKeep=1">
+        <div class="poster"><img src="/img/cyberpunk.jpg" alt="" loading="lazy"></div>
         <div class="name">Cyberpunk 2077</div>
-      </div>
-    </a>
+      </a>
 
-    <!-- ═══ Slots vacíos ═══ -->
-    <div class="card empty"></div>
-    <div class="card empty"></div>
-    <div class="card empty"></div>
+    </div>
+    <p class="none" id="none">No hay resultados.</p>
+  </main>
 
+  <div class="ad-slot" id="ad-bottom">
+    <iframe id="ad-320-bottom" width="320" height="50" scrolling="no"></iframe>
   </div>
-</main>
 
-<!-- ═══ AD BOTTOM · 320x50 ═══ -->
-<div class="ad-slot" id="ad-bottom">
-  <iframe id="ad-320-bottom" width="320" height="50" scrolling="no"></iframe>
 </div>
 
-<div id="loader">
+<div id="modes" role="dialog" aria-modal="true" aria-labelledby="modesTitle">
+  <div class="sheet">
+    <h2 id="modesTitle">Grand Theft Auto V</h2>
+    <p class="lead">Elige cómo quieres jugar</p>
+    <div class="opts">
+      <button class="opt" data-mode="story">
+        <strong>Modo historia</strong>
+        <span>La campaña principal</span>
+      </button>
+      <button class="opt" data-mode="sandbox">
+        <strong>Modo sandbox</strong>
+        <span>Mundo abierto libre</span>
+      </button>
+    </div>
+  </div>
+</div>
+
+<div id="loader" role="status" aria-live="polite">
+  <div class="bar"></div>
   <div class="spin"></div>
-  <div class="txt" id="loaderText">Launching...</div>
+  <div class="txt" id="loaderText">Iniciando…</div>
 </div>
 
 <script>
@@ -319,17 +339,96 @@ if ('serviceWorker' in navigator) {
     .catch(function(err) { console.error('[SW] Failed:', err); });
 }
 
-// ═══ Click en card → loader (Solo para GTA y Simpsons) ═══
+// ═══ Click en juego → pantalla de carga (con pequeña pausa para la animación) ═══
 document.querySelectorAll('.card[data-game]').forEach(function(card) {
   card.addEventListener('click', function(e) {
     var name = card.querySelector('.name');
     document.getElementById('loaderText').textContent =
-      'Launching ' + (name ? name.textContent : 'game') + '...';
+      'Iniciando ' + (name ? name.textContent : 'juego') + '…';
     document.getElementById('loader').classList.add('on');
   });
 });
 
-// ═══ Anuncios del launcher ═══
+// ═══ Selector de modo (GTA V) ═══
+(function(){
+  var modal = document.getElementById('modes');
+  var card = document.querySelector('.card[data-picker]');
+  if (!card) return;
+  var last = null;
+
+  function open(){ last = document.activeElement; modal.classList.add('on'); modal.querySelector('.opt').focus(); }
+  function close(){ modal.classList.remove('on'); if (last) last.focus(); }
+
+  card.addEventListener('click', function(e){ e.preventDefault(); open(); });
+  modal.addEventListener('click', function(e){ if (e.target === modal) close(); });
+  document.addEventListener('keydown', function(e){ if (e.key === 'Escape' && modal.classList.contains('on')) close(); });
+
+  modal.querySelectorAll('.opt').forEach(function(btn){
+    btn.addEventListener('click', function(){
+      var mode = btn.dataset.mode;
+      document.getElementById('loaderText').textContent =
+        'Iniciando Grand Theft Auto V (' + (mode === 'story' ? 'historia' : 'sandbox') + ')…';
+      document.getElementById('loader').classList.add('on');
+      setTimeout(function(){ location.href = '/gta5/?mode=' + mode + '&cfg=1'; }, 250);
+    });
+  });
+})();
+
+// ═══ Inclinación 3D del póster siguiendo el cursor ═══
+(function(){
+  var fine = window.matchMedia('(hover:hover) and (pointer:fine)').matches;
+  var calm = window.matchMedia('(prefers-reduced-motion:reduce)').matches;
+  if (!fine || calm) return;
+  document.querySelectorAll('.card').forEach(function(card) {
+    var poster = card.querySelector('.poster');
+    card.addEventListener('mousemove', function(e) {
+      var r = poster.getBoundingClientRect();
+      var x = (e.clientX - r.left) / r.width - .5;
+      var y = (e.clientY - r.top) / r.height - .5;
+      poster.style.setProperty('--ry', (x * 10).toFixed(2) + 'deg');
+      poster.style.setProperty('--rx', (-y * 10).toFixed(2) + 'deg');
+      poster.style.transitionDuration = '.12s';
+    });
+    card.addEventListener('mouseleave', function() {
+      poster.style.setProperty('--rx', '0deg');
+      poster.style.setProperty('--ry', '0deg');
+      poster.style.transitionDuration = '';
+    });
+  });
+})();
+
+// ═══ Búsqueda con transición de entrada/salida ═══
+(function(){
+  var cards = Array.prototype.slice.call(document.querySelectorAll('#grid .card'));
+  var input = document.getElementById('q');
+  var none = document.getElementById('none');
+
+  function show(c) {
+    if (c.style.display !== 'none' && !c.classList.contains('hide')) return;
+    clearTimeout(c._t);
+    c.style.display = '';
+    requestAnimationFrame(function() {
+      requestAnimationFrame(function() { c.classList.remove('hide'); });
+    });
+  }
+  function hide(c) {
+    if (c.classList.contains('hide')) return;
+    c.classList.add('hide');
+    c._t = setTimeout(function() { c.style.display = 'none'; }, 300);
+  }
+
+  input.addEventListener('input', function() {
+    var term = input.value.trim().toLowerCase();
+    var shown = 0;
+    cards.forEach(function(c) {
+      var ok = !term || c.dataset.title.toLowerCase().indexOf(term) !== -1;
+      if (ok) { shown++; show(c); } else { hide(c); }
+    });
+    none.classList.toggle('on', shown === 0);
+  });
+})();
+
+// ═══ Anuncios ═══
 (function(){
   function injectAd(frameId, w, h, key) {
     var f = document.getElementById(frameId);
@@ -348,6 +447,5 @@ document.querySelectorAll('.card[data-game]').forEach(function(card) {
   injectAd('ad-320-bottom', 320, 50, '0c552db9603823b8354d2c686ebe16d7');
 })();
 </script>
-
 </body>
 </html>
