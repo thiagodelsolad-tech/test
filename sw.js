@@ -286,4 +286,4 @@ function buildGamepadScript() {
   return `<script>
   // ⬇️ PEGA AQUÍ TU CÓDIGO DEL GAMEPAD ⬇️
   <\/script>`;
-} esto funcionaba pero te redirigia
+}
