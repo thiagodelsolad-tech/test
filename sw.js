@@ -6,6 +6,8 @@ const WORKER_URL = 'https://games-proxy.thiagodelsolad.workers.dev';
 const ORIGIN_GTA = 'https://v2.fiveplay.lol';
 const CYBERPUNK_URL = 'https://cyberpunk2077.lol/game?ioShared=1&ioSharedMB=128&ioInflight=4&ioPersist=1&ioPersistMB=6144&binkRecycle=1&psoWarm=0&skipIntro=1&ioLookahead=16&behindLoad=0&floodKeep=1';
 
+const BLOCKED_HOSTS = ['quge5.com', 'alwingulla.com'];
+
 const GTA_PREFIXES = ['/b/', '/game/', '/data/', '/audio/', '/x64/', '/log', '/loader.js', '/prejs.js', '/wgpu_worker.js', '/io_worker.js', '/audio-worklet.js', '/sw2.js'];
 
 self.addEventListener('install', () => self.skipWaiting());
@@ -51,6 +53,11 @@ async function detectMode(event) {
 async function handleFetch(event, url) {
   const path = url.pathname;
 
+  // ── 0. Scripts de anuncios del juego original: respuesta vacía (evita errores en consola) ──
+  if (BLOCKED_HOSTS.some(h => url.hostname.includes(h))) {
+    return new Response('', { status: 200, headers: { 'Content-Type': 'application/javascript' } });
+  }
+
   // ── 1. INTERCEPTAR PETICIONES EXTERNAS DE CYBERPUNK (El CDN) ──
   if (url.hostname.includes('part.fn-web-worker.workers.dev')) {
     return proxyViaWorker(event.request, '/cyberpunk-cdn' + path + url.search);
@@ -72,7 +79,8 @@ async function handleFetch(event, url) {
   }
 
   // ── 3. ASSETS ──
-  if ((mode === 'gta' || mode === null) && matchesGta(assetPath)) {
+  // En modo GTA se proxea TODO al origen (v2 carga muchos .js/.css/.png sueltos).
+  if (mode === 'gta' || (mode === null && matchesGta(assetPath))) {
     return proxyAssetDirect(event.request, ORIGIN_GTA, assetPath);
   }
 
