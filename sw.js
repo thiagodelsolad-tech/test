@@ -3,7 +3,7 @@
 // ═══════════════════════════════════════════════════════════════════════
 
 const WORKER_URL = 'https://games-proxy.thiagodelsolad.workers.dev'; 
-const ORIGIN_GTA = 'https://fiveplay.lol';
+const ORIGIN_GTA = 'v2.fiveplay.lol';
 const CYBERPUNK_URL = 'https://cyberpunk2077.lol/game?ioShared=1&ioSharedMB=128&ioInflight=4&ioPersist=1&ioPersistMB=6144&binkRecycle=1&psoWarm=0&skipIntro=1&ioLookahead=16&behindLoad=0&floodKeep=1';
 
 const GTA_PREFIXES = ['/b/', '/game/', '/data/', '/audio/', '/x64/', '/log', '/loader.js', '/prejs.js', '/wgpu_worker.js', '/io_worker.js', '/audio-worklet.js', '/sw2.js'];
