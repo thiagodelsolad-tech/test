@@ -1,5 +1,5 @@
 // ═══════════════════════════════════════════════════════════════════════
-// Service Worker Proxy — GTA V + Simpsons + Cyberpunk
+// Service Worker Proxy — GTA V + Simpsons + Cyberpunk (100% Corregido)
 // Flujo GTA: /gta5 -> launcher.html -> [Play] -> game.html
 // ═══════════════════════════════════════════════════════════════════════
 
@@ -56,6 +56,10 @@ function matchesGta(path) {
   );
 }
 
+function isGtaRoot(path) {
+  return path === '/gta5' || path === '/gta5/' || path === '/gta5/index.html';
+}
+
 function isGamePage(path, base) {
   return path === base || path === base + '/' || path === base + '/index.html';
 }
@@ -102,7 +106,7 @@ async function detectMode(event) {
 async function handleFetch(event, url) {
   const path = url.pathname;
 
-  // 0. Bloquear hosts de anuncios conocidos
+  // 0. Bloquear dominios de anuncios conocidos con respuesta JS vacía
   if (BLOCKED_HOSTS.some((host) => url.hostname.includes(host))) {
     return new Response('', {
       status: 200,
@@ -122,14 +126,20 @@ async function handleFetch(event, url) {
     return proxyViaWorker(event.request, '/cyberpunk-cdn' + path + url.search);
   }
 
-  // 2. Flujo GTA V: siempre inicia en launcher.html y al dar Play pasa a game.html
-  if (path === '/gta5/launcher.html' || isGamePage(path, '/gta5')) {
+  let mode = await detectMode(event);
+
+  // 2. Páginas HTML de GTA V:
+  // - /gta5/ o /gta5/launcher.html -> launcher.html original
+  // - /gta5/game.html (o /game.html dentro de modo gta) -> game.html original
+  if (path === '/gta5/launcher.html' || isGtaRoot(path)) {
     return serveGtaLauncherHTML(url.search);
   }
-  if (path === '/gta5/game.html') {
+
+  if (path === '/gta5/game.html' || (mode === 'gta' && path === '/game.html')) {
     return serveGameHTML(ORIGIN_GTA, 'gta', url.search);
   }
 
+  // Otras páginas de juego
   if (isGamePage(path, '/simpsons')) {
     return serveGameHTML(WORKER_URL + '/simpsons/', 'simpsons');
   }
@@ -137,14 +147,7 @@ async function handleFetch(event, url) {
     return serveGameHTML(WORKER_URL + '/cyberpunk/game', 'cyberpunk');
   }
 
-  let mode = await detectMode(event);
   let assetPath = path;
-
-  // Si desde /gta5/launcher.html navega a /gta5/game.html o /game.html
-  if (mode === 'gta' && path === '/game.html') {
-    return serveGameHTML(ORIGIN_GTA, 'gta', url.search);
-  }
-
   const subPathMatch = path.match(/^\/(gta5|simpsons|cyberpunk)(\/.*)$/);
   if (subPathMatch) {
     mode =
@@ -157,7 +160,7 @@ async function handleFetch(event, url) {
     assetPath = subPathMatch[2];
   }
 
-  // 3. Assets por juego
+  // 3. Enrutamiento de recursos por juego
   if (mode === 'gta' || (mode === null && matchesGta(assetPath))) {
     return proxyAssetDirect(event.request, ORIGIN_GTA, assetPath);
   }
@@ -200,6 +203,7 @@ async function proxyViaWorker(request, targetPath) {
       'content-type',
       'content-range',
       'accept-ranges',
+      'content-length',
       'last-modified',
       'etag',
     ].forEach((key) => {
@@ -222,11 +226,12 @@ async function proxyViaWorker(request, targetPath) {
 
 async function proxyAssetDirect(request, origin, assetPath) {
   const url = new URL(request.url);
-  const target = origin + assetPath + url.search;
+  const cleanAssetPath = assetPath.startsWith('/') ? assetPath : '/' + assetPath;
+  const target = origin + cleanAssetPath + url.search;
 
-  if (assetPath === '/sw2.js') {
+  if (cleanAssetPath === '/sw2.js') {
     return new Response(
-      'self.addEventListener("install", () => self.skipWaiting());',
+      'self.addEventListener("install", () => self.skipWaiting()); self.addEventListener("activate", (e) => e.waitUntil(self.clients.claim()));',
       {
         status: 200,
         headers: withIsolationHeaders({
@@ -240,7 +245,9 @@ async function proxyAssetDirect(request, origin, assetPath) {
     const hasBody = request.method !== 'GET' && request.method !== 'HEAD';
     const reqHeaders = new Headers();
     const range = request.headers.get('range');
+    const accept = request.headers.get('accept');
     if (range) reqHeaders.set('Range', range);
+    if (accept) reqHeaders.set('Accept', accept);
 
     const upstream = await fetch(target, {
       method: request.method,
@@ -248,6 +255,7 @@ async function proxyAssetDirect(request, origin, assetPath) {
       mode: 'cors',
       credentials: 'omit',
       redirect: 'follow',
+      referrer: origin + '/',
       body: hasBody ? await request.arrayBuffer() : undefined,
     });
 
@@ -256,6 +264,7 @@ async function proxyAssetDirect(request, origin, assetPath) {
       'content-type',
       'content-range',
       'accept-ranges',
+      'content-length',
       'last-modified',
       'etag',
     ].forEach((key) => {
@@ -264,7 +273,7 @@ async function proxyAssetDirect(request, origin, assetPath) {
     });
 
     if (upstream.ok || upstream.status === 206) {
-      const lower = assetPath.toLowerCase();
+      const lower = cleanAssetPath.toLowerCase();
       if (lower.endsWith('.wasm')) {
         headers.set('Content-Type', 'application/wasm');
       } else if (lower.endsWith('.js') || lower.endsWith('.mjs')) {
@@ -298,6 +307,27 @@ async function proxyAssetDirect(request, origin, assetPath) {
 // ═══════════════════════════════════════════════════════════════════════
 // HTML DEL LAUNCHER Y DEL JUEGO
 // ═══════════════════════════════════════════════════════════════════════
+function injectGtaHtmlPatches(html, type) {
+  const baseTag = '<base href="/gta5/">';
+  const headPatch = buildHeadPatch(type);
+  const bodyPatch = buildBodyPatch(type);
+
+  let output = html;
+  if (/<head[^>]*>/i.test(output)) {
+    output = output.replace(/<head[^>]*>/i, (match) => match + baseTag + headPatch);
+  } else {
+    output = baseTag + headPatch + output;
+  }
+
+  const bodyCloseIdx = output.toLowerCase().lastIndexOf('</body>');
+  if (bodyCloseIdx !== -1) {
+    output = output.slice(0, bodyCloseIdx) + bodyPatch + output.slice(bodyCloseIdx);
+  } else {
+    output += bodyPatch;
+  }
+  return output;
+}
+
 async function serveGtaLauncherHTML(search = '') {
   try {
     const targetUrl = `${ORIGIN_GTA}/launcher.html${search}`;
@@ -306,6 +336,7 @@ async function serveGtaLauncherHTML(search = '') {
       mode: 'cors',
       credentials: 'omit',
       cache: 'no-cache',
+      referrer: ORIGIN_GTA + '/',
     });
 
     if (!upstream.ok) {
@@ -315,24 +346,10 @@ async function serveGtaLauncherHTML(search = '') {
       });
     }
 
-    let html = await upstream.text();
-    const headPatch = buildHeadPatch('gta');
-    const bodyPatch = buildAudioScript();
+    const rawHtml = await upstream.text();
+    const patchedHtml = injectGtaHtmlPatches(rawHtml, 'launcher');
 
-    if (/<head[^>]*>/i.test(html)) {
-      html = html.replace(/<head[^>]*>/i, (m) => m + headPatch);
-    } else {
-      html = headPatch + html;
-    }
-
-    const bodyCloseIdx = html.toLowerCase().lastIndexOf('</body>');
-    if (bodyCloseIdx !== -1) {
-      html = html.slice(0, bodyCloseIdx) + bodyPatch + html.slice(bodyCloseIdx);
-    } else {
-      html += bodyPatch;
-    }
-
-    return new Response(html, {
+    return new Response(patchedHtml, {
       status: 200,
       headers: withIsolationHeaders({
         'Content-Type': 'text/html; charset=utf-8',
@@ -366,6 +383,7 @@ async function serveGameHTML(origin, type, search = '') {
       mode: 'cors',
       credentials: 'omit',
       cache: 'no-cache',
+      referrer: origin + '/',
     });
 
     if (!upstream.ok) {
@@ -376,20 +394,25 @@ async function serveGameHTML(origin, type, search = '') {
     }
 
     let html = await upstream.text();
-    const headPatch = buildHeadPatch(type);
-    const bodyPatch = buildBodyPatch(type);
 
-    if (/<head[^>]*>/i.test(html)) {
-      html = html.replace(/<head[^>]*>/i, (match) => match + headPatch);
+    if (type === 'gta') {
+      html = injectGtaHtmlPatches(html, 'gta');
     } else {
-      html = headPatch + html;
-    }
+      const headPatch = buildHeadPatch(type);
+      const bodyPatch = buildBodyPatch(type);
 
-    const bodyCloseIdx = html.toLowerCase().lastIndexOf('</body>');
-    if (bodyCloseIdx !== -1) {
-      html = html.slice(0, bodyCloseIdx) + bodyPatch + html.slice(bodyCloseIdx);
-    } else {
-      html += bodyPatch;
+      if (/<head[^>]*>/i.test(html)) {
+        html = html.replace(/<head[^>]*>/i, (match) => match + headPatch);
+      } else {
+        html = headPatch + html;
+      }
+
+      const bodyCloseIdx = html.toLowerCase().lastIndexOf('</body>');
+      if (bodyCloseIdx !== -1) {
+        html = html.slice(0, bodyCloseIdx) + bodyPatch + html.slice(bodyCloseIdx);
+      } else {
+        html += bodyPatch;
+      }
     }
 
     return new Response(html, {
@@ -410,7 +433,7 @@ async function serveGameHTML(origin, type, search = '') {
 // PATCHES (Bloqueo de popups/ads, Audio, Gamepad)
 // ═══════════════════════════════════════════════════════════════════════
 function buildHeadPatch(type) {
-  if (type !== 'gta') return '';
+  if (type !== 'gta' && type !== 'launcher') return '';
 
   return `<script>
 (function () {
@@ -529,6 +552,9 @@ function buildHeadPatch(type) {
 }
 
 function buildBodyPatch(type) {
+  if (type === 'launcher') {
+    return buildAudioScript();
+  }
   if (type === 'simpsons' || type === 'cyberpunk') {
     return buildAudioScript();
   }
@@ -538,38 +564,65 @@ function buildBodyPatch(type) {
 function buildAudioScript() {
   return `<script>
 (function () {
-  var unlocked = false;
+  var trackedContexts = new Set();
 
-  function resumeContexts() {
+  function registerCtx(ctx) {
+    if (ctx && typeof ctx.resume === 'function') {
+      trackedContexts.add(ctx);
+    }
+  }
+
+  var OrigAudioCtx = window.AudioContext || window.webkitAudioContext;
+  if (OrigAudioCtx && !OrigAudioCtx.__patchedBySw) {
+    function WrappedAudioContext(opts) {
+      var instance = opts ? new OrigAudioCtx(opts) : new OrigAudioCtx();
+      registerCtx(instance);
+      return instance;
+    }
+    WrappedAudioContext.prototype = OrigAudioCtx.prototype;
+    Object.setPrototypeOf(WrappedAudioContext, OrigAudioCtx);
+    WrappedAudioContext.__patchedBySw = true;
+    window.AudioContext = WrappedAudioContext;
+    if (window.webkitAudioContext) {
+      window.webkitAudioContext = WrappedAudioContext;
+    }
+  }
+
+  function resumeAllContexts() {
     try {
-      if (window.__audioContexts && Array.isArray(window.__audioContexts)) {
-        window.__audioContexts.forEach(function (ctx) {
-          if (ctx && ctx.state === 'suspended') {
-            ctx.resume().catch(function () {});
-          }
-        });
+      if (Array.isArray(window.__audioContexts)) {
+        window.__audioContexts.forEach(registerCtx);
       }
+      trackedContexts.forEach(function (ctx) {
+        if (ctx && ctx.state === 'suspended') {
+          ctx.resume().catch(function () {});
+        }
+      });
+      document.querySelectorAll('audio, video').forEach(function (media) {
+        if (media.muted) media.muted = false;
+        if (media.paused && media.autoplay) {
+          media.play().catch(function () {});
+        }
+      });
     } catch (_) {}
   }
 
   function unlockAudio() {
-    if (unlocked) return;
-    unlocked = true;
-
+    resumeAllContexts();
     try {
-      resumeContexts();
-      var AudioCtx = window.AudioContext || window.webkitAudioContext;
-      if (AudioCtx) {
-        var ctx = new AudioCtx();
-        if (ctx.state === 'suspended') {
-          ctx.resume().catch(function () {});
+      var Ctx = window.AudioContext || window.webkitAudioContext;
+      if (Ctx && trackedContexts.size === 0) {
+        var tempCtx = new Ctx();
+        registerCtx(tempCtx);
+        if (tempCtx.state === 'suspended') {
+          tempCtx.resume().catch(function () {});
         }
       }
     } catch (_) {}
 
     var ticks = 0;
     var interval = setInterval(function () {
-      resumeContexts();
+      resumeAllContexts();
       if (++ticks > 20) clearInterval(interval);
     }, 500);
   }
