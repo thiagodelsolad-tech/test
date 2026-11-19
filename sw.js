@@ -1,5 +1,6 @@
 // ═══════════════════════════════════════════════════════════════════════
-// Service Worker Proxy — GTA V + Simpsons + Cyberpunk (Con Launcher)
+// Service Worker Proxy — GTA V + Simpsons + Cyberpunk
+// Flujo GTA: /gta5 -> launcher.html -> [Play] -> game.html
 // ═══════════════════════════════════════════════════════════════════════
 
 const WORKER_URL = 'https://games-proxy.thiagodelsolad.workers.dev';
@@ -101,7 +102,7 @@ async function detectMode(event) {
 async function handleFetch(event, url) {
   const path = url.pathname;
 
-  // 0. Bloquear hosts de anuncios
+  // 0. Bloquear hosts de anuncios conocidos
   if (BLOCKED_HOSTS.some((host) => url.hostname.includes(host))) {
     return new Response('', {
       status: 200,
@@ -111,7 +112,7 @@ async function handleFetch(event, url) {
     });
   }
 
-  // Redirigir rutas base sin barra final conservando query strings
+  // Normalizar rutas base sin barra final conservando query strings
   if (path === '/gta5' || path === '/simpsons' || path === '/cyberpunk') {
     return Response.redirect(`${url.origin}${path}/${url.search}`, 302);
   }
@@ -121,21 +122,12 @@ async function handleFetch(event, url) {
     return proxyViaWorker(event.request, '/cyberpunk-cdn' + path + url.search);
   }
 
-  // 2. Launcher y páginas principales de GTA V
-  if (path === '/gta5/launcher.html') {
+  // 2. Flujo GTA V: siempre inicia en launcher.html y al dar Play pasa a game.html
+  if (path === '/gta5/launcher.html' || isGamePage(path, '/gta5')) {
     return serveGtaLauncherHTML(url.search);
   }
   if (path === '/gta5/game.html') {
     return serveGameHTML(ORIGIN_GTA, 'gta', url.search);
-  }
-  if (isGamePage(path, '/gta5')) {
-    const params = new URLSearchParams(url.search);
-    // Si viene desde tu index con ?mode=story|sandbox, entra directo a game.html;
-    // si entra directo a /gta5/, sirve el launcher.html original.
-    if (params.has('mode')) {
-      return serveGameHTML(ORIGIN_GTA, 'gta', url.search);
-    }
-    return serveGtaLauncherHTML(url.search);
   }
 
   if (isGamePage(path, '/simpsons')) {
@@ -147,6 +139,11 @@ async function handleFetch(event, url) {
 
   let mode = await detectMode(event);
   let assetPath = path;
+
+  // Si desde /gta5/launcher.html navega a /gta5/game.html o /game.html
+  if (mode === 'gta' && path === '/game.html') {
+    return serveGameHTML(ORIGIN_GTA, 'gta', url.search);
+  }
 
   const subPathMatch = path.match(/^\/(gta5|simpsons|cyberpunk)(\/.*)$/);
   if (subPathMatch) {
@@ -356,7 +353,8 @@ async function serveGameHTML(origin, type, search = '') {
     if (type === 'gta') {
       const params = new URLSearchParams(search);
       const mode = params.get('mode') === 'sandbox' ? 'sandbox' : 'story';
-      targetUrl = `${origin}/game.html?mode=${mode}&cfg=1`;
+      const cfg = params.get('cfg') || '1';
+      targetUrl = `${origin}/game.html?mode=${mode}&cfg=${cfg}`;
     } else if (type === 'simpsons') {
       targetUrl = origin + '?skipmovie';
     } else if (type === 'cyberpunk') {
